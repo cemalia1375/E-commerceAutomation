@@ -127,6 +127,7 @@ This is the shared orchestration layer. Business modules **must not** put harnes
 
 - **`simpleclaw/runtime/`** — Task queue, scope locks, side effects, services.
   - `TaskQueue` (InMemory or Redis), `ScopeLockRegistry`, `RuntimeServices`.
+  - **`simpleclaw/runtime/worker.py`** — `TaskWorker` (moved here from Mojing during Flowcut build). Both Mojing and Flowcut import `TaskWorker` from this shared location. `Mojing/runtime/worker.py` now re-exports it for backwards compatibility.
 
 - **`simpleclaw/subagent/`** — Subagent abstraction (`SubagentBase`, `SubagentRunner`).
 
@@ -181,21 +182,43 @@ These are markdown files that form the system prompt, loaded in order:
 4. `compliance.md` — Shared compliance constraints
 5. `journey/{stage}.md` — Stage-specific strategy (novice / explore / mature)
 
-## FlowCut MVP — Planned Architecture (`Flowcut/`)
+## FlowCut MVP — Architecture (`Flowcut/`)
 
-`Flowcut/` is currently empty and will be built following the Mojing pattern. The MVP is a 抖音千川 content production tool:
+`Flowcut/` is a 抖音千川 content production tool. The business layer skeleton has been built (2026-05-13). Business logic (ASR, Gemini decomposition, FFmpeg, Qianchuan API) is stubbed with `raise NotImplementedError` / `501 TODO` pending future implementation.
 
-1. Upload viral video → LLM (Gemini 3.1 Pro) decomposes into scenes
-2. Generate differentiated scripts
-3. Match scripts to material library
-4. Render rough cut via FFmpeg
-5. Review and confirm final video
+### Directory Structure
+```
+Flowcut/
+  agent/          # MainAgent, FirstTokenAgent, PostprocessHook, ColdPathHook
+  api/            # FastAPI routes, server, AppContainer (build_container)
+  context/        # TaskContextProvider (stubs current task state into prompt)
+  tools/          # 6 Tool classes (decompose_video, generate_scripts, search_materials,
+                  #   compose_video, check_task_status, publish_to_qianchuan)
+  storage/        # MaterialRepo, CreativeRepo, ScriptRepo, QianchuanRepo + shared repos
+  runtime/        # FlowcutTaskStream (5 streams), stub executors, make_workers()
+  workspace/      # Agent.md, SOUL.md, TOOL.md, compliance.md
+  config.py       # FLOWCUT_* env vars + OSS config
+```
 
-**Planned backend tables** (from `docs/排期.md`):
-- `material` —素材主表
-- `creative` — 成片表
-- `script` — 脚本表
-- `material_usage` — 素材↔成片关联表
+### Start Flowcut dev server
+```bash
+cd SimpleClaw
+uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
+```
+
+### DB Tables (MySQL, created via ensure_schema on startup)
+- `fc_material` — 素材主表 (status: PROCESSING → READY / FAILED)
+- `fc_script` — 脚本表 (segments_json: JSON array)
+- `fc_creative` — 成片表 (status: PENDING → COMPOSING → READY / FAILED; label: NORMAL / HOT / DEAD)
+- `fc_material_usage` — 素材↔成片多对多
+- `fc_qianchuan_account` — 千川账号 + OAuth token 存储
+
+### Key Flowcut design decisions
+- **No journey stages** — MainAgent uses single `"default"` stage (no novice/explore/mature)
+- **No subagents** — FlowCut has no SubagentStore; long-running work goes through TaskQueue only
+- **Tool factories** — All 6 tools instantiated in `build_container()` via lambda factories
+- **TaskContextProvider** — Currently returns `[]` (stub); will inject current task state once repos are implemented
+- See `Flowcut/DESIGN.md` for full API list and stream design
 
 ## Important Design Principles
 
