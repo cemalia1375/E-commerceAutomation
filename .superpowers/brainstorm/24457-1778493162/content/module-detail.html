@@ -1,0 +1,74 @@
+<h2>系统总览图 — 模块细分</h2>
+<p class="subtitle">三层架构，箭头标注调用/依赖方向</p>
+
+<div style="display: flex; flex-direction: column; gap: 2px; max-width: 680px; margin: 0 auto;">
+
+  <!-- Layer 3: SimpleClaw Framework -->
+  <div style="background: #e3f2fd; border: 2px solid #1565c0; border-radius: 10px; padding: 12px;">
+    <div style="font-weight: bold; color: #1565c0; margin-bottom: 8px;">🔷 SimpleClaw 框架层</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>ReactLoop</b><br><span style="color: #666;">ReAct 执行引擎</span></div>
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>ContextBuilder</b><br><span style="color: #666;">系统提示组装</span></div>
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>LLMProvider</b><br><span style="color: #666;">模型调用抽象</span></div>
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>ToolRegistry</b><br><span style="color: #666;">工具注册/执行</span></div>
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>Memory</b><br><span style="color: #666;">会话/长期记忆</span></div>
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>Runtime</b><br><span style="color: #666;">任务队列/服务</span></div>
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>ToolLifecycle</b><br><span style="color: #666;">预执行 Hook 链</span></div>
+      <div style="background: white; border: 1px solid #90caf9; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1; min-width: 120px;"><b>Compressor</b><br><span style="color: #666;">上下文压缩</span></div>
+    </div>
+  </div>
+
+  <!-- Arrow: SimpleClaw provides infrastructure to Mojing -->
+  <div style="text-align: center; color: #1565c0; font-size: 20px; line-height: 1;">⬇️ 提供基础设施</div>
+
+  <!-- Layer 2: Mojing Application -->
+  <div style="background: #fce4ec; border: 2px solid #c62828; border-radius: 10px; padding: 12px;">
+    <div style="font-weight: bold; color: #c62828; margin-bottom: 8px;">🔴 Mojing 应用层</div>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <!-- Row 1: API / Routes / Container -->
+      <div style="display: flex; gap: 6px;">
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>FastAPI Server</b><br><span style="color: #666;">/agent/chat, /v1/chat</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>AppContainer</b><br><span style="color: #666;">DI 组装 + build_container</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>EventHub</b><br><span style="color: #666;">事件发布/订阅</span></div>
+      </div>
+      <!-- Row 2: Agent assembly -->
+      <div style="display: flex; gap: 6px;">
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>MainAgent</b><br><span style="color: #666;">Context/Tool 装配层</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>SessionStore</b><br><span style="color: #666;">会话管理+冷启动</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>SubagentStore</b><br><span style="color: #666;">子代理调度</span></div>
+      </div>
+      <!-- Row 3: Tools, Context Providers, Storage -->
+      <div style="display: flex; gap: 6px;">
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>Mojing Tools</b><br><span style="color: #666;">图片/报告/证据/设备</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>Context Providers</b><br><span style="color: #666;">文档/主题/证据提供</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>Subagents</b><br><span style="color: #666;">SkinDiary / DeepReport</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>Repos</b><br><span style="color: #666;">MySQL 仓储层</span></div>
+      </div>
+      <!-- Row 4: Workers -->
+      <div style="display: flex; gap: 6px;">
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>Task Workers × 8</b><br><span style="color: #666;">后处理/图片/皮肤日记/...</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>Tool Gates</b><br><span style="color: #666;">DeepReport / HistoryGate</span></div>
+        <div style="background: white; border: 1px solid #ef9a9a; border-radius: 6px; padding: 6px; font-size: 12px; flex: 1;"><b>Journey</b><br><span style="color: #666;">阶段策略 novice→mature</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow: Mojing depends on External -->
+  <div style="text-align: center; color: #c62828; font-size: 20px; line-height: 1;">⬇️ 依赖外部服务</div>
+
+  <!-- Layer 1: External -->
+  <div style="background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 10px; padding: 12px;">
+    <div style="font-weight: bold; color: #2e7d32; margin-bottom: 8px;">🟢 外部依赖</div>
+    <div style="display: flex; gap: 6px;">
+      <div style="background: white; border: 1px solid #a5d6a7; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1;"><b>MySQL</b><br><span style="color: #666;">会话/记忆/文档/图片</span></div>
+      <div style="background: white; border: 1px solid #a5d6a7; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1;"><b>Volcengine LLM</b><br><span style="color: #666;">Doubao Pro/Lite</span></div>
+      <div style="background: white; border: 1px solid #a5d6a7; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1;"><b>Image API</b><br><span style="color: #666;">图片分析/裁剪</span></div>
+      <div style="background: white; border: 1px solid #a5d6a7; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1;"><b>Deep Research</b><br><span style="color: #666;">深度研究 API</span></div>
+      <div style="background: white; border: 1px solid #a5d6a7; border-radius: 6px; padding: 6px 10px; font-size: 12px; flex: 1;"><b>Device API</b><br><span style="color: #666;">硬件设备命令</span></div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 16px; padding: 12px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffe082;">
+  <b>💡 交互方案：</b>每个子模块可点击，点击后弹出详情面板展示：该模块的职责、关键类/接口、依赖关系、代码链接。
+</div>

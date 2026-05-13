@@ -1,0 +1,123 @@
+<h2>素材库 / 成片库 — 展示方式</h2>
+<p class="subtitle">两个 Tab 的文件浏览区怎么排列？</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="grid" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8fa;border-radius:6px;padding:12px;font-family:sans-serif;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+        <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+          <div style="background:#e8e8f8;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;">🎬</div>
+          <div style="padding:5px;">
+            <div style="font-size:9px;font-weight:600;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">人物素材-3s-主播开瓶</div>
+            <div style="font-size:8px;color:#aaa;">3s · 12MB</div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+          <div style="background:#e8f0e8;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;">🖼️</div>
+          <div style="padding:5px;">
+            <div style="font-size:9px;font-weight:600;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">产品素材-5s-特写旋转</div>
+            <div style="font-size:8px;color:#aaa;">5s · 28MB</div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:5px;border:2px dashed #c0c8f0;display:flex;align-items:center;justify-content:center;height:80px;">
+          <div style="text-align:center;color:#aaa;font-size:10px;">+ 上传</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+          <div style="background:#f0e8e8;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;">🎬</div>
+          <div style="padding:5px;">
+            <div style="font-size:9px;font-weight:600;color:#222;">场景素材-8s-室外</div>
+            <div style="font-size:8px;color:#aaa;">8s · 45MB</div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+          <div style="background:#e8f4f0;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;">🎬</div>
+          <div style="padding:5px;">
+            <div style="font-size:9px;font-weight:600;color:#222;">氛围素材-2s-转场</div>
+            <div style="font-size:8px;color:#aaa;">2s · 8MB</div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+          <div style="background:#f4f0e8;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;">🎬</div>
+          <div style="padding:5px;">
+            <div style="font-size:9px;font-weight:600;color:#222;">产品素材-4s-包装</div>
+            <div style="font-size:8px;color:#aaa;">4s · 19MB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 网格卡片（推荐）</h3>
+      <p>缩略图为主，一屏展示更多素材。可灵、即梦的素材管理均用此方案。视频素材 hover 时可预览。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="list" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8fa;border-radius:6px;padding:12px;font-family:sans-serif;">
+      <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+        <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px;gap:0;font-size:9px;color:#999;padding:5px 8px;border-bottom:1px solid #f0f0f8;background:#fafafa;">
+          <span></span><span>名称</span><span>类别</span><span>时长</span><span>使用次数</span>
+        </div>
+        <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px;gap:0;font-size:10px;padding:6px 8px;border-bottom:1px solid #f8f8fc;align-items:center;">
+          <div style="background:#e8e8f8;width:24px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px;">🎬</div>
+          <span style="color:#222;padding-left:6px;">人物素材-3s-主播开瓶</span>
+          <span style="color:#666;">人物</span>
+          <span style="color:#666;">3s</span>
+          <span style="color:#3b5bdb;">12次</span>
+        </div>
+        <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px;gap:0;font-size:10px;padding:6px 8px;border-bottom:1px solid #f8f8fc;align-items:center;">
+          <div style="background:#e8f0e8;width:24px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px;">🎬</div>
+          <span style="color:#222;padding-left:6px;">产品素材-5s-特写旋转</span>
+          <span style="color:#666;">产品</span>
+          <span style="color:#666;">5s</span>
+          <span style="color:#3b5bdb;">8次</span>
+        </div>
+        <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px;gap:0;font-size:10px;padding:6px 8px;border-bottom:1px solid #f8f8fc;align-items:center;">
+          <div style="background:#f0e8e8;width:24px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px;">🎬</div>
+          <span style="color:#222;padding-left:6px;">场景素材-8s-室外自然光</span>
+          <span style="color:#666;">场景</span>
+          <span style="color:#666;">8s</span>
+          <span style="color:#3b5bdb;">3次</span>
+        </div>
+        <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px;gap:0;font-size:10px;padding:6px 8px;align-items:center;">
+          <div style="background:#e8f4f0;width:24px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px;">🎬</div>
+          <span style="color:#222;padding-left:6px;">氛围素材-2s-转场白光</span>
+          <span style="color:#666;">氛围</span>
+          <span style="color:#666;">2s</span>
+          <span style="color:#3b5bdb;">21次</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 表格列表</h3>
+      <p>展示更多元数据（类别、时长、使用次数），适合素材量大时排序筛选。但视觉密度低，缩略图小。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="grid-list" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8fa;border-radius:6px;padding:12px;font-family:sans-serif;">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px;gap:4px;">
+        <div style="background:#3b5bdb;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;">⊞</div>
+        <div style="background:#fff;border:1px solid #e0e0e8;color:#666;font-size:9px;padding:2px 6px;border-radius:3px;">≡</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
+        <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+          <div style="background:#e8e8f8;height:36px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎬</div>
+          <div style="padding:4px;font-size:8px;font-weight:600;color:#222;">人物-3s-开瓶</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;border:1px solid #e0e0e8;overflow:hidden;">
+          <div style="background:#e8f0e8;height:36px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎬</div>
+          <div style="padding:4px;font-size:8px;font-weight:600;color:#222;">产品-5s-旋转</div>
+        </div>
+        <div style="background:#fff;border-radius:5px;border:1px dashed #c0c8f0;display:flex;align-items:center;justify-content:center;height:58px;">
+          <div style="color:#aaa;font-size:9px;">+</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 网格 + 切换列表</h3>
+      <p>默认网格，右上角可切换表格视图。两种模式都支持，适应不同操作习惯。开发量略多。</p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,56 @@
+<h2>架构图细粒度：你想深入到什么程度？</h2>
+<p class="subtitle">分为 SimpleClaw 框架和 Mojing 集成两部分，每部分可以不同粒度</p>
+
+<div class="section">
+  <h3>第一部分：SimpleClaw 框架架构</h3>
+  <div class="options">
+    <div class="option" data-choice="a1" onclick="toggleSelect(this)">
+      <div class="letter">A1</div>
+      <div class="content">
+        <h3>宏观模块图</h3>
+        <p>展示核心模块（ReactLoop / Context / LLM / Tools / Memory / Runtime）及其关系，不深入内部</p>
+      </div>
+    </div>
+    <div class="option" data-choice="a2" onclick="toggleSelect(this)">
+      <div class="letter">A2</div>
+      <div class="content">
+        <h3>中等粒度</h3>
+        <p>宏观模块 + 每个模块的关键组件/接口，标注核心数据流</p>
+      </div>
+    </div>
+    <div class="option" data-choice="a3" onclick="toggleSelect(this)">
+      <div class="letter">A3</div>
+      <div class="content">
+        <h3>详细架构</h3>
+        <p>类级别、接口协议、时序流程图、组件生命周期完整展开</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>第二部分：Mojing 如何使用 SimpleClaw</h3>
+  <div class="options">
+    <div class="option" data-choice="b1" onclick="toggleSelect(this)">
+      <div class="letter">B1</div>
+      <div class="content">
+        <h3>宏观集成图</h3>
+        <p>Mojing 各个模块（API / Agent / Tools / Storage / Subagent）与 SimpleClaw 的依赖关系概览</p>
+      </div>
+    </div>
+    <div class="option" data-choice="b2" onclick="toggleSelect(this)">
+      <div class="letter">B2</div>
+      <div class="content">
+        <h3>中等粒度</h3>
+        <p>Mojing 启动流程（build_container）、请求处理链路、工具注册、后台 Worker 体系</p>
+      </div>
+    </div>
+    <div class="option" data-choice="b3" onclick="toggleSelect(this)">
+      <div class="letter">B3</div>
+      <div class="content">
+        <h3>详细集成</h3>
+        <p>含 MainAgent 装配、ContextBuilder 自定义 Provider、ToolLifecycle gates、冷路径/后处理 Subagent 等完整展开</p>
+      </div>
+    </div>
+  </div>
+</div>

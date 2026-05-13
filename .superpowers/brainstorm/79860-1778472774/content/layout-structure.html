@@ -1,0 +1,95 @@
+<h2>整体布局结构</h2>
+<p class="subtitle">生成 Tab 里，对话区和内容区怎么排列？</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="left-chat" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8fa;border-radius:6px;padding:12px;font-family:sans-serif;">
+      <!-- Tab bar -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;border-bottom:1px solid #e0e0e8;padding-bottom:8px;">
+        <span style="color:#3b5bdb;font-size:11px;font-weight:600;border-bottom:2px solid #3b5bdb;padding-bottom:4px;">生成</span>
+        <span style="color:#999;font-size:11px;margin-left:8px;">素材库</span>
+        <span style="color:#999;font-size:11px;margin-left:8px;">成片库</span>
+      </div>
+      <!-- Layout: left chat, right content -->
+      <div style="display:flex;gap:8px;height:110px;">
+        <div style="width:38%;background:#fff;border-radius:4px;border:1px solid #e0e0e8;padding:8px;font-size:10px;">
+          <div style="color:#999;margin-bottom:6px;">对话</div>
+          <div style="background:#f0f0ff;border-radius:3px;padding:4px 6px;color:#3b5bdb;font-size:9px;margin-bottom:4px;">上传了爆款视频...</div>
+          <div style="background:#fff;border:1px solid #e8e8f0;border-radius:3px;padding:4px 6px;color:#333;font-size:9px;">已生成 4 条脚本</div>
+          <div style="margin-top:auto;padding-top:8px;background:#fff;border-radius:3px;border:1px solid #dde;padding:4px;color:#aaa;font-size:9px;">输入消息...</div>
+        </div>
+        <div style="flex:1;background:#fff;border-radius:4px;border:1px solid #e0e0e8;padding:8px;font-size:10px;">
+          <div style="color:#999;margin-bottom:6px;">当前步骤：脚本选择</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div style="background:#f8f8ff;border-left:3px solid #3b5bdb;padding:4px 6px;font-size:9px;color:#333;">脚本 1：痛点开场…</div>
+            <div style="background:#f8f8ff;border-left:3px solid #e0e0e8;padding:4px 6px;font-size:9px;color:#333;">脚本 2：场景代入…</div>
+            <div style="background:#f8f8ff;border-left:3px solid #e0e0e8;padding:4px 6px;font-size:9px;color:#333;">脚本 3：产品特写…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 左对话 / 右内容</h3>
+      <p>ChatGPT / Claude 同款分栏。对话在左侧固定，右侧随步骤切换展示脚本、匹配结果、成片预览等。可灵 AI 用的是这个思路。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="top-chat" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8fa;border-radius:6px;padding:12px;font-family:sans-serif;">
+      <div style="display:flex;gap:6px;margin-bottom:10px;border-bottom:1px solid #e0e0e8;padding-bottom:8px;">
+        <span style="color:#3b5bdb;font-size:11px;font-weight:600;border-bottom:2px solid #3b5bdb;padding-bottom:4px;">生成</span>
+        <span style="color:#999;font-size:11px;margin-left:8px;">素材库</span>
+        <span style="color:#999;font-size:11px;margin-left:8px;">成片库</span>
+      </div>
+      <!-- Layout: top chat, bottom content -->
+      <div style="display:flex;flex-direction:column;gap:8px;height:110px;">
+        <div style="height:42%;background:#fff;border-radius:4px;border:1px solid #e0e0e8;padding:8px;font-size:10px;overflow:hidden;">
+          <div style="display:flex;gap:6px;align-items:flex-start;">
+            <div style="background:#f0f0ff;border-radius:3px;padding:3px 6px;color:#3b5bdb;font-size:9px;">上传爆款视频</div>
+            <div style="background:#fff;border:1px solid #e8e8f0;border-radius:3px;padding:3px 6px;color:#333;font-size:9px;">已生成脚本</div>
+            <div style="background:#f0f0ff;border-radius:3px;padding:3px 6px;color:#3b5bdb;font-size:9px;">选脚本 1</div>
+          </div>
+          <div style="margin-top:6px;background:#f8f8ff;border:1px solid #dde;border-radius:3px;padding:3px 6px;color:#aaa;font-size:9px;">输入消息...</div>
+        </div>
+        <div style="flex:1;background:#fff;border-radius:4px;border:1px solid #e0e0e8;padding:8px;font-size:10px;">
+          <div style="color:#999;margin-bottom:4px;font-size:9px;">脚本匹配结果</div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;background:#f0fff4;border-radius:3px;padding:4px;font-size:9px;color:#2a9d4a;">✓ 已匹配 8</div>
+            <div style="flex:1;background:#fff9e6;border-radius:3px;padding:4px;font-size:9px;color:#d4a017;">△ 低匹配 3</div>
+            <div style="flex:1;background:#fff0f0;border-radius:3px;padding:4px;font-size:9px;color:#e03;">✗ 缺失 1</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 上对话 / 下内容</h3>
+      <p>对话流在上方横向延展，下方大区域展示当前步骤内容。适合宽屏，视野重心在结果区域。即梦 AI 视频生成页类似此布局。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="fullchat" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8fa;border-radius:6px;padding:12px;font-family:sans-serif;">
+      <div style="display:flex;gap:6px;margin-bottom:10px;border-bottom:1px solid #e0e0e8;padding-bottom:8px;">
+        <span style="color:#3b5bdb;font-size:11px;font-weight:600;border-bottom:2px solid #3b5bdb;padding-bottom:4px;">生成</span>
+        <span style="color:#999;font-size:11px;margin-left:8px;">素材库</span>
+        <span style="color:#999;font-size:11px;margin-left:8px;">成片库</span>
+      </div>
+      <!-- Full chat with inline rich content -->
+      <div style="background:#fff;border-radius:4px;border:1px solid #e0e0e8;padding:8px;height:110px;overflow:hidden;font-size:10px;">
+        <div style="background:#f0f0ff;border-radius:3px;padding:4px 6px;color:#3b5bdb;font-size:9px;margin-bottom:6px;display:inline-block;">请上传爆款视频</div>
+        <div style="background:#f8f8ff;border:1px solid #e0e0f0;border-radius:4px;padding:6px;margin-bottom:6px;">
+          <div style="font-size:9px;color:#666;margin-bottom:3px;">◎ 已生成 3 条脚本（点击展开）</div>
+          <div style="font-size:9px;color:#3b5bdb;">▶ 脚本 1：痛点开场版</div>
+          <div style="font-size:9px;color:#aaa;">▶ 脚本 2：场景代入版</div>
+        </div>
+        <div style="background:#f8f8f8;border-radius:3px;padding:3px 6px;color:#aaa;font-size:9px;border:1px solid #e8e8f0;">输入消息，或直接确认...</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 全对话流（内嵌富内容）</h3>
+      <p>整个页面就是一条对话流，脚本、匹配结果、预览作为富卡片内嵌在消息里。类似 Perplexity / ChatGPT canvas。MVP 最简，但扩展性最弱。</p>
+    </div>
+  </div>
+
+</div>

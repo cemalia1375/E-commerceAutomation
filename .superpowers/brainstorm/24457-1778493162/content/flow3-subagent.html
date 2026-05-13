@@ -1,0 +1,50 @@
+<h2>流程图 3：Subagent 调度</h2>
+<p class="subtitle">主 Agent → 子 Agent → 后处理的完整链路</p>
+
+<div style="display: flex; flex-direction: column; gap: 4px; max-width: 720px; margin: 0 auto;">
+
+  <!-- Step 1 -->
+  <div style="background: #e3f2fd; border: 2px solid #1565c0; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px;">① ReactLoop 调用 Subagent 工具</div>
+    <div style="font-size: 12px; color: #555;">
+      主 Agent 的 LLM 选择调用 SkinDiary 或 DeepReport 工具 → 工具执行将任务提交到 SUBAGENT_DISPATCH Stream
+    </div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Step 2 -->
+  <div style="background: #fff3e0; border: 2px solid #e65100; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px;">② SubagentStore.dispatch()</div>
+    <div style="font-size: 12px; color: #555;">
+      根据任务类型路由到对应 Subagent 实例：<br>
+      - <b>SkinDiarySubagent</b>：创建独立的 ReactLoop + ContextBuilder + ToolRegistry<br>
+      - <b>DeepReportSubagent</b>：同上，各自拥有独立的记忆和上下文
+    </div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Step 3 -->
+  <div style="background: #fce4ec; border: 2px solid #c62828; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px;">③ Subagent ReactLoop 执行</div>
+    <div style="font-size: 12px; color: #555;">
+      子 Agent 独立执行 ReAct 循环，共享主 Agent 的合规约束（compliance.md）<br>
+      执行完成后：<br>
+      - 结果写入 MySQL（document_repo / skin_diary_result_repo）<br>
+      - 提交后处理任务到 POSTPROCESS Stream<br>
+      - 通过 EventHub 发布事件通知
+    </div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Step 4 -->
+  <div style="background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px;">④ 后处理链路</div>
+    <div style="font-size: 12px; color: #555;">
+      PostprocessExecutor 消费任务：<br>
+      1. PostprocessHook — 文档后处理（格式化/裁剪）<br>
+      2. ColdPathHook — 结构化记忆提取（话题跟踪）<br>
+      3. SkinProfileSync — 皮肤档案同步（增量更新）<br>
+      4. MemoryExtract — 长期记忆提取 → MySQL memory 表
+    </div>
+  </div>
+</div>

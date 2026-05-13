@@ -1,0 +1,51 @@
+<h2>流程图 1：请求处理链路</h2>
+<p class="subtitle">从用户发消息到收到回复的完整路径</p>
+
+<div style="display: flex; flex-direction: column; gap: 4px; max-width: 720px; margin: 0 auto;">
+
+  <!-- Step 1: User -->
+  <div style="background: #e3f2fd; border: 2px solid #1565c0; border-radius: 20px; padding: 8px 16px; text-align: center; font-weight: bold; font-size: 14px;">👤 用户 → POST /agent/chat</div>
+  <div style="text-align: center; color: #999; font-size: 11px;">↓</div>
+
+  <!-- Step 2: API -->
+  <div style="background: #fff3e0; border: 2px solid #e65100; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">① FastAPI Router (chat.py)</div>
+    <div style="font-size: 12px; color: #555;">解析请求参数 → 提取 session_key, tenant_key, message</div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Step 3: SessionStore -->
+  <div style="background: #fff3e0; border: 2px solid #e65100; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">② SessionStore.get_or_create()</div>
+    <div style="font-size: 12px; color: #555;">
+      - 冷启动：调用 MainAgent.make_context_builder() + make_tool_registry()<br>
+      - 热启动：从 MySQL 恢复消息历史<br>
+      - 注入 dynamic_context + attention_packets
+    </div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Step 4: ReactLoop -->
+  <div style="background: #e3f2fd; border: 2px solid #1565c0; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">③ ReactLoop.run()</div>
+    <div style="font-size: 12px; color: #555;">
+      a. ContextBuilder.build() → 组装 system prompt（稳定+动态）<br>
+      b. LLM.stream_with_retry() → 流式获取 token + tool_calls<br>
+      c. 文本 token → 实时 TextEvent → SSE 推给前端<br>
+      d. 有工具调用 → 区分耦合/解耦 → 执行<br>
+      e. 耦合工具结果注入历史 → 回到 b<br>
+      f. 无工具调用 → DoneEvent
+    </div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Step 5: Response -->
+  <div style="background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 20px; padding: 8px 16px; text-align: center; font-weight: bold; font-size: 14px;">📤 SSE 流式响应 → 用户</div>
+
+  <!-- Side: Postprocess -->
+  <div style="margin-top: 8px; border: 1px dashed #999; border-radius: 8px; padding: 8px;">
+    <div style="font-size: 11px; color: #666; text-align: center;">
+      ⚡ 响应完成后：PostprocessHook / MemoryExtract / ColdPathHook → 异步后台任务
+    </div>
+  </div>
+</div>

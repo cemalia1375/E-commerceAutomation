@@ -1,0 +1,66 @@
+<h2>整体 UI 风格定位</h2>
+<p class="subtitle">选择最接近你心目中这个工具应该有的视觉调性</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="dark-pro" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d0d0f;border-radius:6px;padding:16px;font-family:monospace;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <span style="background:#1e1e2e;color:#7c7cff;padding:4px 12px;border-radius:4px;font-size:12px;">生成</span>
+        <span style="background:transparent;color:#555;padding:4px 12px;border-radius:4px;font-size:12px;">素材库</span>
+        <span style="background:transparent;color:#555;padding:4px 12px;border-radius:4px;font-size:12px;">成片库</span>
+      </div>
+      <div style="background:#111;border-radius:6px;padding:12px;color:#7c7cff;font-size:11px;margin-bottom:8px;">
+        ◎ Agent 正在分析爆款视频...
+      </div>
+      <div style="background:#1a1a2e;border-radius:6px;padding:10px;color:#ccc;font-size:11px;">
+        已找到 12 段素材，3 段需 AI 补位
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 暗色专业风</h3>
+      <p>深色背景 + 蓝紫高亮，类似 Cursor / Linear / 剪映专业版。适合长时间盯屏的运营工具。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="light-clean" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8fa;border-radius:6px;padding:16px;font-family:sans-serif;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <span style="background:#fff;color:#1a1a1a;padding:4px 12px;border-radius:4px;font-size:12px;border-bottom:2px solid #3b5bdb;">生成</span>
+        <span style="background:transparent;color:#999;padding:4px 12px;border-radius:4px;font-size:12px;">素材库</span>
+        <span style="background:transparent;color:#999;padding:4px 12px;border-radius:4px;font-size:12px;">成片库</span>
+      </div>
+      <div style="background:#fff;border-radius:6px;padding:12px;color:#3b5bdb;font-size:11px;margin-bottom:8px;border:1px solid #e8e8f0;">
+        ◎ Agent 正在分析爆款视频...
+      </div>
+      <div style="background:#f0f0ff;border-radius:6px;padding:10px;color:#333;font-size:11px;">
+        已找到 12 段素材，3 段需 AI 补位
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 浅色简洁风</h3>
+      <p>白底 + 蓝色品牌色，类似 Notion / 即梦 AI / 可灵。清晰易读，上手门槛低。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="dark-warm" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#161412;border-radius:6px;padding:16px;font-family:sans-serif;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <span style="background:#2a2218;color:#f5a623;padding:4px 12px;border-radius:4px;font-size:12px;">生成</span>
+        <span style="background:transparent;color:#666;padding:4px 12px;border-radius:4px;font-size:12px;">素材库</span>
+        <span style="background:transparent;color:#666;padding:4px 12px;border-radius:4px;font-size:12px;">成片库</span>
+      </div>
+      <div style="background:#1e1a14;border-radius:6px;padding:12px;color:#f5a623;font-size:11px;margin-bottom:8px;">
+        ◎ Agent 正在分析爆款视频...
+      </div>
+      <div style="background:#221e18;border-radius:6px;padding:10px;color:#ccc;font-size:11px;">
+        已找到 12 段素材，3 段需 AI 补位
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 暗色暖调风</h3>
+      <p>深棕底 + 琥珀高亮，类似 Runway / Pika。有创意工具的质感，但风格较小众。</p>
+    </div>
+  </div>
+
+</div>

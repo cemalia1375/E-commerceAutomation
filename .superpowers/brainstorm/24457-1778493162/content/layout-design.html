@@ -1,0 +1,42 @@
+<h2>整体布局设计</h2>
+<p class="subtitle">页面结构：从上到下三大区域</p>
+
+<div style="display: flex; flex-direction: column; gap: 20px; max-width: 600px; margin: 0 auto;">
+  <div style="border: 2px solid #ddd; border-radius: 12px; padding: 16px; background: #fafafa;">
+    <div style="text-align: center; font-weight: bold; margin-bottom: 8px;">第一屏：系统总览图</div>
+    <div style="display: flex; gap: 2px;">
+      <div style="flex: 1; background: #e3f2fd; padding: 8px; border-radius: 6px; text-align: center; font-size: 12px;">SimpleClaw<br>框架层</div>
+      <div style="flex: 1; background: #fce4ec; padding: 8px; border-radius: 6px; text-align: center; font-size: 12px;">Mojing<br>应用层</div>
+      <div style="flex: 1; background: #e8f5e9; padding: 8px; border-radius: 6px; text-align: center; font-size: 12px;">外部<br>依赖</div>
+    </div>
+    <div style="background: #fff3e0; padding: 4px; border-radius: 4px; margin-top: 6px; text-align: center; font-size: 11px;">点击任一模块展开详情</div>
+  </div>
+
+  <div style="border: 2px solid #ddd; border-radius: 12px; padding: 16px; background: #fafafa;">
+    <div style="text-align: center; font-weight: bold; margin-bottom: 8px;">中间区域：关键流程图</div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px; border-radius: 6px;">
+        <span style="background: #1976d2; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">流程1</span>
+        <span style="font-size: 13px;">请求处理链路（用户 → API → Agent → LLM → 响应）</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px; border-radius: 6px;">
+        <span style="background: #1976d2; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">流程2</span>
+        <span style="font-size: 13px;">后台 Worker 体系（Task Queue → Worker → Executor）</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px; border-radius: 6px;">
+        <span style="background: #1976d2; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">流程3</span>
+        <span style="font-size: 13px;">Subagent 调度（主 Agent → 子 Agent → 后处理）</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="border: 2px solid #ddd; border-radius: 12px; padding: 16px; background: #fafafa;">
+    <div style="text-align: center; font-weight: bold; margin-bottom: 8px;">底部：交互元素</div>
+    <div style="font-size: 13px; color: #666;">
+      - 章节锚点导航（固定侧边栏）<br>
+      - 每个流程图配有文字说明<br>
+      - 响应式设计<br>
+      - 单 HTML 文件，零外部依赖
+    </div>
+  </div>
+</div>

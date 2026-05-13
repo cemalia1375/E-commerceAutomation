@@ -1,0 +1,104 @@
+<h2>生成 Tab — 右侧内容区步骤设计</h2>
+<p class="subtitle">Agent 引导用户逐步完成整个流程，右侧随步骤切换展示内容。以下是完整流程的草图，看看节奏对不对？</p>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;">
+
+  <!-- Step flow overview -->
+  <div style="flex:1;min-width:280px;">
+    <h3 style="margin-bottom:12px;">流程节点（共 5 个人工决策点）</h3>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#f0f4ff;border-radius:6px;border-left:3px solid #3b5bdb;">
+        <span style="background:#3b5bdb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">1</span>
+        <div>
+          <div style="font-weight:600;color:#1a1a2e;">上传爆款视频</div>
+          <div style="color:#666;font-size:12px;">右侧：上传区 + 视频预览播放器</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:11px;">▼ Agent 自动跑分镜拆解</div>
+
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#f0f4ff;border-radius:6px;border-left:3px solid #3b5bdb;">
+        <span style="background:#3b5bdb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">2</span>
+        <div>
+          <div style="font-weight:600;color:#1a1a2e;">选脚本 ✋ 人工卡点</div>
+          <div style="color:#666;font-size:12px;">右侧：3-5 条脚本卡片，可展开查看分镜，点击选中</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:11px;">▼ Agent 自动跑素材匹配</div>
+
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#fff9e6;border-radius:6px;border-left:3px solid #f5a623;">
+        <span style="background:#f5a623;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">3</span>
+        <div>
+          <div style="font-weight:600;color:#1a1a2e;">查看匹配结果 + 手动调整（可选）</div>
+          <div style="color:#666;font-size:12px;">右侧：分段列表，已匹配/低匹配/缺失三档，可手动替换素材</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:11px;">▼ Agent 自动合成初剪 + 循环评估（最多 3 次）</div>
+
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#f0f4ff;border-radius:6px;border-left:3px solid #3b5bdb;">
+        <span style="background:#3b5bdb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">4</span>
+        <div>
+          <div style="font-weight:600;color:#1a1a2e;">确认成片 ✋ 人工卡点</div>
+          <div style="color:#666;font-size:12px;">右侧：视频播放器 + SRT 字幕预览 + 问题段标注</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:11px;">▼ Agent 生成投放标题候选</div>
+
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#f0f4ff;border-radius:6px;border-left:3px solid #3b5bdb;">
+        <span style="background:#3b5bdb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">5</span>
+        <div>
+          <div style="font-weight:600;color:#1a1a2e;">选标题 → 一键上架千川 ✋ 人工卡点</div>
+          <div style="color:#666;font-size:12px;">右侧：3-5 条标题候选，选中后显示千川上架确认</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Right panel mockup for step 2 (script selection) -->
+  <div style="flex:1;min-width:280px;">
+    <h3 style="margin-bottom:12px;">右侧示例：步骤 2 脚本选择</h3>
+    <div style="background:#fff;border:1px solid #e0e0e8;border-radius:8px;padding:12px;font-family:sans-serif;">
+      <div style="font-size:12px;color:#999;margin-bottom:10px;">已生成 4 条差异化脚本，选择一条继续</div>
+
+      <div style="border:2px solid #3b5bdb;border-radius:6px;padding:10px;margin-bottom:8px;background:#f8f9ff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:600;color:#1a1a2e;">脚本 1 · 痛点开场</span>
+          <span style="font-size:10px;background:#3b5bdb;color:#fff;padding:2px 6px;border-radius:3px;">已选</span>
+        </div>
+        <div style="font-size:11px;color:#555;line-height:1.6;">钩子：你有没有遇过…<br/>产品展示：3s 特写<br/>口播：XX 成分解决 YY 问题</div>
+        <div style="display:flex;gap:4px;margin-top:6px;">
+          <span style="font-size:10px;background:#eef;color:#556;padding:2px 5px;border-radius:3px;">12 段</span>
+          <span style="font-size:10px;background:#eef;color:#556;padding:2px 5px;border-radius:3px;">35s</span>
+        </div>
+      </div>
+
+      <div style="border:1px solid #e0e0e8;border-radius:6px;padding:10px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:600;color:#1a1a2e;">脚本 2 · 场景代入</span>
+          <span style="font-size:10px;color:#3b5bdb;cursor:pointer;">展开</span>
+        </div>
+        <div style="font-size:11px;color:#aaa;">点击展开查看分镜详情</div>
+      </div>
+
+      <div style="border:1px solid #e0e0e8;border-radius:6px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:600;color:#1a1a2e;">脚本 3 · 产品特写</span>
+          <span style="font-size:10px;color:#3b5bdb;cursor:pointer;">展开</span>
+        </div>
+        <div style="font-size:11px;color:#aaa;">点击展开查看分镜详情</div>
+      </div>
+
+      <button style="width:100%;margin-top:12px;padding:8px;background:#3b5bdb;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">确认脚本 1，开始匹配素材 →</button>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#f8f8fa;border-radius:6px;border:1px solid #e0e0e8;">
+  <p style="margin:0;font-size:13px;color:#555;">这个节奏和右侧内容设计大体符合你的预期吗？有没有哪个步骤需要调整？在终端告诉我。</p>
+</div>

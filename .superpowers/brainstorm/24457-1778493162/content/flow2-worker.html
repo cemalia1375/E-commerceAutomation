@@ -1,0 +1,54 @@
+<h2>流程图 2：后台 Worker 体系</h2>
+<p class="subtitle">解耦工具的异步执行框架</p>
+
+<div style="display: flex; flex-direction: column; gap: 4px; max-width: 720px; margin: 0 auto;">
+
+  <!-- Top: Task Source -->
+  <div style="background: #f3e5f5; border: 2px solid #7b1fa2; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">📥 任务来源</div>
+    <div style="font-size: 12px; color: #555;">
+      - ReactLoop 解耦工具调用 → RuntimeServices.submit_task()<br>
+      - Subagent 调度 → dispatch_task()<br>
+      - CronScheduler 定时触发 → submit_task()<br>
+      - TriggeredTaskMonitor 状态变更 → submit_task()
+    </div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Task Queue -->
+  <div style="background: #fff3e0; border: 2px solid #e65100; border-radius: 20px; padding: 8px 16px; text-align: center; font-weight: bold; font-size: 14px;">📋 Task Queue（Redis / InMemory）</div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Workers -->
+  <div style="background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px; margin-bottom: 6px;">⚙️ TaskWorker × 8（Stream 隔离）</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>POSTPROCESS</b><br>后处理 + 结构化记忆</div>
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>TOPIC_TRACKING</b><br>冷路径记忆提取</div>
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>IMAGE_ANALYSIS</b><br>图片分析</div>
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>SKIN_DIARY</b><br>皮肤日记生成</div>
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>MEMORY_EXTRACT</b><br>记忆提取</div>
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>DEEP_RESEARCH</b><br>深度研究</div>
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>SUBAGENT_DISPATCH</b><br>子代理分发</div>
+      <div style="background: #c8e6c9; border-radius: 6px; padding: 4px 8px; font-size: 11px;"><b>BACKGROUND</b><br>旧版兼容</div>
+    </div>
+  </div>
+  <div style="text-align: center; color: #999; font-size: 11px;">⬇️</div>
+
+  <!-- Executors detail -->
+  <div style="background: #fce4ec; border: 2px solid #c62828; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">🔧 Executor 执行</div>
+    <div style="font-size: 12px; color: #555;">
+      TaskWorker 消费队列消息 → 按 task_type 路由到对应 Executor<br>
+      支持 ScopeLock（按 task_id + session_id 防止并发）<br>
+      任务结果写入 RuntimeTaskRepository（数据库持久化）
+    </div>
+  </div>
+
+  <!-- Key design point -->
+  <div style="margin-top: 8px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 8px;">
+    <div style="font-size: 11px; color: #666;">
+      <b>设计要点：</b>Stream 隔离保证不同类型任务不互相阻塞；ScopeLock 防止同一 session 的重复任务；TaskStateStore 提供持久化状态跟踪。
+    </div>
+  </div>
+</div>

@@ -1,0 +1,38 @@
+<h2>HTML 网站设计方案</h2>
+<p class="subtitle">三种不同的呈现方式，选你倾向的方向</p>
+
+<div class="options">
+  <div class="option" data-choice="planA" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>长滚动讲述式</h3>
+      <p>一页到底，用 CSS 绘制架构图（flex/grid + SVG箭头），读者滚动浏览。配有章节锚点导航和渐入动画。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>制作快，单个 HTML 搞定</li><li>适合博客风格分享</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>交互性弱</li><li>大型架构图在手机上看体验一般</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="planB" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>交互式步骤导航</h3>
+      <p>分章节（框架总览 → Mojing 集成），每一步高亮当前讲解的模块，可点击模块查看详情弹窗。用 D3.js 或纯 CSS 绘制可交互架构图。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>体验好，逐层深入</li><li>适合教学/演示场景</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>需要更多 JS 代码</li><li>文件稍大</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="planC" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合模式（推荐）</h3>
+      <p>上半部分用 SVG 绘制一张完整系统架构总览图，可点击模块展开说明；下半部分用步骤式流程图讲解请求链路和子流程。单 HTML 文件，无外部依赖。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>兼顾概览和细节</li><li>单文件可分享</li><li>灵活可扩展</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>设计工作量大一点</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
