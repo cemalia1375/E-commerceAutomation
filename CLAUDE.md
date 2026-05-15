@@ -127,6 +127,7 @@ This is the shared orchestration layer. Business modules **must not** put harnes
 
 - **`simpleclaw/runtime/`** — Task queue, scope locks, side effects, services.
   - `TaskQueue` (InMemory or Redis), `ScopeLockRegistry`, `RuntimeServices`.
+  - **`simpleclaw/runtime/worker.py`** — `TaskWorker` (moved here from Mojing during Flowcut build). Both Mojing and Flowcut import `TaskWorker` from this shared location. `Mojing/runtime/worker.py` now re-exports it for backwards compatibility.
 
 - **`simpleclaw/subagent/`** — Subagent abstraction (`SubagentBase`, `SubagentRunner`).
 
@@ -181,21 +182,74 @@ These are markdown files that form the system prompt, loaded in order:
 4. `compliance.md` — Shared compliance constraints
 5. `journey/{stage}.md` — Stage-specific strategy (novice / explore / mature)
 
-## FlowCut MVP — Planned Architecture (`Flowcut/`)
+## FlowCut MVP — Architecture (`Flowcut/`)
 
-`Flowcut/` is currently empty and will be built following the Mojing pattern. The MVP is a 抖音千川 content production tool:
+`Flowcut/` is a 抖音千川 content production tool. The storage + infrastructure layer is fully implemented; business logic for Gemini decomposition, FFmpeg compose, and Qianchuan publishing remains stubbed with `raise NotImplementedError`.
 
-1. Upload viral video → LLM (Gemini 3.1 Pro) decomposes into scenes
-2. Generate differentiated scripts
-3. Match scripts to material library
-4. Render rough cut via FFmpeg
-5. Review and confirm final video
+### Directory Structure
+```
+Flowcut/
+  agent/          # MainAgent, FirstTokenAgent, PostprocessHook, ColdPathHook
+  api/            # FastAPI routes, server, AppContainer (build_container)
+  context/        # TaskContextProvider (returns [] — stub until task state is wired)
+  tools/          # 6 Tool classes (decompose_video, generate_scripts, search_materials,
+                  #   compose_video, check_task_status, publish_to_qianchuan)
+  storage/        # MaterialRepo, CreativeRepo, ScriptRepo, QianchuanRepo + shared repos
+  runtime/        # FlowcutTaskStream (5 streams), executors (partial), make_workers()
+  services/       # douyin_client.py (Qianchuan HTTP client stub)
+  workspace/      # Agent.md, SOUL.md, TOOL.md, compliance.md
+  config.py       # FLOWCUT_* env vars + OSS config
+```
 
-**Planned backend tables** (from `docs/排期.md`):
-- `material` —素材主表
-- `creative` — 成片表
-- `script` — 脚本表
-- `material_usage` — 素材↔成片关联表
+### Start Flowcut dev server
+```bash
+cd SimpleClaw
+uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
+```
+
+### DB Tables (MySQL, created via ensure_schema on startup)
+- `fc_material` — 素材主表 (status: PROCESSING → READY / FAILED)
+- `fc_script` — 脚本表 (segments_json: JSON array)
+- `fc_creative` — 成片表 (status: PENDING → COMPOSING → READY / FAILED; label: NORMAL / HOT / DEAD)
+- `fc_material_usage` — 素材↔成片多对多
+- `fc_qianchuan_account` — 千川账号 + OAuth token 存储
+
+### Implementation Status (as of 2026-05-15)
+
+**Fully implemented:**
+- `storage/database.py` — `Database` (aiomysql pool) + `ensure_schema()` (creates all nb_* and fc_* tables with inline migrations)
+- `storage/material_repo.py` — Full CRUD: `create`, `get`, `list_by_tenant`, `update_status`, `update`, `delete`, `increment_usage`
+- `storage/creative_repo.py` — Full CRUD: `create`, `get`, `list_by_tenant`, `update_status`, `update_label`, `update_qianchuan_ids`
+- `storage/oss_client.py` — `OSSClient` wrapping Volcengine TOS SDK: presigned PUT/GET URLs, upload, delete, public URL
+- `storage/session_store.py` — Full `SessionStore`: TTL eviction, cold-start from DB, hot-swap profile, `maybe_compress`, `save_turn`
+- `api/container.py` — Full `AppContainer` dataclass + `build_container()` wiring all dependencies and starting workers
+- `runtime/executors.py` → `make_material_process_executor()` — complete ASR pipeline:
+  - Downloads video from OSS presigned URL via aiohttp
+  - Extracts 16kHz mono WAV audio via FFmpeg (subprocess)
+  - Extracts cover frame at 0.5s via FFmpeg, uploads cover to OSS
+  - Transcribes audio via ByteDance Streaming ASR WebSocket (`wss://openspeech.bytedance.com/api/v3/sauc/bigmodel`)
+  - Writes `transcript` + `thumbnail_url` + status=READY/FAILED back to `fc_material`
+  - Audio/image materials: immediately marked READY (no ASR)
+
+**Stubbed (`raise NotImplementedError`):**
+- `tools/decompose_video.py` → `prepare_task()` — needs Gemini scene decomposition TaskEnvelope
+- `tools/generate_scripts.py` → `execute()` — needs LLM call to generate differentiated scripts
+- `tools/search_materials.py` → `execute()` — needs DB search returning 3-tier candidates
+- `tools/compose_video.py` → `prepare_task()` — needs FFmpeg compose TaskEnvelope
+- `tools/check_task_status.py` → `execute()` — needs task_repo query
+- `tools/publish_to_qianchuan.py` → `prepare_task()` — needs Qianchuan TaskEnvelope
+- `runtime/executors.py` → `make_scene_decompose_executor()` — Gemini visual decomposition
+- `runtime/executors.py` → `make_video_compose_executor()` — FFmpeg concat + eval agent loop
+- `runtime/executors.py` → `make_qianchuan_publish_executor()` — upload material + create campaign
+- `runtime/executors.py` → `make_qianchuan_sync_executor()` — T+1 data sync
+- `context/providers.py` → `TaskContextProvider` — returns `[]`; should inject active task state
+
+### Key Flowcut design decisions
+- **No journey stages** — MainAgent uses single `"default"` stage (no novice/explore/mature)
+- **No subagents** — FlowCut has no SubagentStore; long-running work goes through TaskQueue only
+- **Tool factories** — All 6 tools instantiated in `build_container()` via lambda factories
+- **LLM** — Uses `GeminiLLM` (not VolcengineLLM as in Mojing)
+- See `Flowcut/DESIGN.md` for full API list and stream design
 
 ## Important Design Principles
 
