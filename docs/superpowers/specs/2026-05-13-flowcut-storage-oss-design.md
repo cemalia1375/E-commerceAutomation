@@ -33,7 +33,7 @@
 - 封装 `tos.TosClientV2(ak, sk, endpoint, region)`
 - 初始化参数从 `config.make_oss_config()` 读取
 - 文件夹结构：
-  - 素材: `materials/{tenant_key}/{filename}` — 扁平
+  - 素材: `materials/{tenant_key}/{timestamp}_{filename}` — 扁平（时间戳防同名覆盖）
   - 成片: `creatives/{tenant_key}/{creative_id}/` — 保留 creative_id 层级
 
 ### 接口
@@ -43,22 +43,26 @@ class OSSClient:
     def __init__(self, endpoint, ak, sk, bucket, region)
     def presigned_put_url(key, expires=3600) -> str   # 前端直传
     def presigned_get_url(key, expires=3600) -> str   # 预览/下载
-    def get_public_url(key) -> str                     # 构造公开访问 URL
+    def get_public_url(key) -> str                     # 构造公开访问 URL（前提：bucket 公开读）
     def delete_object(key) -> None
 ```
+
+> **实现前确认：** TOS 的 Python SDK 包名是 `tos`，核实后再加到 `requirements.txt`。`get_public_url` 仅当 bucket 为公开读时可用；若 bucket 为私有，统一用 `presigned_get_url`。
 
 ---
 
 ## 三、素材上传全流程
 
-### Step 1 — GET /materials/upload-token
+### Step 1 — POST /materials/upload-token
 
 ```
-前端: ?tenant_key=xxx&filename=ad1.mp4
+请求体: { tenant_key, filename }
 后端:
-  1. INSERT fc_material (status='PROCESSING', oss_key='materials/{tenant_key}/ad1.mp4')
-  2. 调 oss_client.presigned_put_url(oss_key)
-  3. 返回 { material_id, presigned_url, oss_key }
+  1. timestamp = int(time.time())
+     oss_key = f"materials/{tenant_key}/{timestamp}_{filename}"
+  2. INSERT fc_material (status='PROCESSING', oss_key=oss_key)
+  3. 调 oss_client.presigned_put_url(oss_key)
+  4. 返回 { material_id, presigned_url, oss_key }
 ```
 
 ### Step 2 — POST /materials/{id}/process
@@ -78,21 +82,26 @@ process(material_id):
   2. 后缀名判断文件类型:
      ├── 视频 (.mp4/.mov/.avi/.mkv/.webm/.flv)
      │   ├── FFmpeg 提取音轨 → 本地临时 wav
-     │   ├── 调火山引擎 ASR HTTP API → transcript
+     │   ├── base64 编码本地 wav → 调 ASR → transcript
      │   ├── 清理临时文件
      │   └── 更新 status=READY, transcript=xxx
      ├── 音频 (.mp3/.wav/.aac/.flac/.ogg/.m4a)
      │   └── 更新 status=READY（跳过 ASR）
      └── 图片 (.jpg/.jpeg/.png/.gif/.webp/.bmp)
          └── 更新 status=READY（无 ASR）
-  4. 返回 TaskExecutionResult(status='succeeded')
+  3. 错误处理:
+     ├── FFmpeg 失败 → 更新 status=FAILED, err_msg="音轨提取失败: {detail}"
+     ├── ASR 超时/返回错误码 → 更新 status=FAILED, err_msg="ASR 识别失败: {code} {msg}"
+     └── 其他异常 → 更新 status=FAILED, err_msg="物料处理异常: {traceback}"
+  4. 返回 TaskExecutionResult(status='succeeded'|'failed')
 ```
 
 ASR 调用方式：
 - 端点: `POST https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash`
 - 鉴权: Header 传 `X-Api-App-Key` + `X-Api-Access-Key`
-- 请求体: `{ "url": "<音频 OSS URL>" }`（同步返回识别结果）
+- 请求体: `{ "audio": { "data": "<base64 编码音频>" }, "user": {"uid": "<AppKey>"}, "request": {"model_name": "bigmodel"} }`（同步返回识别结果）
 - 环境变量: `FLOWCUT_ASR_APP_KEY` / `FLOWCUT_ASR_ACCESS_KEY`
+- 注意: 极速版要求音频 ≤ 100MB / ≤ 2h，超限应考虑走标准版 submit/query 模式
 
 ---
 
@@ -138,7 +147,7 @@ ASR 调用方式：
 
 | 方法 | 路径 | 功能 |
 |------|------|------|
-| `GET` | `/materials/upload-token` | 返回 presigned URL + material_id |
+| `POST` | `/materials/upload-token` | 返回 presigned URL + material_id |
 | `POST` | `/materials/{id}/process` | 入队 MATERIAL_PROCESS |
 | `GET` | `/materials` | 列表（支持 category/status 过滤 + 分页） |
 | `GET` | `/materials/{id}` | 单条详情 |
