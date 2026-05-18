@@ -61,6 +61,7 @@ CREATE TABLE fc_reference_video (
     oss_url       VARCHAR(1024) NOT NULL,
     thumbnail_url VARCHAR(1024) NULL,
     name          VARCHAR(255)  NOT NULL,
+    product       VARCHAR(128)  NULL,     -- 用户上传时选择的产品名，传递给子素材
     duration      FLOAT         NOT NULL,
     file_size     BIGINT        NOT NULL,
     scene_data_json JSON        NULL,     -- 拆镜完整结果（Gemini + PySceneDetect 对齐后）
@@ -81,9 +82,10 @@ CREATE TABLE fc_reference_video (
 **新增：**
 
 ```sql
-source_video_id  BIGINT  NULL,   -- FK → fc_reference_video.id；直接上传的素材为 NULL
-description      TEXT    NULL,   -- Gemini 多模态视觉描述（embedding 的唯一来源）
-                                  -- transcript 保留，存 ASR 语音文字
+source_video_id  BIGINT       NULL,        -- FK → fc_reference_video.id；直接上传的素材为 NULL
+description      TEXT         NULL,        -- Gemini 多模态视觉描述（embedding 的唯一来源）
+                                           -- transcript 保留，存 ASR 语音文字
+product          VARCHAR(128) NULL,        -- 产品名，用户上传时手动选择；NULL 表示通用素材
 ```
 
 **两类素材的字段填充对比：**
@@ -93,6 +95,7 @@ description      TEXT    NULL,   -- Gemini 多模态视觉描述（embedding 的
 | `source_video_id` | NULL | fc_reference_video.id |
 | `transcript` | ASR 语音转文字 | 可选（按需跑 ASR） |
 | `description` | Gemini analyze_video() 输出 | Gemini segment content（拆镜时已有） |
+| `product` | 上传时用户选择 | 继承自父 fc_reference_video.product |
 | `scene_data_json` | 已移除 | 已移除（存在父表） |
 
 **Embed 唯一来源：`description` 字段。** 语义统一，视觉一致，不受 transcript 有无影响。
@@ -152,7 +155,30 @@ QDRANT_URL=http://localhost:6333
 
 ---
 
-## 五、Qdrant 数据模型
+## 五、OSS 目录结构
+
+产品名作为 OSS 路径的一级分区，人工可浏览，同时与 `fc_material.product` 字段对应。
+
+```
+materials/{tenant_key}/
+  雪莲洗液/
+    clips/                  ← 从爆款视频拆出的子片段
+    uploads/                ← 直接上传的产品专属素材
+  妆前乳/
+    clips/
+    uploads/
+  通用/
+    clips/
+    uploads/                ← 跨产品可复用的素材（品牌片头、空镜等）
+```
+
+OSS key 格式：`materials/{tenant_key}/{product}/clips/{timestamp}_{idx}.mp4`
+
+`product` 为空时写入 `通用/` 目录。
+
+---
+
+## 六、Qdrant 数据模型
 
 ### Collection：`fc_material_vectors`
 
@@ -164,14 +190,14 @@ QDRANT_URL=http://localhost:6333
   "vector": [0.023, -0.187, ...],
   "payload": {
     "tenant_key": "t_001",
+    "product": "雪莲洗液",
     "category": "产品展示",
-    "status": "READY",
-    "source_video_id": 10
+    "status": "READY"
   }
 }
 ```
 
-查询时始终携带 `tenant_key` filter，保证租户隔离。
+查询时始终携带 `tenant_key` filter 保证租户隔离，`product` filter 保证产品隔离。
 
 ### VectorStore 封装
 
@@ -184,6 +210,7 @@ class VectorStore:
         self,
         query_vector: list[float],
         tenant_key: str,
+        product: str | None = None,   # None = 通用素材
         category: str | None = None,
         limit: int = 3,
     ) -> list[int]: ...   # 返回 material_id 列表，按相似度降序
@@ -193,7 +220,7 @@ class VectorStore:
 
 ---
 
-## 六、写入路径变更
+## 八、写入路径变更
 
 ### 6.1 make_material_process_executor（直接上传的素材）
 
@@ -233,40 +260,58 @@ _process_segment_clip():
 
 ## 七、SearchMaterialsTool 搜索流程
 
-### 7.1 执行逻辑
+### 7.1 两阶段搜索策略
+
+搜索不跨产品。每个脚本段按以下顺序召回，凑满 3 条为止：
 
 ```
-输入：script_id
+阶段一（产品专属）：
+  filter: tenant_key=t_001 AND product="雪莲洗液"
+  取 top-3，保留相似度 ≥ 0.70 的结果
+
+阶段二（通用兜底，仅当阶段一结果 < 3 条时触发）：
+  filter: tenant_key=t_001 AND product=NULL（通用素材）
+  补齐到 3 条，标注"通用素材"
+
+禁止：不同产品之间的素材混搜
+```
+
+### 7.2 执行逻辑
+
+```
+输入：script_id，当前 product（从 session 上下文取）
   ↓
 从 MySQL 取脚本段列表 segments = script["segments_json"]
   ↓
-并行：每个 segment 独立 embed + 查 Qdrant（带 tenant_key + category filter）
+并行：每个 segment 独立执行两阶段搜索
+  ├─→ 阶段一：embed(seg.desc) → Qdrant(product=current_product, limit=3)
+  └─→ 阶段二（按需）：Qdrant(product=None, limit=3-len(phase1_results))
   ↓
 收集所有候选 material_id → 批量从 MySQL 取完整记录
   ↓
-组装三档结果（最优 / 次优 / 备选）返回 LLM
+组装三档结果返回 LLM
 ```
 
-### 7.2 返回格式示例
+### 7.3 返回格式示例
 
 ```
 脚本段 0「开场：产品外观特写」（5s）
-  ✅ 最优  素材 #11 [3s] 口红管身特写，哑光质感  相似度 0.91
-  ▸ 次优  素材 #28 [4s] 产品平铺展示，白底背景  相似度 0.84
-  ○ 备选  素材 #33 [2s] 包装特写，高光打光      相似度 0.79
+  ✅ 最优  素材 #11 [3s] 口红管身特写，哑光质感   相似度 0.91  [雪莲洗液]
+  ▸ 次优  素材 #28 [4s] 产品平铺展示，白底背景   相似度 0.84  [雪莲洗液]
+  ○ 备选  素材 #03 [2s] 通用品牌片头，白底空镜   相似度 0.71  [通用]
 ```
 
-### 7.3 边界情况处理
+### 7.4 边界情况处理
 
 | 情况 | 处理方式 |
 |------|---------|
-| 某段 Qdrant 返回 0 条结果 | 降级：按 category 从 MySQL 取最新 3 条，标注"未找到语义匹配，按分类兜底" |
+| 两阶段均为 0 条结果 | 降级：按 category 从 MySQL 取该产品最新 3 条，标注"未找到语义匹配，按分类兜底" |
 | description 为 NULL 的素材 | 不写入 Qdrant，不参与搜索 |
 | Qdrant 服务不可用 | search_materials 返回失败，提示用户手动选择素材 |
 
 ---
 
-## 八、新增文件清单
+## 九、新增文件清单
 
 | 文件 | 说明 |
 |------|------|
@@ -291,6 +336,7 @@ _process_segment_clip():
 
 ---
 
-## 九、待进一步讨论
+## 十、待进一步讨论
 
-- **搜索准确率优化**：当前方案是单字段 embed + cosine 相似度，后续可考虑重排序（rerank）、混合检索（向量 + 关键字 BM25）等策略提升召回精度
+- **搜索准确率优化**：当前方案是产品分区 + 单字段 embed + cosine 相似度，后续可考虑重排序（rerank）、混合检索（向量 + 关键字 BM25）等策略进一步提升召回精度
+- **product 管理**：MVP 阶段 product 为自由文本字符串；后续可考虑增加 `fc_product` 表做枚举管理，支持产品别名、合并等操作
