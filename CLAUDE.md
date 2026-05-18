@@ -87,10 +87,32 @@ uv run python -m tests.smoke_test
 - `unit`, `integration`, `smoke`, `external`, `e2e`
 
 ### Environment
-Copy `.env.example` to `.env` and fill in:
+Copy `.env.example` to `.env` and fill in (Flowcut requires Google Gemini; Mojing uses Volcengine/Doubao):
+
+**Google Gemini (Flowcut):**
+- `GOOGLE_API_KEY`, `GOOGLE_MODEL` (default: `gemini-2.5-flash`)
+- `FLOWCUT_HOOK_MODEL`, `FLOWCUT_FIRST_TOKEN_MODEL`, `FLOWCUT_FIRST_TOKEN_ENABLED`
+- `FLOWCUT_DECOMPOSE_MODEL` (default: `gemini-3.1-flash-lite-preview`)
+
+**Volcengine / Doubao (Mojing):**
 - `VOLCENGINE_API_KEY`, `VOLCENGINE_API_BASE`, `VOLCENGINE_MODEL`
-- `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DB`
-- `REDIS_URL` (optional — falls back to in-memory queue if empty)
+
+**MySQL (shared):**
+- `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DB`, `MYSQL_PORT`
+
+**Redis** (optional — falls back to in-memory queue if empty):
+- `REDIS_URL`
+
+**OSS 对象存储 (Flowcut):**
+- `FLOWCUT_OSS_ENDPOINT`, `FLOWCUT_OSS_ACCESS_KEY_ID`, `FLOWCUT_OSS_ACCESS_KEY_SECRET`, `FLOWCUT_OSS_BUCKET`
+
+**ASR 语音识别 (Flowcut — 字节跳动 BigModel):**
+- `FLOWCUT_ASR_APP_KEY`, `FLOWCUT_ASR_ACCESS_KEY`
+
+**Embedding & 向量搜索 (Flowcut):**
+- `OLLAMA_BASE_URL` (default: `http://localhost:11434`)
+- `OLLAMA_EMBEDDING_MODEL` (default: `bge-m3`)
+- `QDRANT_URL` (default: `http://localhost:6333`)
 
 ## Architecture — `simpleclaw/` (Harness Core)
 
@@ -184,7 +206,7 @@ These are markdown files that form the system prompt, loaded in order:
 
 ## FlowCut MVP — Architecture (`Flowcut/`)
 
-`Flowcut/` is a 抖音千川 content production tool. The storage + infrastructure layer is fully implemented; business logic for Gemini decomposition, FFmpeg compose, and Qianchuan publishing remains stubbed with `raise NotImplementedError`.
+`Flowcut/` is a 抖音千川 content production tool. Storage, infrastructure, gemini scene decomposition, and semantic material search are fully implemented; FFmpeg compose and Qianchuan publishing remain stubbed.
 
 ### Directory Structure
 ```
@@ -194,9 +216,9 @@ Flowcut/
   context/        # TaskContextProvider (returns [] — stub until task state is wired)
   tools/          # 6 Tool classes (decompose_video, generate_scripts, search_materials,
                   #   compose_video, check_task_status, publish_to_qianchuan)
-  storage/        # MaterialRepo, CreativeRepo, ScriptRepo, QianchuanRepo + shared repos
+  storage/        # MaterialRepo, CreativeRepo, ScriptRepo, QianchuanRepo, ReferenceVideoRepo, SessionRepo, VectorStore + shared repos
   runtime/        # FlowcutTaskStream (5 streams), executors (partial), make_workers()
-  services/       # douyin_client.py (Qianchuan HTTP client stub)
+  services/       # gemini_video.py, scene_align.py, script_generator.py, embedding.py, douyin_client.py
   workspace/      # Agent.md, SOUL.md, TOOL.md, compliance.md
   config.py       # FLOWCUT_* env vars + OSS config
 ```
@@ -208,13 +230,14 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 ```
 
 ### DB Tables (MySQL, created via ensure_schema on startup)
-- `fc_material` — 素材主表 (status: PROCESSING → READY / FAILED)
+- `fc_reference_video` — 爆款视频 (status: PROCESSING → DECOMPOSED / FAILED; scene_data_json 存储拆镜结果)
+- `fc_material` — 素材主表 (status: PROCESSING → READY / FAILED; vector_indexed 标记 Qdrant 同步状态)
 - `fc_script` — 脚本表 (segments_json: JSON array)
 - `fc_creative` — 成片表 (status: PENDING → COMPOSING → READY / FAILED; label: NORMAL / HOT / DEAD)
 - `fc_material_usage` — 素材↔成片多对多
 - `fc_qianchuan_account` — 千川账号 + OAuth token 存储
 
-### Implementation Status (as of 2026-05-15)
+### Implementation Status (as of 2026-05-18)
 
 **Fully implemented:**
 - `storage/database.py` — `Database` (aiomysql pool) + `ensure_schema()` (creates all nb_* and fc_* tables with inline migrations)
@@ -223,22 +246,28 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 - `storage/oss_client.py` — `OSSClient` wrapping Volcengine TOS SDK: presigned PUT/GET URLs, upload, delete, public URL
 - `storage/session_store.py` — Full `SessionStore`: TTL eviction, cold-start from DB, hot-swap profile, `maybe_compress`, `save_turn`
 - `api/container.py` — Full `AppContainer` dataclass + `build_container()` wiring all dependencies and starting workers
-- `runtime/executors.py` → `make_material_process_executor()` — complete ASR pipeline:
-  - Downloads video from OSS presigned URL via aiohttp
-  - Extracts 16kHz mono WAV audio via FFmpeg (subprocess)
-  - Extracts cover frame at 0.5s via FFmpeg, uploads cover to OSS
-  - Transcribes audio via ByteDance Streaming ASR WebSocket (`wss://openspeech.bytedance.com/api/v3/sauc/bigmodel`)
-  - Writes `transcript` + `thumbnail_url` + status=READY/FAILED back to `fc_material`
-  - Audio/image materials: immediately marked READY (no ASR)
+- `runtime/executors.py` → `make_material_process_executor()` — video: FFmpeg → 16kHz WAV → ByteDance ASR WebSocket; audio/image: immediately READY; description via Gemini analyze_video()
+- `runtime/executors.py` → `make_scene_decompose_executor()` — Gemini visual segmentation + PySceneDetect physical cuts, aligned and written to `scene_data`
+- `services/gemini_video.py` — `analyze_video()`: Gemini Files API + gemini-3.1-flash-lite-preview → semantic segment list
+- `services/scene_align.py` — `detect_scene_cuts()` + `align_timestamps()`
+- `services/embedding.py` — `OllamaEmbeddingService`: wraps local Ollama bge-m3 for 1024-dim Chinese embeddings
+- `storage/vector_store.py` — `VectorStore`: Qdrant wrapper with dual named vectors (desc_vec + transcript_vec) and max-fusion search
+- `storage/reference_video_repo.py` — `ReferenceVideoRepo`: CRUD for `fc_reference_video` table
+- `storage/session_repo.py` — `SessionRepo`: session persistence in DB
+- `tools/decompose_video.py` → `prepare_task()` — validates READY status, submits scene_decompose TaskEnvelope
+- `tools/generate_scripts.py` → `execute()` — parallel 4-role script generation via `script_generator.generate_for_role()`
+- `tools/search_materials.py` → `execute()` — dual-vector two-phase semantic material search (product-specific → generic fallback)
+- `api/routes/materials.py` → `GET /materials/tree` — 产品→场景角色两级树，含数量聚合；包含 PROCESSING + READY 素材，排除 FAILED（替换原 `/tree-summary`）
+- `api/routes/materials.py` → `POST /materials/upload-zip` + `/upload-zip/confirm` — zip 批量上传，按 `{product}/{scene_role}/` 目录结构自动归类；预览与确认两步式流程
+- `api/routes/materials.py` → `_make_upload_oss_key()` + `_sanitize_path_component()` — OSS key 按产品分层 + 路径遍历防御
+- `flowcut_frontend/src/stores/productTreeStore.ts` — 产品树前端状态
+- `flowcut_frontend/src/components/material/MaterialSidebar.tsx` — 左侧 Ant Design Tree 产品导航
+- `flowcut_frontend/src/components/material/UploadModal.tsx` + `ZipPreview.tsx` — 单文件 + zip 批量上传弹窗
 
-**Stubbed (`raise NotImplementedError`):**
-- `tools/decompose_video.py` → `prepare_task()` — needs Gemini scene decomposition TaskEnvelope
-- `tools/generate_scripts.py` → `execute()` — needs LLM call to generate differentiated scripts
-- `tools/search_materials.py` → `execute()` — needs DB search returning 3-tier candidates
+**Stubbed (`raise NotImplementedError`) or placeholder:**
 - `tools/compose_video.py` → `prepare_task()` — needs FFmpeg compose TaskEnvelope
 - `tools/check_task_status.py` → `execute()` — needs task_repo query
 - `tools/publish_to_qianchuan.py` → `prepare_task()` — needs Qianchuan TaskEnvelope
-- `runtime/executors.py` → `make_scene_decompose_executor()` — Gemini visual decomposition
 - `runtime/executors.py` → `make_video_compose_executor()` — FFmpeg concat + eval agent loop
 - `runtime/executors.py` → `make_qianchuan_publish_executor()` — upload material + create campaign
 - `runtime/executors.py` → `make_qianchuan_sync_executor()` — T+1 data sync
@@ -249,6 +278,12 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 - **No subagents** — FlowCut has no SubagentStore; long-running work goes through TaskQueue only
 - **Tool factories** — All 6 tools instantiated in `build_container()` via lambda factories
 - **LLM** — Uses `GeminiLLM` (not VolcengineLLM as in Mojing)
+- **OSS key format** — Upload routes write product-partitioned keys:
+  - Single file / zip import: `materials/{tenant_key}/{product}/uploads/{ts}_{filename}`
+  - Clips from decompose: `materials/{tenant_key}/{product}/clips/{ts}_{idx}.mp4`
+  - Fallback product when omitted: `通用`
+- **`POST /materials/upload` requires `product` Form field** — must be provided by the frontend; falls back to `通用` if empty string
+- **Upload size limit** — `POST /materials/upload` and `POST /materials/import-douyin` both enforce 500 MB cap (HTTP 413 on exceed); zip uploads already had the same limit via `_MAX_ZIP_SIZE`
 - See `Flowcut/DESIGN.md` for full API list and stream design
 
 ## Important Design Principles
