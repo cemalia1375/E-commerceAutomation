@@ -367,6 +367,10 @@ class ScriptRepository:
 
 如果验证失败，**默认走 fallback (a)**，因为 Gemini 已经在拆镜了，加一个字段比另起 ASR 处理便宜。
 
+**验证结论（2026-05-22）：** 词级时间戳可用。
+**依据：** 实跑探针 `Flowcut/scripts/spike_asr_response.py` 对样例视频 15s 音频做 ASR，baseline config（无需任何额外 flag）即返回 `result.utterances[].words[]`，每个 word 含 `start_time` / `end_time`（毫秒）与 `text`，例如 `{"end_time": 120, "start_time": 40, "text": "如果"}`。`utterances` 本身也带 `start_time` / `end_time` / `definite`。
+**Task 4.2 走主路径**（直接按 scene_data 时间窗截取 ASR words 拼成 `copy` 字段），不需要 Gemini fallback。
+
 ### 9.2 导出 zip 大小不可控
 
 如果运营选了几十段、每段几个素材，加上原视频，zip 可能上 GB。
