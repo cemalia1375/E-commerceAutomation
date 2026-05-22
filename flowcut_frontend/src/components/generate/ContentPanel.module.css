@@ -1,0 +1,2 @@
+.panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }

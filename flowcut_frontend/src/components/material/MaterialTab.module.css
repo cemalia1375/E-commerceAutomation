@@ -1,0 +1,14 @@
+.tab { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
+
+.layout { display: flex; flex-direction: column; height: 100%; }
+.subBar { display: flex; padding: 0 22px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+.stb { padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: transparent; font-size: 13px; font-weight: 500; color: #475569; cursor: pointer; font-family: inherit; transition: color 150ms, border-color 150ms; margin-bottom: -1px; }
+.stb:hover { color: #0f172a; }
+.stb.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
+.body { flex: 1; min-height: 0; display: flex; }
+
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}

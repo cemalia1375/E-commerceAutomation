@@ -1,0 +1,4 @@
+.card { background: #fff; border-radius: 10px; border: 2px dashed #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: border-color 180ms, background 180ms; aspect-ratio: 16/9; gap: 5px; color: #94a3b8; }
+.card:hover { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+.icon { font-size: 20px; }
+.label { font-size: 12px; font-weight: 500; }

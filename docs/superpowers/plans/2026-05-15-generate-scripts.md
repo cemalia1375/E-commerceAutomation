@@ -123,7 +123,7 @@
   import google.genai as genai
   from google.genai import types
 
-  _DEFAULT_MODEL = "gemini-2.5-flash-lite-preview"
+  _DEFAULT_MODEL = "gemini-3.1-flash-lite-preview"
 
   ROLES: list[dict[str, str]] = [
       {

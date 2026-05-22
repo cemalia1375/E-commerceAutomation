@@ -1,0 +1,77 @@
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
+
+export interface SessionSummary {
+  session_key: string
+  title: string | null
+  session_type: string
+  created_at: string
+  updated_at: string
+}
+
+export async function createSession(tenantKey: string, title?: string): Promise<SessionSummary> {
+  const res = await fetch(`${BASE_URL}/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tenant_key: tenantKey, title }),
+  })
+  if (!res.ok) throw new Error(`Failed to create session: ${res.status}`)
+  return res.json()
+}
+
+export async function listSessions(tenantKey: string): Promise<SessionSummary[]> {
+  const res = await fetch(`${BASE_URL}/sessions?tenant_key=${encodeURIComponent(tenantKey)}`)
+  if (!res.ok) throw new Error(`Failed to list sessions: ${res.status}`)
+  return res.json()
+}
+
+interface StreamChatParams {
+  tenantKey: string
+  sessionKey: string
+  query: string
+  onChunk: (token: string) => void
+  onDone: () => void
+  onError: (msg: string) => void
+}
+
+// Returns a cancel function
+export function streamChat(params: StreamChatParams): () => void {
+  const { tenantKey, sessionKey, query, onChunk, onDone, onError } = params
+  const ctrl = new AbortController()
+
+  fetch(`${BASE_URL}/agent/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tenant_key: tenantKey, session_key: sessionKey, query }),
+    signal: ctrl.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok || !res.body) {
+        onError(`HTTP ${res.status}`)
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const msg = JSON.parse(line.slice(6)) as { event: string; data?: string }
+            if (msg.event === 'chunk') onChunk(msg.data ?? '')
+            else if (msg.event === 'done') onDone()
+            else if (msg.event === 'error') onError(msg.data ?? 'unknown error')
+          } catch { /* malformed SSE line */ }
+        }
+      }
+    })
+    .catch((err: unknown) => {
+      if (err instanceof Error && err.name !== 'AbortError') onError(err.message)
+    })
+
+  return () => ctrl.abort()
+}

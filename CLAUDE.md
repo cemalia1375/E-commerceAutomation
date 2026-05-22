@@ -217,9 +217,9 @@ Flowcut/
   tools/          # 6 Tool classes (decompose_video, generate_scripts, search_materials,
                   #   compose_video, check_task_status, publish_to_qianchuan)
   storage/        # MaterialRepo, CreativeRepo, ScriptRepo, QianchuanRepo, ReferenceVideoRepo, SessionRepo, VectorStore + shared repos
-  runtime/        # FlowcutTaskStream (5 streams), executors (partial), make_workers()
-  services/       # gemini_video.py, scene_align.py, script_generator.py, embedding.py, douyin_client.py
-  workspace/      # Agent.md, SOUL.md, TOOL.md, compliance.md
+  runtime/        # FlowcutTaskStream (7 streams: material_process / scene_decompose / clip_create / video_compose / qianchuan_publish / qianchuan_sync / vector_repair), executors (partial), make_workers()
+  services/       # gemini_video.py, scene_align.py, script_generator.py, embedding.py, material_matcher.py, zip_parser.py, douyin_client.py
+  workspace/      # Agent.md, SOUL.md, TOOL.md, compliance.md, scripts/ (角色拆镜策略 JSON)
   config.py       # FLOWCUT_* env vars + OSS config
 ```
 
@@ -230,14 +230,14 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 ```
 
 ### DB Tables (MySQL, created via ensure_schema on startup)
-- `fc_reference_video` — 爆款视频 (status: PROCESSING → DECOMPOSED / FAILED; scene_data_json 存储拆镜结果)
+- `fc_reference_video` — 爆款视频 (status: PROCESSING → AWAITING_CLASSIFICATION → DECOMPOSED / FAILED；拆镜完成后等待用户分类确认再批量生成子片段；scene_data_json 存储拆镜结果)
 - `fc_material` — 素材主表 (status: PROCESSING → READY / FAILED; vector_indexed 标记 Qdrant 同步状态)
 - `fc_script` — 脚本表 (segments_json: JSON array)
 - `fc_creative` — 成片表 (status: PENDING → COMPOSING → READY / FAILED; label: NORMAL / HOT / DEAD)
 - `fc_material_usage` — 素材↔成片多对多
 - `fc_qianchuan_account` — 千川账号 + OAuth token 存储
 
-### Implementation Status (as of 2026-05-18)
+### Implementation Status (as of 2026-05-19)
 
 **Fully implemented:**
 - `storage/database.py` — `Database` (aiomysql pool) + `ensure_schema()` (creates all nb_* and fc_* tables with inline migrations)
@@ -247,7 +247,14 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 - `storage/session_store.py` — Full `SessionStore`: TTL eviction, cold-start from DB, hot-swap profile, `maybe_compress`, `save_turn`
 - `api/container.py` — Full `AppContainer` dataclass + `build_container()` wiring all dependencies and starting workers
 - `runtime/executors.py` → `make_material_process_executor()` — video: FFmpeg → 16kHz WAV → ByteDance ASR WebSocket; audio/image: immediately READY; description via Gemini analyze_video()
-- `runtime/executors.py` → `make_scene_decompose_executor()` — Gemini visual segmentation + PySceneDetect physical cuts, aligned and written to `scene_data`
+- `runtime/executors.py` → `make_scene_decompose_executor()` — Gemini visual segmentation + PySceneDetect physical cuts, aligned和写入 `scene_data`，完成后将 ref_video 状态置为 `AWAITING_CLASSIFICATION`（不直接落子片段）
+- `runtime/executors.py` → `make_clip_create_executor()` — 用户分类确认后批量切片入 `fc_material`（FFmpeg 切片 + OSS 上传 + 向量索引）
+- `runtime/executors.py` → `make_vector_repair_executor()` — 扫描 `vector_indexed=0` 的素材，补建 Qdrant 向量
+- `storage/task_repo.py` — `RuntimeTaskRepository`：后台任务进度持久化与查询
+- `services/material_matcher.py` / `services/zip_parser.py` — 素材匹配与 zip 目录结构解析
+- `api/routes/reference_videos.py` — 爆款视频上传/拆镜触发/分类确认（`POST /{ref_video_id}/classify`）等
+- `api/routes/sessions.py`、`api/routes/creatives.py`、`api/routes/qianchuan.py` — 会话、成片、千川账号路由
+- `tools/check_task_status.py` → `execute()` — 通过 `RuntimeTaskRepository` 查询任务状态
 - `services/gemini_video.py` — `analyze_video()`: Gemini Files API + gemini-3.1-flash-lite-preview → semantic segment list
 - `services/scene_align.py` — `detect_scene_cuts()` + `align_timestamps()`
 - `services/embedding.py` — `OllamaEmbeddingService`: wraps local Ollama bge-m3 for 1024-dim Chinese embeddings
@@ -266,7 +273,6 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 
 **Stubbed (`raise NotImplementedError`) or placeholder:**
 - `tools/compose_video.py` → `prepare_task()` — needs FFmpeg compose TaskEnvelope
-- `tools/check_task_status.py` → `execute()` — needs task_repo query
 - `tools/publish_to_qianchuan.py` → `prepare_task()` — needs Qianchuan TaskEnvelope
 - `runtime/executors.py` → `make_video_compose_executor()` — FFmpeg concat + eval agent loop
 - `runtime/executors.py` → `make_qianchuan_publish_executor()` — upload material + create campaign

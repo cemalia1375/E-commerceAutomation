@@ -1,0 +1,23 @@
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid #e6e6e6;
+  background: #fafafa;
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+
+.header {
+  font-size: 11px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px 10px;
+}
+
+.empty {
+  padding: 24px 8px;
+  color: #999;
+  font-size: 12px;
+  text-align: center;
+}

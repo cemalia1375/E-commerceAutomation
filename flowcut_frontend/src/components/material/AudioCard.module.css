@@ -1,0 +1,10 @@
+.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: box-shadow 160ms; }
+.card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,.08); }
+.wave { display: flex; gap: 3px; align-items: flex-end; height: 32px; width: 80px; flex-shrink: 0; }
+.bar { width: 4px; background: #dbeafe; border-radius: 2px; transition: background 150ms; }
+.card:hover .bar { background: #2563eb; }
+.info { flex: 1; min-width: 0; }
+.name { font-size: 13px; font-weight: 500; color: #0f172a; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta { font-size: 11px; color: #94a3b8; display: flex; gap: 10px; }
+.play { width: 30px; height: 30px; border-radius: 50%; background: #eff6ff; border: 1px solid #dbeafe; color: #2563eb; font-size: 11px; cursor: pointer; flex-shrink: 0; transition: background 150ms; }
+.play:hover { background: #dbeafe; }

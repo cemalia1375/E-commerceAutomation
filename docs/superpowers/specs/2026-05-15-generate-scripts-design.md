@@ -105,7 +105,7 @@ GenerateScriptsTool.execute(material_id)
 
 使用 `google-genai` SDK 直接调用（与 `gemini_video.py` 模式一致），不通过 `GeminiLLM` 流式接口。
 
-- 模型：从 `FLOWCUT_DECOMPOSE_MODEL` 环境变量读取，默认 `gemini-2.5-flash-lite-preview`
+- 模型：从 `FLOWCUT_DECOMPOSE_MODEL` 环境变量读取
 - 输出格式：要求 Gemini 返回 JSON（在 prompt 中明确约束 + `response_mime_type="application/json"`）
 - 解析：`json.loads` + 结构校验；解析失败返回 `None`（工具层跳过该角色）
 

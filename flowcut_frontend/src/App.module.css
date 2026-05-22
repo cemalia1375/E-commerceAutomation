@@ -1,0 +1,2 @@
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: #f1f5f9; }
+.main { flex: 1; overflow: hidden; display: flex; }

@@ -1,0 +1,4 @@
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { padding: 5px 11px; border-radius: 20px; border: 1px solid #e2e8f0; background: #fff; font-size: 12px; font-weight: 500; color: #475569; cursor: pointer; transition: all 140ms; font-family: inherit; }
+.chip:hover { border-color: #2563eb; color: #2563eb; }
+.chip.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }

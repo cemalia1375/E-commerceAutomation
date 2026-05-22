@@ -1,0 +1,7 @@
+.layout { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
+.topBar { padding: 14px 22px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.uploadBtn { padding: 6px 14px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 150ms; }
+.uploadBtn:hover { background: #1d4ed8; }
+.grid { flex: 1; overflow-y: auto; padding: 20px 22px; }
+.cardGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 12px; }

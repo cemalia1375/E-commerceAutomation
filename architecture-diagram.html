@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowCut — Architecture Blueprint</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #040d1a;
+    --bg2: #071629;
+    --grid: rgba(0, 180, 255, 0.04);
+    --cyan: #00d4ff;
+    --cyan-dim: rgba(0, 212, 255, 0.5);
+    --cyan-glow: rgba(0, 212, 255, 0.15);
+    --teal: #00ffd5;
+    --amber: #ffc857;
+    --green: #39ff8e;
+    --red: #ff4d6d;
+    --white: #e8f4ff;
+    --muted: rgba(0, 212, 255, 0.45);
+    --border: rgba(0, 212, 255, 0.2);
+    --border-bright: rgba(0, 212, 255, 0.5);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanning line animation */
+  body::after {
+    content: '';
+    position: fixed;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+    animation: scan 6s linear infinite;
+    opacity: 0.4;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  @keyframes scan {
+    0% { top: -2px; }
+    100% { top: 100vh; }
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 2;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  /* ─── Header ─── */
+  header {
+    text-align: center;
+    margin-bottom: 60px;
+    position: relative;
+  }
+
+  .header-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--cyan-dim);
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  header h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: clamp(32px, 5vw, 52px);
+    letter-spacing: 6px;
+    color: var(--white);
+    text-shadow:
+      0 0 20px var(--cyan),
+      0 0 60px rgba(0, 212, 255, 0.3);
+    margin-bottom: 8px;
+  }
+
+  header h1 span {
+    color: var(--cyan);
+  }
+
+  .header-sub {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .corner-mark {
+    position: absolute;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+  .corner-mark.tl { top: 0; left: 0; }
+  .corner-mark.tr { top: 0; right: 0; }
+
+  /* ─── Layer labels ─── */
+  .layers {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .layer {
+    position: relative;
+    border: 1px solid var(--border);
+    background: rgba(4, 20, 40, 0.6);
+    border-radius: 2px;
+    padding: 24px 28px;
+    backdrop-filter: blur(4px);
+    transition: border-color 0.3s;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .layer:hover {
+    border-color: var(--border-bright);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .layer:nth-child(1) { animation-delay: 0.1s; }
+  .layer:nth-child(2) { animation-delay: 0.25s; }
+  .layer:nth-child(3) { animation-delay: 0.4s; }
+  .layer:nth-child(4) { animation-delay: 0.55s; }
+
+  /* Corner decorations */
+  .layer::before, .layer::after {
+    content: '';
+    position: absolute;
+    width: 10px; height: 10px;
+    border-color: var(--cyan);
+    border-style: solid;
+  }
+  .layer::before {
+    top: -1px; left: -1px;
+    border-width: 2px 0 0 2px;
+  }
+  .layer::after {
+    bottom: -1px; right: -1px;
+    border-width: 0 2px 2px 0;
+  }
+
+  .layer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .layer-index {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--bg);
+    background: var(--cyan);
+    padding: 2px 6px;
+    letter-spacing: 1px;
+  }
+
+  .layer-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+
+  .layer-tech {
+    margin-left: auto;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+  }
+
+  /* ─── Nodes grid ─── */
+  .nodes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .node {
+    position: relative;
+    border: 1px solid var(--border);
+    background: rgba(0, 212, 255, 0.03);
+    padding: 12px 16px;
+    border-radius: 2px;
+    min-width: 130px;
+    flex: 1 1 130px;
+    transition: all 0.25s ease;
+    cursor: default;
+  }
+
+  .node:hover {
+    background: rgba(0, 212, 255, 0.08);
+    border-color: var(--cyan);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.15), 0 0 0 1px rgba(0, 212, 255, 0.1);
+  }
+
+  .node-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--white);
+    margin-bottom: 5px;
+    white-space: nowrap;
+  }
+
+  .node-desc {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .node-tag {
+    position: absolute;
+    top: -1px; right: 8px;
+    font-size: 8px;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+  }
+
+  .tag-ready  { background: rgba(57, 255, 142, 0.15); color: var(--green); border: 1px solid rgba(57, 255, 142, 0.3); }
+  .tag-stub   { background: rgba(255, 200, 87, 0.1);  color: var(--amber); border: 1px solid rgba(255, 200, 87, 0.3); }
+  .tag-core   { background: rgba(0, 212, 255, 0.12);  color: var(--cyan);  border: 1px solid rgba(0, 212, 255, 0.3); }
+  .tag-ext    { background: rgba(255, 77, 109, 0.1);  color: var(--red);   border: 1px solid rgba(255, 77, 109, 0.3); }
+
+  /* ─── Connector arrows ─── */
+  .connector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    height: 28px;
+    position: relative;
+  }
+
+  .connector::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--cyan-dim), transparent);
+    animation: flowDown 1.5s ease-in-out infinite;
+  }
+
+  @keyframes flowDown {
+    0%   { opacity: 0.2; }
+    50%  { opacity: 0.8; }
+    100% { opacity: 0.2; }
+  }
+
+  .connector-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    background: var(--bg);
+    padding: 0 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .arrow-down {
+    color: var(--cyan-dim);
+    font-size: 14px;
+    animation: pulse 2s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: translateY(0); }
+    50%       { opacity: 1;   transform: translateY(2px); }
+  }
+
+  /* ─── Sub-sections ─── */
+  .sub-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed rgba(0, 212, 255, 0.1);
+  }
+
+  .sub-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: rgba(0, 212, 255, 0.35);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  /* ─── Legend ─── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 40px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: rgba(0, 212, 255, 0.02);
+    animation: fadeUp 0.6s ease 0.7s both;
+  }
+
+  .legend-title {
+    width: 100%;
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  /* ─── Harness callout ─── */
+  .harness-callout {
+    margin-top: 20px;
+    padding: 14px 18px;
+    border-left: 2px solid var(--cyan);
+    background: rgba(0, 212, 255, 0.04);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .harness-callout strong {
+    color: var(--cyan);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* ─── Status bar footer ─── */
+  footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    flex-wrap: wrap;
+    gap: 8px;
+    animation: fadeUp 0.6s ease 0.8s both;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* Highlight node for SimpleClaw */
+  .node.harness {
+    border-color: rgba(0, 212, 255, 0.4);
+    background: rgba(0, 212, 255, 0.06);
+  }
+
+  /* Wide node */
+  .node.wide { flex: 2 1 260px; }
+
+  /* Task streams section */
+  .streams {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .stream-chip {
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 1px;
+    transition: all 0.2s;
+  }
+  .stream-chip:hover {
+    border-color: var(--cyan-dim);
+    color: var(--cyan);
+  }
+  .stream-chip.active { border-color: rgba(57,255,142,0.4); color: var(--green); }
+  .stream-chip.stub   { border-color: rgba(255,200,87,0.3); color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <span class="corner-mark tl">SYS://ARCH_MAP</span>
+    <span class="corner-mark tr">REV 2.4.1 // 2026.05.19</span>
+    <span class="header-badge">E-COMMERCE AUTOMATION SYSTEM</span>
+    <h1>FLOW<span>CUT</span></h1>
+    <p class="header-sub">ARCHITECTURE BLUEPRINT — SIMPLECLAW HARNESS</p>
+  </header>
+
+  <!-- SimpleClaw Harness note -->
+  <div class="harness-callout">
+    <strong>SIMPLECLAW HARNESS LAYER</strong>
+    共享编排核心：ReactLoop · LLMProvider · ToolRegistry · ContextBuilder · TaskQueue · SessionStore
+    <br>业务模块 (Flowcut / Mojing) 以库形式导入 simpleclaw，不得在此层写入业务逻辑。
+  </div>
+
+  <div style="height: 28px;"></div>
+
+  <div class="layers">
+
+    <!-- ─── LAYER 1: FRONTEND ─── -->
+    <div class="layer">
+      <div class="layer-header">
+        <span class="layer-index">L1</span>
+        <span class="layer-title">FRONTEND LAYER</span>
+        <span class="layer-tech">PORT :5173</span>
+      </div>
+      <div class="nodes">
+        <div class="node">
+          <span class="node-tag tag-core">ROUTER</span>
+          <div class="node-name">react-router</div>
+          <div class="node-desc">/ · /material · /creative</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-core">STATE</span>
+          <div class="node-name">Zustand Stores</div>
+          <div class="node-desc">generateStore<br>materialStore<br>creativeStore</div>
+        </div>
+        <div class="node wide">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">Material Module</div>
+          <div class="node-desc">MaterialSidebar · ProductTree · UploadModal · ZipPreview<br>productTreeStore · Ant Design Tree</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-stub">STUB</span>
+          <div class="node-name">Creative Module</div>
+          <div class="node-desc">成片管理 UI<br>脚本展示 · 合成预览</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-stub">STUB</span>
+          <div class="node-name">Generate Module</div>
+          <div class="node-desc">Chat 对话界面<br>任务状态轮询</div>
+        </div>
+      </div>
+      <div class="sub-section">
+        <div class="sub-label">TECH STACK</div>
+        <div class="nodes">
+          <div class="node">
+            <div class="node-name">React 19 + Vite</div>
+            <div class="node-desc">TypeScript · CSS Modules</div>
+          </div>
+          <div class="node">
+            <div class="node-name">Ant Design 6</div>
+            <div class="node-desc">colorPrimary: #2563eb</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connector 1→2 -->
+    <div class="connector">
+      <span class="arrow-down">▼</span>
+      <span class="connector-label">HTTP / SSE · PORT :8001</span>
+      <span class="arrow-down">▼</span>
+    </div>
+
+    <!-- ─── LAYER 2: API + AGENT ─── -->
+    <div class="layer">
+      <div class="layer-header">
+        <span class="layer-index">L2</span>
+        <span class="layer-title">API + AGENT LAYER</span>
+        <span class="layer-tech">FastAPI · uvicorn</span>
+      </div>
+      <div class="nodes">
+        <div class="node harness">
+          <span class="node-tag tag-core">CORE</span>
+          <div class="node-name">ReactLoop</div>
+          <div class="node-desc">simpleclaw/core/loop.py<br>ReAct 执行引擎</div>
+        </div>
+        <div class="node harness">
+          <span class="node-tag tag-core">CORE</span>
+          <div class="node-name">GeminiLLM</div>
+          <div class="node-desc">simpleclaw/llm/gemini.py<br>stream() · retry()</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">MainAgent</div>
+          <div class="node-desc">ContextBuilder factory<br>ToolRegistry factory<br>single "default" stage</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-core">HOOKS</span>
+          <div class="node-name">PostprocessHook</div>
+          <div class="node-desc">ColdPathHook<br>ToolLifecycle gates</div>
+        </div>
+      </div>
+      <div class="sub-section">
+        <div class="sub-label">API ROUTES</div>
+        <div class="nodes">
+          <div class="node">
+            <div class="node-name">/sessions</div>
+            <div class="node-desc">POST /chat (SSE)<br>会话管理</div>
+          </div>
+          <div class="node">
+            <div class="node-name">/materials</div>
+            <div class="node-desc">upload · tree · upload-zip<br>upload-zip/confirm</div>
+          </div>
+          <div class="node">
+            <div class="node-name">/reference-videos</div>
+            <div class="node-desc">upload · decompose<br>classify · tree</div>
+          </div>
+          <div class="node">
+            <div class="node-name">/creatives</div>
+            <div class="node-desc">CRUD · label<br>qianchuan IDs</div>
+          </div>
+          <div class="node">
+            <div class="node-name">/tasks</div>
+            <div class="node-desc">check_status<br>进度查询</div>
+          </div>
+          <div class="node">
+            <div class="node-name">/qianchuan</div>
+            <div class="node-desc">OAuth · 账号管理<br>发布接口</div>
+          </div>
+        </div>
+      </div>
+      <div class="sub-section">
+        <div class="sub-label">TOOLS — 6 REGISTERED</div>
+        <div class="nodes">
+          <div class="node">
+            <span class="node-tag tag-ready">DONE</span>
+            <div class="node-name">decompose_video</div>
+            <div class="node-desc">durable · queued</div>
+          </div>
+          <div class="node">
+            <span class="node-tag tag-ready">DONE</span>
+            <div class="node-name">generate_scripts</div>
+            <div class="node-desc">inline · 4-role parallel</div>
+          </div>
+          <div class="node">
+            <span class="node-tag tag-ready">DONE</span>
+            <div class="node-name">search_materials</div>
+            <div class="node-desc">inline · dual-vector</div>
+          </div>
+          <div class="node">
+            <span class="node-tag tag-ready">DONE</span>
+            <div class="node-name">check_task_status</div>
+            <div class="node-desc">inline · RuntimeTaskRepo</div>
+          </div>
+          <div class="node">
+            <span class="node-tag tag-stub">STUB</span>
+            <div class="node-name">compose_video</div>
+            <div class="node-desc">durable · FFmpeg TODO</div>
+          </div>
+          <div class="node">
+            <span class="node-tag tag-stub">STUB</span>
+            <div class="node-name">publish_to_qianchuan</div>
+            <div class="node-desc">durable · API TODO</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connector 2→3 -->
+    <div class="connector">
+      <span class="arrow-down">▼</span>
+      <span class="connector-label">TASK QUEUE · ASYNCIO</span>
+      <span class="arrow-down">▼</span>
+    </div>
+
+    <!-- ─── LAYER 3: SERVICES ─── -->
+    <div class="layer">
+      <div class="layer-header">
+        <span class="layer-index">L3</span>
+        <span class="layer-title">SERVICE LAYER</span>
+        <span class="layer-tech">TASK WORKER · 7 STREAMS</span>
+      </div>
+      <div class="nodes">
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">GeminiVideo</div>
+          <div class="node-desc">Files API<br>gemini-3.1-flash-lite<br>语义拆镜分析</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">SceneAlign</div>
+          <div class="node-desc">PySceneDetect<br>物理切点检测<br>时间戳对齐</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">Embedding</div>
+          <div class="node-desc">Ollama bge-m3<br>1024-dim Chinese<br>localhost:11434</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">MaterialMatcher</div>
+          <div class="node-desc">双向量两阶段匹配<br>product → generic</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">ZipParser</div>
+          <div class="node-desc">{product}/{role}/ 目录<br>CP437/GBK 解码<br>AppleDouble 过滤</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">ASR · ByteDance</div>
+          <div class="node-desc">BigModel WebSocket<br>16kHz WAV<br>语音转文字</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-stub">STUB</span>
+          <div class="node-name">DouyinClient</div>
+          <div class="node-desc">千川 OAuth<br>素材上传 TODO<br>投放 TODO</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-stub">STUB</span>
+          <div class="node-name">ScriptGenerator</div>
+          <div class="node-desc">4-role generation<br>LLM interface TODO</div>
+        </div>
+      </div>
+      <div class="sub-section">
+        <div class="sub-label">TASK STREAMS (FlowcutTaskStream)</div>
+        <div class="streams">
+          <span class="stream-chip active">material_process ✓</span>
+          <span class="stream-chip active">scene_decompose ✓</span>
+          <span class="stream-chip active">clip_create ✓</span>
+          <span class="stream-chip active">vector_repair ✓</span>
+          <span class="stream-chip stub">video_compose ⚠</span>
+          <span class="stream-chip stub">qianchuan_publish ⚠</span>
+          <span class="stream-chip stub">qianchuan_sync ⚠</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connector 3→4 -->
+    <div class="connector">
+      <span class="arrow-down">▼</span>
+      <span class="connector-label">I/O · PERSISTENCE</span>
+      <span class="arrow-down">▼</span>
+    </div>
+
+    <!-- ─── LAYER 4: STORAGE ─── -->
+    <div class="layer">
+      <div class="layer-header">
+        <span class="layer-index">L4</span>
+        <span class="layer-title">STORAGE LAYER</span>
+        <span class="layer-tech">PERSISTENCE · VECTOR · OBJECT</span>
+      </div>
+      <div class="nodes">
+        <div class="node wide">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">MySQL (aiomysql)</div>
+          <div class="node-desc">
+            fc_reference_video · fc_material · fc_script · fc_creative<br>
+            fc_material_usage · fc_qianchuan_account · nb_session · nb_task
+          </div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">Qdrant</div>
+          <div class="node-desc">Vector search<br>desc_vec + transcript_vec<br>max-fusion · localhost:6333</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-ready">DONE</span>
+          <div class="node-name">Volcengine OSS</div>
+          <div class="node-desc">TOS SDK<br>presigned PUT/GET<br>product-partitioned keys</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-core">OPT</span>
+          <div class="node-name">Redis</div>
+          <div class="node-desc">TaskQueue<br>fallback: in-memory<br>REDIS_URL optional</div>
+        </div>
+        <div class="node">
+          <span class="node-tag tag-core">EXT</span>
+          <div class="node-name">Google Gemini API</div>
+          <div class="node-desc">gemini-2.5-flash<br>gemini-3.1-flash-lite<br>GOOGLE_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .layers -->
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-title">STATUS LEGEND</div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--green); box-shadow: 0 0 6px var(--green);"></span>
+      DONE — 已完整实现
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--amber); box-shadow: 0 0 6px var(--amber);"></span>
+      STUB — 存根 / NotImplementedError
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--cyan); box-shadow: 0 0 6px var(--cyan);"></span>
+      CORE — simpleclaw 共享核心
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--red); box-shadow: 0 0 6px var(--red);"></span>
+      EXT — 外部 API 依赖
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:rgba(0,212,255,0.3);"></span>
+      OPT — 可选 / 降级降级
+    </div>
+  </div>
+
+  <footer>
+    <div>
+      <span class="status-dot"></span>
+      SYSTEM ONLINE · FLOWCUT MVP
+    </div>
+    <div>LAYERS: 4 · TOOLS: 6 (4 READY / 2 STUB) · STREAMS: 7 (4 ACTIVE / 3 STUB)</div>
+    <div>BUILD DATE: 2026.05.19 · ARCH REV: 2.4</div>
+  </footer>
+
+</div>
+</body>
+</html>

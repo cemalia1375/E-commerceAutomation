@@ -1,0 +1,3 @@
+[submodule "SimpleClaw"]
+	path = SimpleClaw
+	url = git@github.com:rao133/SimpleClaw.git
