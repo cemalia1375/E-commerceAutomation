@@ -4,6 +4,7 @@ import { Card, Checkbox, Button, Space, message, Tag, Empty } from 'antd'
 import { useScriptStore } from '../../stores/scriptStore'
 import { scriptApi } from '../../api/script'
 import type { MatchedMaterial } from '../../types/script'
+import ExportButton from './ExportButton'
 
 const TENANT_KEY = 'default'
 
@@ -161,7 +162,7 @@ export default function MaterialPreview() {
           marginTop: 16,
         }}
       >
-        {/* TODO Phase 10: ExportButton scriptId={currentScript.id} tenantKey={TENANT_KEY} */}
+        <ExportButton scriptId={currentScript.id} tenantKey={TENANT_KEY} />
       </div>
     </div>
   )
