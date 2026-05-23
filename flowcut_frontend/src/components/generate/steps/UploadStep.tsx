@@ -30,7 +30,7 @@ export default function UploadStep() {
     if (creating) return
     setCreating(true)
     try {
-      const resp = await scriptApi.upload(TENANT_KEY, [{ visual: '', copy: '' }])
+      const resp = await scriptApi.upload(TENANT_KEY, [{ visual: '新片段', copy: '' }])
       navigate(`/scripts/${resp.script_id}`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : '创建脚本失败'

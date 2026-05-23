@@ -118,7 +118,7 @@ export default function ScriptEditor() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, flex: 1, overflow: 'auto', width: '100%' }}>
       <Card
         title={`脚本编辑 #${currentScript.id}`}
         extra={

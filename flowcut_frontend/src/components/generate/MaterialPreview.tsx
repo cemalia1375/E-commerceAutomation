@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Card, Checkbox, Button, Space, message, Tag, Empty } from 'antd'
+import { Card, Checkbox, Button, Space, message, Tag, Empty, Input } from 'antd'
 import { useScriptStore } from '../../stores/scriptStore'
 import { scriptApi } from '../../api/script'
 import type { MatchedMaterial } from '../../types/script'
@@ -60,6 +60,8 @@ export default function MaterialPreview() {
     toggleMaterial,
   } = useScriptStore()
   const [loading, setLoading] = useState(true)
+  const [product, setProduct] = useState<string>('')
+  const [matching, setMatching] = useState(false)
 
   useEffect(() => {
     if (!scriptId) return
@@ -85,18 +87,42 @@ export default function MaterialPreview() {
     }
   }, [scriptId, setScript, setMatchResults])
 
-  if (loading) return <div style={{ padding: 24 }}>召回中...</div>
+  const onRematch = async () => {
+    if (!currentScript) return
+    setMatching(true)
+    try {
+      const m = await scriptApi.match(currentScript.id, TENANT_KEY, product)
+      setMatchResults(m.results)
+      message.success('召回完成')
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setMatching(false)
+    }
+  }
+
+  if (loading) return <div style={{ padding: 24, flex: 1, overflow: 'auto', width: '100%' }}>召回中...</div>
   if (!currentScript) return <Empty description="脚本不存在" />
 
   return (
-    <div style={{ padding: 24 }}>
-      <Space style={{ marginBottom: 16 }}>
+    <div style={{ padding: 24, flex: 1, overflow: 'auto', width: '100%' }}>
+      <Space style={{ marginBottom: 16 }} wrap>
         <Button onClick={() => navigate(`/scripts/${currentScript.id}`)}>
           重新编辑
         </Button>
         <span>
           脚本 #{currentScript.id} · {matchResults.length} 段
         </span>
+        <Input
+          placeholder="产品（如 测试 / 雪莲洗液），留空查通用素材"
+          value={product}
+          onChange={(e) => setProduct(e.target.value)}
+          style={{ width: 320 }}
+          allowClear
+        />
+        <Button type="primary" loading={matching} onClick={onRematch}>
+          按此产品重新召回
+        </Button>
       </Space>
 
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
