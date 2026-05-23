@@ -7,6 +7,7 @@ export interface ScriptSegment {
   end_time: number
   visual: string
   copy: string
+  category?: string
 }
 
 export interface Script {
@@ -14,6 +15,7 @@ export interface Script {
   tenant_key: string
   source: ScriptSource
   reference_video_id: number | null
+  product: string | null
   segments: ScriptSegment[]
   status: ScriptStatus
   created_at: string

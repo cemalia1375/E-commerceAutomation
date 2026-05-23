@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import type { GenerateStep, ChatMessage, Script, VideoScene, VideoSegment, MatchedSegment } from '../types'
+import type { GenerateStep, ChatMessage, Script, MatchedSegment } from '../types'
 import { streamChat, createSession, listSessions } from '../api/chat'
 import type { SessionSummary } from '../api/chat'
 import {
   uploadReferenceVideo,
   pollReferenceVideo,
 } from '../api/referenceVideos'
+import { scriptApi } from '../api/script'
 import { matchMaterials } from '../api/match'
 
 const TENANT_KEY = 'flowcut'
@@ -13,9 +14,7 @@ const TENANT_KEY = 'flowcut'
 export type DecomposeStatus =
   | 'idle'
   | 'uploading'
-  | 'processing'          // SCENE_DECOMPOSE (Gemini + PySceneDetect) queued
-  | 'awaiting_classify'   // decompose done, waiting for user to classify segments
-  | 'creating_clips'      // clip_create task queued, polling for DECOMPOSED
+  | 'processing'
   | 'done'
   | 'error'
 
@@ -31,18 +30,13 @@ interface GenerateState {
   sessionKey: string
   sessions: SessionSummary[]
 
-  // Decompose flow (reference video → scene decompose → clips)
+  // Decompose flow (reference video → scene decompose → script)
   decomposeStatus: DecomposeStatus
   decomposeError: string | null
   currentRefVideoId: number | null
-  sceneData: VideoScene[]
+  currentScriptId: number | null
 
-  // Classify modal state
-  classifyModalOpen: boolean
-  classifyRefVideoId: number | null
-  classifySegments: VideoSegment[]
-
-  // Current product (captured from ClassifyModal, used in material match)
+  // Current product (used in material match; updateable via setProduct)
   currentProduct: string | null
 
   // Material match results (step 3)
@@ -57,9 +51,7 @@ interface GenerateState {
   setAgentTyping: (typing: boolean) => void
   sendUserMessage: (text: string) => void
   startDecomposeFlow: (file: File) => Promise<void>
-  openClassifyModal: (refVideoId: number, segments: VideoSegment[]) => void
-  closeClassifyModal: () => void
-  continueAfterClassify: (product: string) => Promise<void>
+  setProduct: (product: string | null) => Promise<void>
   runMaterialMatch: () => Promise<boolean>
   newSession: () => Promise<void>
   fetchSessions: () => Promise<void>
@@ -67,24 +59,6 @@ interface GenerateState {
 
 let msgCounter = 0
 const newId = () => `msg-${++msgCounter}`
-
-// Converts VideoScene[] into a single Script for display in ScriptStep
-function scenesToScript(scenes: VideoScene[]): Script {
-  const last = scenes[scenes.length - 1]
-  return {
-    id: 's1',
-    name: '拆镜结果',
-    hook: scenes[0]?.content.slice(0, 40) ?? '',
-    durationSec: last?.endTime ?? 0,
-    scenes: scenes.map((s, i) => ({
-      startSec: s.startTime,
-      endSec: s.endTime,
-      label: `场景 ${i + 1}`,
-      description: s.content,
-      category: s.category,
-    })),
-  }
-}
 
 export const useGenerateStore = create<GenerateState>((set, get) => ({
   step: 1,
@@ -107,11 +81,7 @@ export const useGenerateStore = create<GenerateState>((set, get) => ({
   decomposeStatus: 'idle',
   decomposeError: null,
   currentRefVideoId: null,
-  sceneData: [],
-
-  classifyModalOpen: false,
-  classifyRefVideoId: null,
-  classifySegments: [],
+  currentScriptId: null,
 
   currentProduct: null,
   matchResults: null,
@@ -130,9 +100,7 @@ export const useGenerateStore = create<GenerateState>((set, get) => ({
     addMessage({ role: 'user', type: 'text', content: `已上传：${file.name}` })
 
     let decomposeIdx = -1
-
     try {
-      // 1. Upload reference video → fc_reference_video + auto-queue scene_decompose
       const { ref_video_id } = await uploadReferenceVideo(TENANT_KEY, file)
       set({ currentRefVideoId: ref_video_id, decomposeStatus: 'processing' })
 
@@ -140,21 +108,44 @@ export const useGenerateStore = create<GenerateState>((set, get) => ({
         role: 'agent',
         type: 'progress',
         content: '',
-        label: '正在拆解分镜…',
-        subLabel: 'Gemini 语义分段 + PySceneDetect 时间对齐',
+        label: '正在拆解分镜并提取口播…',
+        subLabel: 'Gemini 视觉分段 + ASR 词级切片',
         done: false,
       })
       decomposeIdx = get().messages.length - 1
 
-      // 2. Poll until AWAITING_CLASSIFICATION (decompose done, clips not yet created)
       const refVideo = await pollReferenceVideo(
         ref_video_id,
-        (rv) => rv.status === 'AWAITING_CLASSIFICATION' && (rv.scene_data_json?.length ?? 0) > 0,
+        (rv) => rv.status === 'READY' && rv.script_id !== null,
       )
-      const segments = refVideo.scene_data_json!
+      if (refVideo.script_id === null) {
+        throw new Error('拆镜完成但未生成脚本')
+      }
+
+      const script = await scriptApi.get(refVideo.script_id)
+
+      const localScript: Script = {
+        id: String(script.id),
+        name: '拆镜结果',
+        hook: script.segments[0]?.visual?.slice(0, 40) ?? '',
+        durationSec: script.segments[script.segments.length - 1]?.end_time ?? 0,
+        scenes: script.segments.map((seg, i) => ({
+          startSec: seg.start_time,
+          endSec: seg.end_time,
+          label: `场景 ${i + 1}`,
+          description: seg.visual,
+          category:
+            (seg.category as '真人口播' | '产品展示' | undefined) ?? '产品展示',
+          copy: seg.copy,
+        })),
+      }
 
       set({
-        decomposeStatus: 'awaiting_classify',
+        decomposeStatus: 'done',
+        currentScriptId: script.id,
+        currentProduct: script.product ?? null,
+        scripts: [localScript],
+        selectedScriptId: localScript.id,
         messages: get().messages.map((m, i) =>
           i === decomposeIdx ? { ...m, done: true } : m,
         ),
@@ -163,79 +154,14 @@ export const useGenerateStore = create<GenerateState>((set, get) => ({
         role: 'agent',
         type: 'progress',
         content: '',
-        label: '分镜拆解完成，等待分类',
-        subLabel: `识别 ${segments.length} 个分镜段，请为每段指定场景角色`,
+        label: '拆镜完成',
+        subLabel: `共 ${localScript.scenes.length} 段，包含口播文案`,
         done: true,
       })
       addMessage({
         role: 'agent',
         type: 'text',
-        content: `拆镜完成，共 ${segments.length} 段。请在弹窗中为每段选择场景角色，并指定产品。`,
-      })
-
-      // 3. Open classify modal
-      get().openClassifyModal(ref_video_id, segments)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '未知错误'
-      set({ decomposeStatus: 'error', decomposeError: msg })
-      addMessage({ role: 'agent', type: 'text', content: `[错误] ${msg}` })
-    }
-  },
-
-  openClassifyModal: (refVideoId, segments) =>
-    set({ classifyModalOpen: true, classifyRefVideoId: refVideoId, classifySegments: segments }),
-
-  closeClassifyModal: () => set({ classifyModalOpen: false }),
-
-  continueAfterClassify: async (product: string) => {
-    const { currentRefVideoId, addMessage } = get()
-    if (currentRefVideoId === null) return
-
-    set({ decomposeStatus: 'creating_clips', classifyModalOpen: false, currentProduct: product })
-    addMessage({
-      role: 'agent',
-      type: 'progress',
-      content: '',
-      label: '正在生成子片段…',
-      subLabel: 'FFmpeg 切条 + OSS 上传',
-      done: false,
-    })
-    const clipIdx = get().messages.length - 1
-
-    try {
-      const refVideo = await pollReferenceVideo(
-        currentRefVideoId,
-        (rv) => rv.status === 'DECOMPOSED',
-      )
-      const sceneData = (refVideo.scene_data_json ?? []).map((s) => ({
-        startTime: s.startTime,
-        endTime: s.endTime,
-        content: s.content,
-        category: s.category,
-      }))
-
-      const script = scenesToScript(sceneData)
-      set({
-        decomposeStatus: 'done',
-        sceneData,
-        scripts: [script],
-        selectedScriptId: script.id,
-        messages: get().messages.map((m, i) =>
-          i === clipIdx ? { ...m, done: true } : m,
-        ),
-      })
-      addMessage({
-        role: 'agent',
-        type: 'progress',
-        content: '',
-        label: '子片段生成完成',
-        subLabel: `共生成 ${sceneData.length} 条素材`,
-        done: true,
-      })
-      addMessage({
-        role: 'agent',
-        type: 'text',
-        content: `已完成拆镜，共 ${sceneData.length} 段。右侧可查看分镜详情，选择后继续。`,
+        content: `已完成拆镜，共 ${localScript.scenes.length} 段。右侧可查看每段的视觉描述和口播文案。下一步：选择产品并匹配素材。`,
       })
       get().setStep(2)
     } catch (err) {
@@ -245,6 +171,17 @@ export const useGenerateStore = create<GenerateState>((set, get) => ({
     }
   },
 
+  setProduct: async (product) => {
+    const { currentScriptId } = get()
+    const normalized = product?.trim() || null
+    if (currentScriptId === null) {
+      set({ currentProduct: normalized })
+      return
+    }
+    await scriptApi.updateProduct(currentScriptId, normalized)
+    set({ currentProduct: normalized })
+  },
+
   runMaterialMatch: async () => {
     const { scripts, selectedScriptId, currentProduct, addMessage } = get()
     const sel = scripts.find((s) => s.id === selectedScriptId)
@@ -252,7 +189,7 @@ export const useGenerateStore = create<GenerateState>((set, get) => ({
       set({ matchError: '请先选择脚本' })
       return false
     }
-    const product = (currentProduct ?? '').trim() || '通用'
+    const product = (currentProduct ?? '').trim()
     const segments = sel.scenes.map((sc, i) => ({
       index: i,
       description: sc.description,
@@ -300,10 +237,7 @@ export const useGenerateStore = create<GenerateState>((set, get) => ({
       decomposeStatus: 'idle' as const,
       decomposeError: null,
       currentRefVideoId: null,
-      sceneData: [],
-      classifyModalOpen: false,
-      classifyRefVideoId: null,
-      classifySegments: [],
+      currentScriptId: null,
       currentProduct: null,
       matchResults: null,
       matchLoading: false,

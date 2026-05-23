@@ -76,6 +76,15 @@ export const scriptApi = {
       method: 'POST',
       body: JSON.stringify({ material_ids: materialIds, tenant_key: tenantKey }),
     }),
+
+  updateProduct: (scriptId: number, product: string | null) =>
+    jsonFetch<{ ok: boolean; script_id: number; product: string | null }>(
+      `/flowcut/scripts/${scriptId}/update-product`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ product }),
+      },
+    ),
 }
 
 export const taskApi = {

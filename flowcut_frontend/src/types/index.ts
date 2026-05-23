@@ -8,8 +8,7 @@ export interface VideoScene {
 
 export type ReferenceVideoStatus =
   | 'PROCESSING'
-  | 'AWAITING_CLASSIFICATION'
-  | 'DECOMPOSED'
+  | 'READY'
   | 'FAILED'
 
 export interface VideoSegment {
@@ -136,6 +135,7 @@ export interface SceneSegment {
   label: string
   description: string
   category: '真人口播' | '产品展示'
+  copy?: string
 }
 
 export interface Script {

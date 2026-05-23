@@ -99,17 +99,3 @@ export async function pollReferenceVideo(
   throw new Error('等待超时（5 分钟）')
 }
 
-export async function classifyReferenceVideo(
-  refVideoId: number,
-  product: string,
-  segments: { index: number; sceneRole: string }[],
-): Promise<{ task_id: string; status: string }> {
-  const { data } = await apiClient.post<{ task_id: string; status: string }>(
-    `/reference-videos/${refVideoId}/classify`,
-    {
-      product,
-      segments: segments.map((s) => ({ index: s.index, scene_role: s.sceneRole })),
-    },
-  )
-  return data
-}

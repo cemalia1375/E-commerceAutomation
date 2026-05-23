@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Input, Button, message } from 'antd'
 import { useGenerateStore } from '../../../stores/generateStore'
 import MediaPreview, { inferMediaType } from '../../common/MediaPreview'
 import type { MatchCandidate, MatchedSegment } from '../../../types'
@@ -59,9 +60,27 @@ export default function MatchingStep() {
     matchLoading,
     matchError,
     runMaterialMatch,
+    currentProduct,
+    currentScriptId,
+    setProduct,
   } = useGenerateStore()
 
   const [activeCandidate, setActiveCandidate] = useState<MatchCandidate | null>(null)
+  const [productDraft, setProductDraft] = useState<string>(() => currentProduct ?? '')
+  const [savingProduct, setSavingProduct] = useState(false)
+
+  const handleSaveProduct = async () => {
+    setSavingProduct(true)
+    try {
+      await setProduct(productDraft)
+      message.success('产品已更新')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '保存失败'
+      message.error(msg)
+    } finally {
+      setSavingProduct(false)
+    }
+  }
 
   useEffect(() => {
     if (!matchResults) return
@@ -138,6 +157,20 @@ export default function MatchingStep() {
     <div className={styles.wrap}>
       <div className={styles.title}>素材匹配结果</div>
       <div className={styles.sub}>已为脚本匹配素材，共 {results.length} 段。可在确认后进入合成。</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px' }}>
+        <span style={{ fontSize: 12, color: '#475569' }}>产品：</span>
+        <Input
+          size="small"
+          placeholder="可选 — 留空将不限定产品"
+          value={productDraft}
+          onChange={(e) => setProductDraft(e.target.value)}
+          style={{ maxWidth: 220 }}
+          disabled={currentScriptId === null}
+        />
+        <Button size="small" loading={savingProduct} onClick={handleSaveProduct}>
+          保存
+        </Button>
+      </div>
       <div className={styles.matchSummary}>
         <div className={styles.matchStat} style={{ background: '#d1fae5', color: '#059669' }}>✓ 已匹配 {matched}</div>
         <div className={styles.matchStat} style={{ background: '#fef3c7', color: '#d97706' }}>△ 低匹配 {low}</div>
