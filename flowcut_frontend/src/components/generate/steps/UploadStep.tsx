@@ -1,6 +1,11 @@
-import { Upload } from 'antd'
+import { useState } from 'react'
+import { Upload, Card, Button, message } from 'antd'
+import { useNavigate } from 'react-router-dom'
 import { useGenerateStore } from '../../../stores/generateStore'
+import { scriptApi } from '../../../api/script'
 import styles from './Step.module.css'
+
+const TENANT_KEY = 'flowcut'
 
 const STATUS_LABEL: Record<string, string> = {
   uploading:   '正在上传视频…',
@@ -10,6 +15,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function UploadStep() {
   const { startDecomposeFlow, decomposeStatus, decomposeError } = useGenerateStore()
+  const navigate = useNavigate()
+  const [creating, setCreating] = useState(false)
 
   const isRunning = decomposeStatus !== 'idle' && decomposeStatus !== 'error'
 
@@ -17,6 +24,20 @@ export default function UploadStep() {
     if (isRunning) return false
     startDecomposeFlow(file)
     return false
+  }
+
+  async function handleCreateBlankScript() {
+    if (creating) return
+    setCreating(true)
+    try {
+      const resp = await scriptApi.upload(TENANT_KEY, [{ visual: '', copy: '' }])
+      navigate(`/scripts/${resp.script_id}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '创建脚本失败'
+      message.error(msg)
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
@@ -56,6 +77,15 @@ export default function UploadStep() {
           {decomposeError}
         </div>
       )}
+
+      <Card title="直接编写脚本" style={{ marginTop: 16 }}>
+        <p style={{ minHeight: 40, color: '#666', margin: '0 0 12px' }}>
+          跳过拆镜，手动填写画面与文案，直接进入素材匹配
+        </p>
+        <Button block onClick={handleCreateBlankScript} loading={creating}>
+          新建空脚本
+        </Button>
+      </Card>
     </div>
   )
 }

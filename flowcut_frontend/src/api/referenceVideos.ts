@@ -20,6 +20,7 @@ export interface ReferenceVideo {
   file_size: number
   scene_data_json: VideoSegment[] | null
   status: ReferenceVideoStatus
+  script_id: number | null
   created_at: string
 }
 
@@ -48,6 +49,7 @@ function fromBackend(raw: Record<string, unknown>): ReferenceVideo {
     file_size: (raw.file_size as number) ?? 0,
     scene_data_json: parseSceneData(raw.scene_data_json),
     status: (raw.status as ReferenceVideoStatus) ?? 'PROCESSING',
+    script_id: (raw.script_id as number | null) ?? null,
     created_at: raw.created_at as string,
   }
 }

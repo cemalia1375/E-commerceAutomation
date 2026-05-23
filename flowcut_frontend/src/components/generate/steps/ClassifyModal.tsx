@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Modal, AutoComplete, Select, Table, message } from 'antd'
+import { Modal, AutoComplete, Select, Table, Button, message } from 'antd'
+import { useNavigate } from 'react-router-dom'
 import type { VideoSegment } from '../../../types'
 import { getProducts } from '../../../api/products'
-import { classifyReferenceVideo } from '../../../api/referenceVideos'
+import { classifyReferenceVideo, getReferenceVideo } from '../../../api/referenceVideos'
 
 const TENANT_KEY = 'flowcut'
 const PRESET_SCENE_ROLES = ['医生', '药材', '冲洗', '产品展示', '痛点', '美好']
@@ -27,10 +28,12 @@ export default function ClassifyModal({
   onClose,
   onSuccess,
 }: ClassifyModalProps) {
+  const navigate = useNavigate()
   const [productOptions, setProductOptions] = useState<{ value: string }[]>([])
   const [product, setProduct] = useState('')
   const [sceneRoles, setSceneRoles] = useState<Record<number, string>>({})
   const [busy, setBusy] = useState(false)
+  const [scriptId, setScriptId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -44,7 +47,13 @@ export default function ClassifyModal({
     })
     setSceneRoles(defaults)
     setProduct('')
-  }, [open, segments])
+    setScriptId(null)
+    if (refVideoId !== null) {
+      getReferenceVideo(refVideoId)
+        .then((rv) => setScriptId(rv.script_id))
+        .catch(() => setScriptId(null))
+    }
+  }, [open, segments, refVideoId])
 
   const handleSubmit = async () => {
     if (!product.trim()) {
@@ -113,6 +122,17 @@ export default function ClassifyModal({
       confirmLoading={busy}
       okText="确认并生成子片段"
       destroyOnClose
+      footer={(_, { OkBtn, CancelBtn }) => (
+        <>
+          {scriptId !== null && (
+            <Button onClick={() => navigate(`/scripts/${scriptId}`)}>
+              查看脚本
+            </Button>
+          )}
+          <CancelBtn />
+          <OkBtn />
+        </>
+      )}
     >
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 12, marginBottom: 4 }}>
