@@ -5,7 +5,7 @@ import type {
   TaskStatus,
 } from '../types/script'
 
-const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
 
 interface UploadResp {
   ok: boolean
