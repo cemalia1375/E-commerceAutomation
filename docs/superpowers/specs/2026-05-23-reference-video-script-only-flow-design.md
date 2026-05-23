@@ -41,7 +41,9 @@ scene_decompose_executor:
    └─ UPDATE fc_reference_video SET status=READY, script_id=<new_id>
 ```
 
-终态：`fc_reference_video` (元数据 + scene_data_json) + `fc_script` (visual + copy 数组)。不再产生子片段 `fc_material` 行。
+终态：`fc_reference_video` (元数据) + `fc_script` (visual + copy 数组)。不再产生子片段 `fc_material` 行。
+
+**`scene_data_json` 字段不再写入** —— 段落数据以 `fc_script.segments_json` 为准。`fc_reference_video.scene_data_json` 列保留（旧数据兼容），新流程一律为 NULL。
 
 ### 2.2 废弃项
 
@@ -55,19 +57,27 @@ scene_decompose_executor:
 
 ## 3. Schema 改动
 
-| 表.字段 | 旧 | 新 | 说明 |
-|---------|----|----|------|
-| `fc_reference_video.status` | `PROCESSING / AWAITING_CLASSIFICATION / DECOMPOSED / FAILED` | `PROCESSING / READY / FAILED` | 拆完即终态 |
-| `fc_reference_video.product` | NOT NULL | nullable | 允许"上传时不选产品" |
-| `fc_script.product` | NOT NULL | nullable | 继承自 ref_video，允许后续 PATCH |
-| `fc_material` | 拆镜会写子片段 | 拆镜不写 | 表本身保留，给 zip / 单文件素材上传用 |
+| 表.字段 | 当前 | 改动 | 说明 |
+|---------|------|------|------|
+| `fc_reference_video.status` 枚举 | `PROCESSING / AWAITING_CLASSIFICATION / DECOMPOSED / FAILED` | 改为 `PROCESSING / READY / FAILED` | 列类型不变，仅业务枚举收敛 |
+| `fc_script.product` | 列不存在 | **ADD COLUMN** `product VARCHAR(128) NULL AFTER reference_video_id` | 新增字段，存放脚本对应产品 |
+| `fc_material` 写入路径 | 拆镜会写子片段 | 拆镜不写 | 表本身保留，zip / 单文件素材上传仍写入 |
+
+> 注：`fc_reference_video.product` 当前已是 `VARCHAR(128) NULL`，无需迁移。
 
 ### 存量数据迁移
 
-- `UPDATE fc_reference_video SET status='READY' WHERE status IN ('AWAITING_CLASSIFICATION','DECOMPOSED')`
-- 旧拆镜子片段 `fc_material` 行：**保留不删**（可能被 `fc_creative` 引用）；新代码不再生产这种行，自然沉淀。
+- 旧 `AWAITING_CLASSIFICATION` / `DECOMPOSED` 记录：在旧流程里只有 `clip_create` 完成后才会创建 `fc_script`，所以这些记录的 `script_id` 必然为 NULL，迁移到 `READY` 会变成"无脚本可访问的孤儿"。统一处理：
+  ```sql
+  UPDATE fc_reference_video
+     SET status='FAILED'
+   WHERE status IN ('AWAITING_CLASSIFICATION','DECOMPOSED')
+     AND script_id IS NULL;
+  ```
+  这样前端按 `FAILED` 渲染（已有 UI 支持），用户可选择重新上传。
+- 旧拆镜子片段 `fc_material` 行：**保留不删**（可能被 `fc_creative` 引用），新代码不再生产，自然沉淀。
 
-迁移在 `storage/database.py:ensure_schema()` 中以幂等 `ALTER TABLE` + 一次性 UPDATE 完成。
+迁移在 `storage/database.py:ensure_schema()` 中以幂等 `ALTER TABLE ADD COLUMN`（带 `INFORMATION_SCHEMA` 探测）+ 一次性 UPDATE 完成。
 
 ---
 
@@ -121,13 +131,13 @@ Body: {"product": "<产品名>"}
 
 **后端：**
 - `Flowcut/storage/database.py` — schema 迁移 + 状态枚举更新
-- `Flowcut/storage/reference_video_repo.py` — 移除 `update_scene_data_and_product`（如不再使用）
-- `Flowcut/storage/script_repo.py` — 新增 `update_product()` 方法
-- `Flowcut/runtime/executors.py` — `_call_asr_websocket_with_words` 加 `show_utterances`；`make_scene_decompose_executor` 终态改 `READY`；删除 `make_clip_create_executor`
+- `Flowcut/storage/reference_video_repo.py` — 删除 `update_scene_data_and_product`
+- `Flowcut/storage/script_repo.py` — `create()` 增加 `product` 参数；新增 `update_product()` 方法
+- `Flowcut/runtime/executors.py` — `_call_asr_websocket_with_words` 加 `show_utterances`；`make_scene_decompose_executor` 终态改 `READY`、INSERT fc_script 时带上 product；删除 `make_clip_create_executor`
 - `Flowcut/runtime/streams.py` — 删除 `CLIP_CREATE` 枚举
 - `Flowcut/runtime/worker.py` / `make_workers()` — 删除 clip_create worker 注册
 - `Flowcut/api/routes/reference_videos.py` — OSS key 改 `uploads/...`；`product` 字段改可选；删除 `POST /{ref_video_id}/classify` 路由
-- `Flowcut/api/routes/scripts.py`（新建或扩展）— 新增 `POST /scripts/{id}/update-product`
+- `Flowcut/api/routes/scripts.py` — 扩展，新增 `POST /scripts/{id}/update-product`
 - `Flowcut/tools/search_materials.py` — 实现 product 三段式回退
 - `Flowcut/tools/decompose_video.py` — 不再触发 clip_create 后续步骤（如有相关引用）
 
