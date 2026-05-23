@@ -385,6 +385,25 @@ class ScriptRepository:
 - 现状：两者各自演进路径不同（scene_data 给切片用、script 给运营编辑用），冗余可接受
 - 未来：如果切片流程也想用编辑后的脚本，可考虑去冗余，但本轮不做
 
+### 9.4 自动化 E2E 验证记录（2026-05-23）
+
+- **场景 B（用户上传脚本流，API 级，跑在 backend `localhost:8001`）**：
+  - 清库 `Flowcut.scripts.reset_db`：DROP 5 表 + `清库重建完成` ✅
+  - `POST /flowcut/scripts`（2 段）→ 200 `{"ok":true,"script_id":1}` ✅
+  - `GET /flowcut/scripts/1` → 200，含 `status:"DRAFT"` + 2 段 segments ✅
+  - `PATCH /flowcut/scripts/1`（替换为 1 段 V2/C2）→ 200 `{"ok":true}` ✅
+  - `POST /flowcut/scripts/1/confirm` → 200 `{"ok":true,"status":"CONFIRMED"}` ✅
+  - `POST /flowcut/scripts/1/match`（tenant=e2e_b, product=空）→ 200，1 段返回 `phase1:[] phase2:[]`（清库后素材库为空，结果符合预期）✅
+  - `POST /flowcut/scripts/1/export`（material_ids=[]）→ 422 `material_ids 不能为空` ✅（同时作为负向用例）
+- **负向场景**：
+  - 404（不存在 script `/flowcut/scripts/99999`）✅
+  - 409（CONFIRMED 状态 PATCH）✅
+  - 422（空 segments POST）✅
+  - 422（空 material_ids 导出）✅
+- **场景 A（真实视频拆镜→脚本→导出）**：⏸ 留人工验证（需 UI 上传真视频，依赖 Gemini / ASR / OSS 真实凭据）
+
+发现的问题：无（match 因清库后素材库为空返回空召回，属预期行为，非缺陷）
+
 ## 10. 实施步骤（粗）
 
 详细 plan 由 writing-plans skill 产出。本节仅给出粗略阶段：
