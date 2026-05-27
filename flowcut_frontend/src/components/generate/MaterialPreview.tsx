@@ -147,8 +147,12 @@ export default function MaterialPreview() {
                     <MaterialCard
                       key={m.material_id}
                       mat={m}
-                      checked={selectedMaterials.has(m.material_id)}
-                      onToggle={() => toggleMaterial(m.material_id)}
+                      checked={(selectedMaterials[r.seg_idx] ?? []).includes(
+                        m.material_id,
+                      )}
+                      onToggle={() =>
+                        toggleMaterial(r.seg_idx, m.material_id)
+                      }
                     />
                   ))}
                 </Space>
@@ -166,8 +170,12 @@ export default function MaterialPreview() {
                     <MaterialCard
                       key={m.material_id}
                       mat={m}
-                      checked={selectedMaterials.has(m.material_id)}
-                      onToggle={() => toggleMaterial(m.material_id)}
+                      checked={(selectedMaterials[r.seg_idx] ?? []).includes(
+                        m.material_id,
+                      )}
+                      onToggle={() =>
+                        toggleMaterial(r.seg_idx, m.material_id)
+                      }
                       dim
                     />
                   ))}

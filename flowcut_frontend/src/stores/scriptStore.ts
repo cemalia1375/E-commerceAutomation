@@ -1,24 +1,40 @@
 import { create } from 'zustand'
 import type { Script, ScriptSegment, SegmentMatchResult } from '../types/script'
 
+export type SelectedMaterials = Record<number, number[]>
+
 interface ScriptState {
   currentScript: Script | null
   matchResults: SegmentMatchResult[]
-  selectedMaterials: Set<number>
+  selectedMaterials: SelectedMaterials
   exportTaskId: string | null
 
   setScript: (script: Script | null) => void
   updateSegments: (segments: ScriptSegment[]) => void
   setMatchResults: (results: SegmentMatchResult[]) => void
-  toggleMaterial: (materialId: number) => void
+  toggleMaterial: (segIdx: number, materialId: number) => void
   setExportTaskId: (taskId: string | null) => void
   reset: () => void
+}
+
+function pickDefaults(results: SegmentMatchResult[]): SelectedMaterials {
+  const next: SelectedMaterials = {}
+  for (const r of results) {
+    if (r.phase1.length > 0) {
+      next[r.seg_idx] = [r.phase1[0].material_id]
+    } else if (r.phase2.length > 0) {
+      next[r.seg_idx] = [r.phase2[0].material_id]
+    } else {
+      next[r.seg_idx] = []
+    }
+  }
+  return next
 }
 
 export const useScriptStore = create<ScriptState>((set) => ({
   currentScript: null,
   matchResults: [],
-  selectedMaterials: new Set<number>(),
+  selectedMaterials: {},
   exportTaskId: null,
 
   setScript: (script) => set({ currentScript: script }),
@@ -29,26 +45,24 @@ export const useScriptStore = create<ScriptState>((set) => ({
         : s,
     ),
   setMatchResults: (results) =>
-    set(() => {
-      const ids = new Set<number>()
-      for (const r of results) {
-        for (const m of [...r.phase1, ...r.phase2]) ids.add(m.material_id)
-      }
-      return { matchResults: results, selectedMaterials: ids }
-    }),
-  toggleMaterial: (id) =>
+    set({ matchResults: results, selectedMaterials: pickDefaults(results) }),
+  toggleMaterial: (segIdx, materialId) =>
     set((s) => {
-      const next = new Set(s.selectedMaterials)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return { selectedMaterials: next }
+      const current = s.selectedMaterials[segIdx] ?? []
+      const exists = current.includes(materialId)
+      const nextSeg = exists
+        ? current.filter((id) => id !== materialId)
+        : [...current, materialId]
+      return {
+        selectedMaterials: { ...s.selectedMaterials, [segIdx]: nextSeg },
+      }
     }),
   setExportTaskId: (taskId) => set({ exportTaskId: taskId }),
   reset: () =>
     set({
       currentScript: null,
       matchResults: [],
-      selectedMaterials: new Set<number>(),
+      selectedMaterials: {},
       exportTaskId: null,
     }),
 }))

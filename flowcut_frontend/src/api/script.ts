@@ -71,10 +71,14 @@ export const scriptApi = {
       body: JSON.stringify({ tenant_key: tenantKey, product }),
     }),
 
-  export: (scriptId: number, materialIds: number[], tenantKey: string) =>
+  export: (
+    scriptId: number,
+    selections: Record<number, number[]>,
+    tenantKey: string,
+  ) =>
     jsonFetch<ExportResp>(`/flowcut/scripts/${scriptId}/export`, {
       method: 'POST',
-      body: JSON.stringify({ material_ids: materialIds, tenant_key: tenantKey }),
+      body: JSON.stringify({ selections, tenant_key: tenantKey }),
     }),
 
   updateProduct: (scriptId: number, product: string | null) =>

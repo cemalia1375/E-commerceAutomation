@@ -1,5 +1,5 @@
 export type ScriptSource = 'decomposed' | 'uploaded'
-export type ScriptStatus = 'DRAFT' | 'CONFIRMED'
+export type ScriptStatus = 'DRAFT' | 'CONFIRMED' | 'PROCESSING' | 'FAILED'
 
 export interface ScriptSegment {
   idx: number

@@ -36,8 +36,13 @@ export default function ExportButton({
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  const totalSelected = Object.values(selectedMaterials).reduce(
+    (acc, ids) => acc + ids.length,
+    0,
+  )
+
   const onClick = async () => {
-    if (selectedMaterials.size === 0) {
+    if (totalSelected === 0) {
       message.warning('至少选一个素材')
       return
     }
@@ -47,7 +52,7 @@ export default function ExportButton({
     try {
       const resp = await scriptApi.export(
         scriptId,
-        [...selectedMaterials],
+        selectedMaterials,
         tenantKey,
       )
       const url = await pollTask(resp.task_id)
@@ -64,7 +69,7 @@ export default function ExportButton({
       <Button type="primary" onClick={onClick} disabled={exporting}>
         {exporting
           ? '导出中...'
-          : `导出素材包（已选 ${selectedMaterials.size}）`}
+          : `导出素材包（已选 ${totalSelected}）`}
       </Button>
 
       <Modal open={exporting} closable={false} footer={null} title="导出中">
