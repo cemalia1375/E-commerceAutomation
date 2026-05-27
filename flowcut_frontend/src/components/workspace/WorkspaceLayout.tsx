@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Spin, Tag } from 'antd'
 import { scriptApi } from '../../api/script'
+import { useScriptStore } from '../../stores/scriptStore'
 import type { Script, ScriptStatus } from '../../types/script'
 import WorkspaceTabBar, { type WorkspaceTab } from './WorkspaceTabBar'
 import TabPlaceholder from './TabPlaceholder'
+import ScriptTab from './ScriptTab'
+import MatchTab from './MatchTab'
+import PreviewTab from './PreviewTab'
+import ExportTab from './ExportTab'
 
 const POLL_INTERVAL_MS = 3000
 const VALID_TABS: WorkspaceTab[] = ['script', 'match', 'preview', 'export']
@@ -39,9 +44,16 @@ function statusColor(status: ScriptStatus): string {
 export default function WorkspaceLayout() {
   const { scriptId } = useParams<{ scriptId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [script, setScript] = useState<Script | null>(null)
+  const [script, setScriptLocal] = useState<Script | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const timerRef = useRef<number | null>(null)
+  const setStoreScript = useScriptStore((s) => s.setScript)
+  const resetStore = useScriptStore((s) => s.reset)
+
+  const setScript = (s: Script | null): void => {
+    setScriptLocal(s)
+    setStoreScript(s)
+  }
 
   const currentTab = parseTab(searchParams.get('tab'))
 
@@ -80,7 +92,15 @@ export default function WorkspaceLayout() {
         timerRef.current = null
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idInvalid, parsedId])
+
+  // 切换 script / 卸载时清 store，避免串数据
+  useEffect(() => {
+    return () => {
+      resetStore()
+    }
+  }, [parsedId, resetStore])
 
   const handleTabChange = (tab: WorkspaceTab): void => {
     const next = new URLSearchParams(searchParams)
@@ -149,7 +169,19 @@ export default function WorkspaceLayout() {
       />
 
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <TabPlaceholder name={currentTab} />
+        {idInvalid ? (
+          <TabPlaceholder name={currentTab} />
+        ) : currentTab === 'script' ? (
+          <ScriptTab />
+        ) : currentTab === 'match' ? (
+          <MatchTab />
+        ) : currentTab === 'preview' ? (
+          <PreviewTab />
+        ) : currentTab === 'export' ? (
+          <ExportTab />
+        ) : (
+          <TabPlaceholder name={currentTab} />
+        )}
       </div>
     </div>
   )
