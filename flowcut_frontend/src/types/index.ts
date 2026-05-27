@@ -58,16 +58,6 @@ export interface Material {
   type: MaterialType
 }
 
-export interface AudioAsset {
-  id: string
-  name: string
-  category: 'BGM' | '音效'
-  audioDuration: string
-  fileSize: number
-  status: MaterialStatus
-  createdAt: string
-}
-
 export type CreativeStatus = 'DRAFT' | 'PENDING' | 'ACTIVE'
 export type CreativeStatusLabel = '投放中' | '待上架' | '草稿' | '全部'
 
@@ -98,25 +88,6 @@ export interface MaterialUsage {
 }
 
 /**
- * 素材详情：包含关联成片列表
- */
-export interface MaterialDetail extends Material {
-  relatedCreatives: (Creative & { usage: MaterialUsage })[]
-}
-
-/**
- * 成片详情：包含使用素材列表
- */
-export interface CreativeDetail extends Creative {
-  materials: (Material & { usage: MaterialUsage })[]
-  totalCost: number
-  totalImpressions: number
-  totalClicks: number
-  totalConversions: number
-  overallRoi: number
-}
-
-/**
  * 看板每日指标
  */
 export interface DailyMetrics {
@@ -127,58 +98,6 @@ export interface DailyMetrics {
   conversions: number
   roi: number
   creativeOutput: number
-}
-
-export interface SceneSegment {
-  startSec: number   // seconds, sub-second precision (e.g. 3.96)
-  endSec: number
-  label: string
-  description: string
-  category: '真人口播' | '产品展示'
-  copy?: string
-}
-
-export interface Script {
-  id: string
-  name: string
-  hook: string
-  durationSec: number
-  scenes: SceneSegment[]
-}
-
-export type GenerateStep = 1 | 2 | 3 | 4 | 5
-
-export interface MatchCandidate {
-  id: number
-  name: string
-  duration: number
-  product: string | null
-  sceneRole: string | null
-  category: string
-  score: number
-  previewUrl: string | null
-}
-
-export interface MatchedSegment {
-  index: number
-  description: string
-  duration: number
-  phase1: MatchCandidate[]
-  phase2: MatchCandidate[]
-  error: string | null
-}
-
-export type MessageRole = 'agent' | 'user'
-export type MessageType = 'text' | 'progress'
-
-export interface ChatMessage {
-  id: string
-  role: MessageRole
-  type: MessageType
-  content: string
-  label?: string
-  subLabel?: string
-  done?: boolean
 }
 
 // 素材库产品分层树（与后端 GET /materials/tree 一致）
