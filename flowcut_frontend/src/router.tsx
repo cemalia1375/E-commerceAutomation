@@ -5,11 +5,13 @@ import CreativeTab from './components/creative/CreativeTab'
 import DashboardTab from './components/dashboard/DashboardTab'
 import ScriptEditor from './components/generate/ScriptEditor'
 import MaterialPreview from './components/generate/MaterialPreview'
+import WorkspaceLayout from './components/workspace/WorkspaceLayout'
 
 export default function AppRouter() {
   return (
     <Routes>
       <Route path="/"                          element={<GenerateTab />} />
+      <Route path="/workspace/:scriptId"       element={<WorkspaceLayout />} />
       <Route path="/scripts/:scriptId"         element={<ScriptEditor />} />
       <Route path="/scripts/:scriptId/preview" element={<MaterialPreview />} />
       <Route path="/material"  element={<MaterialTab />} />
