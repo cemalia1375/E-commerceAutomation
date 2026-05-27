@@ -24,6 +24,12 @@ export async function listSessions(tenantKey: string): Promise<SessionSummary[]>
   return res.json()
 }
 
+export interface ToolResultPayload {
+  tool_name: string
+  content: unknown
+  ok: boolean
+}
+
 interface StreamChatParams {
   tenantKey: string
   sessionKey: string
@@ -31,11 +37,12 @@ interface StreamChatParams {
   onChunk: (token: string) => void
   onDone: () => void
   onError: (msg: string) => void
+  onToolResult?: (payload: ToolResultPayload) => void
 }
 
 // Returns a cancel function
 export function streamChat(params: StreamChatParams): () => void {
-  const { tenantKey, sessionKey, query, onChunk, onDone, onError } = params
+  const { tenantKey, sessionKey, query, onChunk, onDone, onError, onToolResult } = params
   const ctrl = new AbortController()
 
   fetch(`${BASE_URL}/agent/chat`, {
@@ -61,10 +68,13 @@ export function streamChat(params: StreamChatParams): () => void {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           try {
-            const msg = JSON.parse(line.slice(6)) as { event: string; data?: string }
-            if (msg.event === 'chunk') onChunk(msg.data ?? '')
+            const msg = JSON.parse(line.slice(6)) as { event: string; data?: unknown }
+            if (msg.event === 'chunk') onChunk(typeof msg.data === 'string' ? msg.data : '')
             else if (msg.event === 'done') onDone()
-            else if (msg.event === 'error') onError(msg.data ?? 'unknown error')
+            else if (msg.event === 'error') onError(typeof msg.data === 'string' ? msg.data : 'unknown error')
+            else if (msg.event === 'tool_result' && onToolResult && msg.data && typeof msg.data === 'object') {
+              onToolResult(msg.data as ToolResultPayload)
+            }
           } catch { /* malformed SSE line */ }
         }
       }

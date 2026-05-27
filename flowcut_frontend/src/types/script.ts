@@ -43,5 +43,6 @@ export interface TaskStatus {
   task_id: string
   status: 'pending' | 'running' | 'succeeded' | 'failed' | string
   result_url: string | null
+  details?: Record<string, unknown>
   last_error: string | null
 }
