@@ -3,10 +3,12 @@ import type { VideoScene, VideoSegment, ReferenceVideoStatus } from '../types'
 
 export interface UploadReferenceVideoResult {
   ref_video_id: number
+  script_id: number
   task_id: string
   oss_key: string
   product: string | null
   status: string
+  message?: string
 }
 
 export interface ReferenceVideo {

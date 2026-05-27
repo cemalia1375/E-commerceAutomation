@@ -1,9 +1,28 @@
 import type {
   Script,
   ScriptSegment,
+  ScriptSource,
+  ScriptStatus,
   SegmentMatchResult,
   TaskStatus,
 } from '../types/script'
+
+export interface ScriptListItem {
+  id: number
+  tenant_key: string
+  source: ScriptSource
+  status: ScriptStatus
+  product: string | null
+  reference_video_id: number | null
+  segments: ScriptSegment[]
+  created_at: string
+  updated_at: string
+}
+
+interface ListResp {
+  ok: boolean
+  scripts: ScriptListItem[]
+}
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
 
@@ -45,6 +64,13 @@ export const scriptApi = {
       method: 'POST',
       body: JSON.stringify({ tenant_key: tenantKey, segments }),
     }),
+
+  list: (tenantKey: string, status?: ScriptStatus, source?: ScriptSource) => {
+    const params = new URLSearchParams({ tenant_key: tenantKey })
+    if (status) params.set('status', status)
+    if (source) params.set('source', source)
+    return jsonFetch<ListResp>(`/flowcut/scripts?${params.toString()}`)
+  },
 
   get: (scriptId: number) =>
     jsonFetch<{ ok: boolean } & Script>(`/flowcut/scripts/${scriptId}`),
