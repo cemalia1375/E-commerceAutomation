@@ -1,10 +1,29 @@
-import { Drawer, Descriptions, Table, Tag, Statistic, Row, Col } from 'antd'
+import { useState } from 'react'
+import {
+  Drawer,
+  Descriptions,
+  Table,
+  Tag,
+  Statistic,
+  Row,
+  Col,
+  Button,
+  Popconfirm,
+  Input,
+  message,
+  Space,
+} from 'antd'
 import { useDetailDrawerStore } from '../../stores/detailDrawerStore'
 import { useMaterialStore } from '../../stores/materialStore'
 import { mockMaterialUsages } from '../../mocks/usages'
 import { useCreativeStore } from '../../stores/creativeStore'
 import MediaPreview from '../common/MediaPreview'
-import type { Creative, MaterialUsage } from '../../types'
+import {
+  deleteMaterial,
+  updateMaterial,
+  type UpdateMaterialPatch,
+} from '../../api/materials'
+import type { Creative, Material, MaterialUsage } from '../../types'
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'green',
@@ -12,10 +31,79 @@ const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'default',
 }
 
+type EditableField = 'name' | 'product' | 'sceneRole'
+
+interface EditableTextProps {
+  value: string | undefined
+  placeholder?: string
+  onSave: (next: string) => Promise<void>
+}
+
+function EditableText({ value, placeholder, onSave }: EditableTextProps) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const commit = async () => {
+    const next = draft.trim()
+    if (next === (value ?? '')) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave(next)
+      setEditing(false)
+    } catch {
+      // onSave 自行抛错 + 提示，这里仅保持编辑态
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!editing) {
+    return (
+      <span
+        onClick={() => {
+          setDraft(value ?? '')
+          setEditing(true)
+        }}
+        style={{
+          cursor: 'pointer',
+          display: 'inline-block',
+          minWidth: 80,
+          color: value ? undefined : '#999',
+          borderBottom: '1px dashed transparent',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.borderBottomColor = '#ccc')}
+        onMouseLeave={(e) => (e.currentTarget.style.borderBottomColor = 'transparent')}
+        title="点击编辑"
+      >
+        {value || placeholder || '点击设置'}
+      </span>
+    )
+  }
+
+  return (
+    <Input
+      autoFocus
+      size="small"
+      value={draft}
+      disabled={saving}
+      onChange={(e) => setDraft(e.target.value)}
+      onPressEnter={commit}
+      onBlur={commit}
+      placeholder={placeholder}
+      style={{ maxWidth: 240 }}
+    />
+  )
+}
+
 export default function MaterialDetailDrawer() {
   const { selectedMaterial, closeMaterialDetail } = useDetailDrawerStore()
-  const { materials } = useMaterialStore()
+  const { materials, updateMaterial: updateInStore, removeMaterial } = useMaterialStore()
   const { creatives } = useCreativeStore()
+  const [deleting, setDeleting] = useState(false)
 
   const material = selectedMaterial
     ? materials.find((m) => m.id === selectedMaterial.id) ?? selectedMaterial
@@ -56,12 +144,78 @@ export default function MaterialDetailDrawer() {
     { title: 'ROI', dataIndex: ['usage', 'roi'], key: 'roi', width: 70, render: (v: number) => v.toFixed(1) },
   ]
 
+  const handleDelete = async () => {
+    if (!material) return
+    setDeleting(true)
+    try {
+      await deleteMaterial(material.id)
+      removeMaterial(material.id)
+      message.success('素材已删除')
+      closeMaterialDetail()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '删除失败'
+      message.error(msg)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleFieldSave = async (field: EditableField, next: string) => {
+    if (!material) return
+    const patch: UpdateMaterialPatch = {}
+    if (field === 'name') {
+      if (!next) {
+        message.warning('名称不能为空')
+        throw new Error('empty name')
+      }
+      patch.name = next
+    } else if (field === 'product') {
+      patch.product = next || null
+    } else if (field === 'sceneRole') {
+      patch.scene_role = next || null
+    }
+
+    try {
+      const updated: Material = await updateMaterial(material.id, patch)
+      updateInStore(updated)
+      message.success('保存成功')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '保存失败'
+      message.error(msg)
+      throw err
+    }
+  }
+
   return (
     <Drawer
-      title={material?.name ?? '素材详情'}
+      title={
+        material ? (
+          <Space>
+            <span>{material.name}</span>
+          </Space>
+        ) : (
+          '素材详情'
+        )
+      }
       open={!!material}
       onClose={closeMaterialDetail}
       width={720}
+      extra={
+        material && (
+          <Popconfirm
+            title="确定要永久删除该素材吗？"
+            description="删除后将清除素材文件与向量数据，操作不可撤销。"
+            okText="删除"
+            okButtonProps={{ danger: true, loading: deleting }}
+            cancelText="取消"
+            onConfirm={handleDelete}
+          >
+            <Button danger loading={deleting}>
+              删除素材
+            </Button>
+          </Popconfirm>
+        )
+      }
     >
       {material && (
         <>
@@ -82,6 +236,27 @@ export default function MaterialDetailDrawer() {
             />
           </div>
           <Descriptions column={2} size="small" bordered style={{ marginBottom: 24 }}>
+            <Descriptions.Item label="名称" span={2}>
+              <EditableText
+                value={material.name}
+                placeholder="素材名称"
+                onSave={(v) => handleFieldSave('name', v)}
+              />
+            </Descriptions.Item>
+            <Descriptions.Item label="产品">
+              <EditableText
+                value={material.product}
+                placeholder="未指定"
+                onSave={(v) => handleFieldSave('product', v)}
+              />
+            </Descriptions.Item>
+            <Descriptions.Item label="场景角色">
+              <EditableText
+                value={material.sceneRole}
+                placeholder="未分类"
+                onSave={(v) => handleFieldSave('sceneRole', v)}
+              />
+            </Descriptions.Item>
             <Descriptions.Item label="类别">{material.category}</Descriptions.Item>
             <Descriptions.Item label="类型">{material.type === 'video' ? '视频' : material.type === 'image' ? '图片' : '音频'}</Descriptions.Item>
             <Descriptions.Item label="时长">{material.duration > 0 ? `${material.duration}s` : '-'}</Descriptions.Item>

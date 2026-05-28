@@ -17,6 +17,8 @@ interface MaterialState {
   ) => Promise<void>
   addMaterial: (material: Material) => void
   addMaterials: (materials: Material[]) => void
+  updateMaterial: (material: Material) => void
+  removeMaterial: (id: string) => void
 }
 
 export const useMaterialStore = create<MaterialState>((set, get) => ({
@@ -50,4 +52,12 @@ export const useMaterialStore = create<MaterialState>((set, get) => ({
 
   addMaterials: (materials) =>
     set((s) => ({ materials: [...materials, ...s.materials] })),
+
+  updateMaterial: (material) =>
+    set((s) => ({
+      materials: s.materials.map((m) => (m.id === material.id ? material : m)),
+    })),
+
+  removeMaterial: (id) =>
+    set((s) => ({ materials: s.materials.filter((m) => m.id !== id) })),
 }))

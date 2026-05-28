@@ -111,6 +111,23 @@ export async function deleteMaterial(materialId: string) {
   await apiClient.delete(`/materials/${materialId}`)
 }
 
+export interface UpdateMaterialPatch {
+  name?: string
+  product?: string | null
+  scene_role?: string | null
+}
+
+export async function updateMaterial(
+  materialId: number | string,
+  patch: UpdateMaterialPatch,
+): Promise<Material> {
+  const { data } = await apiClient.patch<Record<string, unknown>>(
+    `/materials/${materialId}`,
+    patch,
+  )
+  return fromBackend(data)
+}
+
 export async function pollMaterial(
   materialId: number,
   condition: (m: Material) => boolean,

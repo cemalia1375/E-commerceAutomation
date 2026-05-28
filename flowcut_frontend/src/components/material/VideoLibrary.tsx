@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Input, Select } from 'antd'
 import { useMaterialStore } from '../../stores/materialStore'
 import { useProductTreeStore } from '../../stores/productTreeStore'
 import { useDetailDrawerStore } from '../../stores/detailDrawerStore'
@@ -10,6 +11,7 @@ import styles from './Library.module.css'
 import type { Material } from '../../types'
 
 const TENANT_KEY = 'flowcut'
+const UNSPECIFIED_VALUE = '__UNSPECIFIED__'
 
 function groupByDate(materials: Material[]) {
   const groups: Record<string, Material[]> = {}
@@ -27,6 +29,8 @@ export default function VideoLibrary() {
   const { activeProduct, activeSceneRole } = useProductTreeStore()
   const { openMaterialDetail } = useDetailDrawerStore()
   const [modalOpen, setModalOpen] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  const [productFilter, setProductFilter] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     fetchMaterials(TENANT_KEY, {
@@ -36,16 +40,64 @@ export default function VideoLibrary() {
   }, [fetchMaterials, activeProduct, activeSceneRole])
 
   const materials = filteredMaterials()
-  const groups = groupByDate(materials)
+
+  // 聚合产品选项（不含已被侧边栏选中的 activeProduct 影响——侧边栏拉的是当前列表）
+  const productOptions = useMemo(() => {
+    const set = new Set<string>()
+    let hasEmpty = false
+    for (const m of materials) {
+      if (m.product) set.add(m.product)
+      else hasEmpty = true
+    }
+    const opts = Array.from(set)
+      .sort()
+      .map((p) => ({ label: p, value: p }))
+    if (hasEmpty) opts.push({ label: '未指定', value: UNSPECIFIED_VALUE })
+    return opts
+  }, [materials])
+
+  const visibleMaterials = useMemo(() => {
+    const kw = keyword.trim().toLowerCase()
+    return materials.filter((m) => {
+      if (kw && !m.name.toLowerCase().includes(kw)) return false
+      if (productFilter !== undefined) {
+        if (productFilter === UNSPECIFIED_VALUE) {
+          if (m.product) return false
+        } else if (m.product !== productFilter) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [materials, keyword, productFilter])
+
+  const groups = groupByDate(visibleMaterials)
 
   const breadcrumb = activeProduct
-    ? `${activeProduct}${activeSceneRole ? ` / ${activeSceneRole}` : ''} · ${materials.length} 个素材`
-    : `全部 · ${materials.length} 个素材`
+    ? `${activeProduct}${activeSceneRole ? ` / ${activeSceneRole}` : ''} · ${visibleMaterials.length} / ${materials.length} 个素材`
+    : `全部 · ${visibleMaterials.length} / ${materials.length} 个素材`
 
   return (
     <div className={styles.layout}>
       <div className={styles.topBar}>
         <div style={{ fontSize: 13, color: '#555', fontWeight: 500 }}>{breadcrumb}</div>
+        <Input.Search
+          placeholder="按名称搜索"
+          allowClear
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          style={{ width: 240 }}
+          size="small"
+        />
+        <Select
+          placeholder="产品筛选"
+          allowClear
+          value={productFilter}
+          onChange={(v) => setProductFilter(v)}
+          options={productOptions}
+          style={{ width: 160 }}
+          size="small"
+        />
         <div className={styles.spacer} />
         <button className={styles.uploadBtn} onClick={() => setModalOpen(true)}>
           ↑ 上传素材
