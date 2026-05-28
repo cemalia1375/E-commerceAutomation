@@ -14,6 +14,20 @@ import ExportTab from './ExportTab'
 const POLL_INTERVAL_MS = 3000
 const VALID_TABS: WorkspaceTab[] = ['script', 'match', 'preview', 'export']
 
+const WORKSPACE_ID_KEY = 'flowcut.workspace.activeId'
+const WORKSPACE_TAB_KEY = 'flowcut.workspace.activeTab'
+const WORKSPACE_CHANGED_EVENT = 'workspace-changed'
+
+function writeActiveWorkspace(id: string | null, tab: string | null): void {
+  try {
+    if (id !== null) localStorage.setItem(WORKSPACE_ID_KEY, id)
+    if (tab !== null) localStorage.setItem(WORKSPACE_TAB_KEY, tab)
+    window.dispatchEvent(new Event(WORKSPACE_CHANGED_EVENT))
+  } catch {
+    // ignore quota / privacy mode errors
+  }
+}
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   return '未知错误'
@@ -95,12 +109,22 @@ export default function WorkspaceLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idInvalid, parsedId])
 
-  // 切换 script / 卸载时清 store，避免串数据
+  // 仅在 scriptId 真正变化时 reset store，避免离开页面就丢状态
+  const prevScriptIdRef = useRef<number | null>(null)
   useEffect(() => {
-    return () => {
+    if (idInvalid) return
+    const prev = prevScriptIdRef.current
+    if (prev !== null && prev !== parsedId) {
       resetStore()
     }
-  }, [parsedId, resetStore])
+    prevScriptIdRef.current = parsedId
+  }, [idInvalid, parsedId, resetStore])
+
+  // 同步当前工作台 id 到 localStorage，供 Header 显示"工作台" tab
+  useEffect(() => {
+    if (idInvalid || !scriptId) return
+    writeActiveWorkspace(scriptId, currentTab)
+  }, [idInvalid, scriptId, currentTab])
 
   const handleTabChange = (tab: WorkspaceTab): void => {
     const next = new URLSearchParams(searchParams)
@@ -111,7 +135,7 @@ export default function WorkspaceLayout() {
   const status: ScriptStatus = script?.status ?? 'PROCESSING'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
       <div
         style={{
           padding: '12px 16px',
