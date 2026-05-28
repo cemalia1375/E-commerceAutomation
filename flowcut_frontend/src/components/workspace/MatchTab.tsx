@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Checkbox, Empty, Input, Space, Tag, message } from 'antd'
+import { Alert, Button, Card, Checkbox, Empty, Input, Modal, Space, Tag, message } from 'antd'
 import { useScriptStore } from '../../stores/scriptStore'
 import { scriptApi } from '../../api/script'
 import type { MatchedMaterial } from '../../types/script'
+import MediaPreview, { inferMediaType } from '../common/MediaPreview'
 
 const TENANT_KEY = 'flowcut'
 
@@ -16,10 +17,11 @@ interface MaterialCardProps {
   checked: boolean
   order: number | null
   onToggle: () => void
+  onPreview: () => void
   dim?: boolean
 }
 
-function MaterialCard({ mat, checked, order, onToggle, dim }: MaterialCardProps) {
+function MaterialCard({ mat, checked, order, onToggle, onPreview, dim }: MaterialCardProps) {
   const [previewFailed, setPreviewFailed] = useState(false)
   const showVideo = mat.preview_url && !previewFailed
 
@@ -28,16 +30,18 @@ function MaterialCard({ mat, checked, order, onToggle, dim }: MaterialCardProps)
       hoverable
       style={{ width: 200, opacity: dim ? 0.7 : 1, position: 'relative' }}
       cover={
-        showVideo ? (
-          <video
-            src={mat.preview_url ?? undefined}
-            style={{ height: 120, objectFit: 'cover', width: '100%' }}
-            muted
-            onError={() => setPreviewFailed(true)}
-          />
-        ) : (
-          <div style={{ height: 120, background: '#f0f0f0' }} />
-        )
+        <div onClick={onPreview} style={{ cursor: 'pointer' }}>
+          {showVideo ? (
+            <video
+              src={mat.preview_url ?? undefined}
+              style={{ height: 120, objectFit: 'cover', width: '100%' }}
+              muted
+              onError={() => setPreviewFailed(true)}
+            />
+          ) : (
+            <div style={{ height: 120, background: '#f0f0f0' }} />
+          )}
+        </div>
       }
       styles={{ body: { padding: 8 } }}
     >
@@ -79,6 +83,7 @@ export default function MatchTab() {
   } = useScriptStore()
   const [product, setProduct] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [previewMat, setPreviewMat] = useState<MatchedMaterial | null>(null)
   const initializedRef = useRef(false)
 
   // 首次进入 tab 且无结果时，自动跑一次默认召回
@@ -194,6 +199,7 @@ export default function MatchTab() {
                         checked={selected.includes(m.material_id)}
                         order={orderOf(m.material_id)}
                         onToggle={() => toggleMaterial(r.seg_idx, m.material_id)}
+                        onPreview={() => setPreviewMat(m)}
                       />
                     ))}
                   </Space>
@@ -212,6 +218,7 @@ export default function MatchTab() {
                         checked={selected.includes(m.material_id)}
                         order={orderOf(m.material_id)}
                         onToggle={() => toggleMaterial(r.seg_idx, m.material_id)}
+                        onPreview={() => setPreviewMat(m)}
                         dim
                       />
                     ))}
@@ -222,6 +229,24 @@ export default function MatchTab() {
           )
         })}
       </Space>
+
+      <Modal
+        open={!!previewMat}
+        onCancel={() => setPreviewMat(null)}
+        footer={null}
+        title={previewMat?.name}
+        width={640}
+        destroyOnHidden
+      >
+        {previewMat && (
+          <MediaPreview
+            url={previewMat.preview_url}
+            type={inferMediaType(previewMat.preview_url) ?? 'video'}
+            name={previewMat.name}
+            height={400}
+          />
+        )}
+      </Modal>
     </div>
   )
 }
