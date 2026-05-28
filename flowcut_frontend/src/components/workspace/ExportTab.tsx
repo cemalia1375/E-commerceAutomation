@@ -5,7 +5,7 @@ import { useScriptStore } from '../../stores/scriptStore'
 import { scriptApi, taskApi } from '../../api/script'
 import type { TaskStatus } from '../../types/script'
 
-const TENANT_KEY = 'default'
+const TENANT_KEY = 'flowcut'
 const POLL_INTERVAL_MS = 2000
 
 function getErrorMessage(error: unknown): string {

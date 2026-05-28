@@ -16,7 +16,7 @@ import { scriptApi } from '../../api/script'
 import type { ScriptSegment } from '../../types/script'
 import ExistingScriptsModal from './ExistingScriptsModal'
 
-const TENANT_KEY = 'default'
+const TENANT_KEY = 'flowcut'
 
 interface ParsedSegment {
   visual: string

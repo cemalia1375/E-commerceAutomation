@@ -4,7 +4,7 @@ import { useScriptStore } from '../../stores/scriptStore'
 import { scriptApi } from '../../api/script'
 import type { MatchedMaterial } from '../../types/script'
 
-const TENANT_KEY = 'default'
+const TENANT_KEY = 'flowcut'
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
