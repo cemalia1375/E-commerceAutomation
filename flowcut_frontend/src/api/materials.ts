@@ -111,6 +111,22 @@ export async function deleteMaterial(materialId: string) {
   await apiClient.delete(`/materials/${materialId}`)
 }
 
+export interface DeleteByProductResult {
+  ok: true
+  deleted: number
+  errors: string[]
+}
+
+export async function deleteMaterialsByProduct(
+  tenantKey: string,
+  product: string,
+): Promise<DeleteByProductResult> {
+  const { data } = await apiClient.delete<DeleteByProductResult>('/materials', {
+    params: { tenant_key: tenantKey, product },
+  })
+  return data
+}
+
 export interface UpdateMaterialPatch {
   name?: string
   product?: string | null

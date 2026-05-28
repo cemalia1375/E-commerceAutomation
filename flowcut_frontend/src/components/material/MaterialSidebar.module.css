@@ -21,3 +21,27 @@
   font-size: 12px;
   text-align: center;
 }
+
+.productTitle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.deleteIcon {
+  color: #bfbfbf;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  padding: 2px 4px;
+}
+
+.productTitle:hover .deleteIcon {
+  opacity: 1;
+}
+
+.deleteIcon:hover {
+  color: #ff4d4f;
+}
