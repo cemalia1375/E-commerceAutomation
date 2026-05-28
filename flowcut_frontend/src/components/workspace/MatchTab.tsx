@@ -172,7 +172,7 @@ export default function MatchTab() {
           return (
             <Card
               key={r.seg_idx}
-              title={`段 ${r.seg_idx}`}
+              title={`段 ${r.seg_idx + 1}`}
               extra={
                 <Tag color="blue">
                   已选 {selected.length} / 候选 {totalCandidates}

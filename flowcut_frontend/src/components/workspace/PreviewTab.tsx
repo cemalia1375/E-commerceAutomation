@@ -190,7 +190,7 @@ export default function PreviewTab() {
       >
         {isBlack ? (
           <div style={{ color: '#fff', fontSize: 14 }}>
-            段 {curSegIdx} · 未选素材（黑屏 1s）
+            段 {curSegIdx + 1} · 未选素材（黑屏 1s）
           </div>
         ) : missingPreview ? (
           <div style={{ color: '#fff', fontSize: 14 }}>素材信息缺失</div>
@@ -215,7 +215,7 @@ export default function PreviewTab() {
             fontSize: 12,
           }}
         >
-          段 {curSegIdx}
+          段 {curSegIdx + 1}
         </div>
       </div>
 

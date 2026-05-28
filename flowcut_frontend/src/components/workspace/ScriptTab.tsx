@@ -16,7 +16,7 @@ function buildMarkdown(segments: ScriptSegment[]): string {
   return segments
     .map(
       (seg) =>
-        `# 段 ${seg.idx} (${seg.start_time}s-${seg.end_time}s)\n画面：${seg.visual}\n文案：${seg.copy}\n`,
+        `# 段 ${seg.idx + 1} (${seg.start_time}s-${seg.end_time}s)\n画面：${seg.visual}\n文案：${seg.copy}\n`,
     )
     .join('\n')
 }
@@ -155,7 +155,7 @@ export default function ScriptTab() {
 
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         {segments.map((seg, i) => (
-          <Card key={i} type="inner" title={`段 ${seg.idx}`}>
+          <Card key={i} type="inner" title={`段 ${seg.idx + 1}`}>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
               <div>
                 <div style={{ fontSize: 12, color: '#888' }}>画面（visual）</div>

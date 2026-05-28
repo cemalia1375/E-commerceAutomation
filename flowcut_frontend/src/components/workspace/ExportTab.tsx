@@ -7,6 +7,7 @@ import type { TaskStatus } from '../../types/script'
 
 const TENANT_KEY = 'flowcut'
 const POLL_INTERVAL_MS = 2000
+const MAX_CONSECUTIVE_POLL_FAILURES = 5
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -32,7 +33,10 @@ export default function ExportTab() {
   const [submitting, setSubmitting] = useState(false)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [task, setTask] = useState<TaskResult | null>(null)
+  const [pollAttempts, setPollAttempts] = useState(0)
+  const [pollAborted, setPollAborted] = useState(false)
   const timerRef = useRef<number | null>(null)
+  const failuresRef = useRef(0)
 
   useEffect(() => {
     return () => {
@@ -55,14 +59,27 @@ export default function ExportTab() {
 
   const startPolling = (tid: string): void => {
     const tick = async (): Promise<void> => {
+      setPollAttempts((n) => n + 1)
       try {
         const t = (await taskApi.get(tid)) as TaskResult
+        failuresRef.current = 0
         setTask(t)
         if (!isTerminal(t.status)) {
           timerRef.current = window.setTimeout(tick, POLL_INTERVAL_MS)
         }
       } catch (e: unknown) {
-        message.error(`轮询失败：${getErrorMessage(e)}`)
+        failuresRef.current += 1
+        if (failuresRef.current >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          message.error(
+            `轮询多次失败，请检查后端日志：${getErrorMessage(e)}`,
+          )
+          setPollAborted(true)
+          if (timerRef.current !== null) {
+            window.clearTimeout(timerRef.current)
+            timerRef.current = null
+          }
+          return
+        }
         timerRef.current = window.setTimeout(tick, POLL_INTERVAL_MS)
       }
     }
@@ -77,6 +94,13 @@ export default function ExportTab() {
     setSubmitting(true)
     setTask(null)
     setTaskId(null)
+    setPollAttempts(0)
+    setPollAborted(false)
+    failuresRef.current = 0
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
     try {
       const resp = await scriptApi.export(
         currentScript.id,
@@ -92,7 +116,10 @@ export default function ExportTab() {
     }
   }
 
-  const running = taskId !== null && (!task || !isTerminal(task.status))
+  const running =
+    taskId !== null &&
+    !pollAborted &&
+    (!task || !isTerminal(task.status))
   const succeeded = task?.status === 'succeeded' && task.result_url
   const failed = task?.status === 'failed'
 
@@ -128,8 +155,18 @@ export default function ExportTab() {
           type="info"
           showIcon
           icon={<Spin size="small" />}
-          message="导出中…"
+          message={`任务执行中…（已尝试 ${pollAttempts} 次）`}
           description={`Task ID: ${taskId}`}
+        />
+      )}
+
+      {pollAborted && !succeeded && !failed && (
+        <Alert
+          style={{ marginTop: 16 }}
+          type="warning"
+          showIcon
+          message="轮询已停止"
+          description="连续多次未能获取任务状态，请检查后端日志后重新点击「导出 zip 包」。"
         />
       )}
 
@@ -154,7 +191,7 @@ export default function ExportTab() {
                 <div style={{ color: '#faad14' }}>
                   缺失素材：
                   {task.missing_materials
-                    .map((m) => `段${m.seg_idx}#${m.material_id}`)
+                    .map((m) => `段${m.seg_idx + 1}#${m.material_id}`)
                     .join('、')}
                 </div>
               )}
