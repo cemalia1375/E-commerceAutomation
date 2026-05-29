@@ -7,7 +7,7 @@ import DateGroup from '../common/DateGroup'
 import MaterialCard from './MaterialCard'
 import UploadCard from './UploadCard'
 import styles from './Library.module.css'
-import { uploadMaterial, processMaterial } from '../../api/materials'
+import { uploadMaterial } from '../../api/materials'
 
 const TENANT_KEY = 'flowcut'
 const CATEGORIES = ['全部', '产品图', '背景图', '字幕板']
@@ -28,14 +28,15 @@ export default function ImageLibrary() {
     if (!file) return
     e.target.value = ''
     try {
+      // upload 路由内部已经自动入队 MATERIAL_PROCESS；不要再调 processMaterial，
+      // 图片 worker 秒级 mark READY，再调 process 会因 status!=PROCESSING 返回 400。
       const { material_id } = await uploadMaterial(TENANT_KEY, file, '')
-      await processMaterial(material_id)
       addMaterial({
         id: String(material_id),
         ossKey: '',
         ossUrl: '',
         name: file.name,
-        category: '产品',
+        category: '产品展示',
         duration: 0,
         fileSize: file.size,
         status: 'PROCESSING',
@@ -43,8 +44,11 @@ export default function ImageLibrary() {
         createdAt: new Date().toISOString(),
         type: 'image',
       })
-    } catch (_err) {
-      message.error('上传失败')
+      // 后端 worker 跑完会把 thumbnail_url 等字段补齐；重新拉一次确保 UI 同步。
+      void fetchMaterials(TENANT_KEY)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '上传失败'
+      message.error(`上传失败：${msg}`)
     }
   }
 
