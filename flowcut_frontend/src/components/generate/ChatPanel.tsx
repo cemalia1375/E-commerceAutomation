@@ -17,6 +17,7 @@ const SESSION_LS_KEY = 'flowcut.chat.session'
 // 每个 session 一份独立的 messages 存储 key，避免会话之间相互污染。
 // 拆镜成功后 ChatPanel 会被 navigate 卸载，没有持久化历史就会丢光。
 const MESSAGES_LS_KEY_PREFIX = 'flowcut.chat.messages.'
+const COLLAPSED_LS_KEY = 'flowcut.chat.collapsed'
 
 // 工具结果可以请求跳转的白名单路由（防 agent 幻觉路径）
 const ALLOWED_ROUTE_PATTERNS = [
@@ -55,6 +56,22 @@ function isChatMsg(value: unknown): value is ChatMsg {
     (obj.role === 'user' || obj.role === 'agent' || obj.role === 'tool') &&
     typeof obj.content === 'string'
   )
+}
+
+function loadCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_LS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function persistCollapsed(collapsed: boolean): void {
+  try {
+    localStorage.setItem(COLLAPSED_LS_KEY, collapsed ? '1' : '0')
+  } catch {
+    // 忽略 quota / 隐私模式
+  }
 }
 
 function loadMessages(sessionKey: string): ChatMsg[] {
@@ -131,6 +148,7 @@ export default function ChatPanel() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
+  const [collapsed, setCollapsed] = useState<boolean>(() => loadCollapsed())
   const dragCounterRef = useRef(0)
   const endRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -155,6 +173,14 @@ export default function ChatPanel() {
     return () => {
       cancelRef.current?.()
     }
+  }, [])
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev
+      persistCollapsed(next)
+      return next
+    })
   }, [])
 
   const appendAgentText = useCallback((token: string) => {
@@ -356,11 +382,39 @@ export default function ChatPanel() {
     window.location.reload()
   }
 
+  if (collapsed) {
+    return (
+      <div className={`${styles.panel} ${styles.panelCollapsed}`}>
+        <button
+          type="button"
+          className={styles.expandBtn}
+          onClick={toggleCollapsed}
+          aria-label="展开对话面板"
+          title="展开对话面板"
+        >
+          <span className={styles.expandIcon}>›</span>
+          <span className={styles.expandLabel}>对话</span>
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
         <span className={styles.title}>当前任务</span>
-        <button className={styles.newBtn} onClick={handleNewTask}>＋ 新任务</button>
+        <div className={styles.headerActions}>
+          <button className={styles.newBtn} onClick={handleNewTask}>＋ 新任务</button>
+          <button
+            type="button"
+            className={styles.collapseBtn}
+            onClick={toggleCollapsed}
+            aria-label="收起对话面板"
+            title="收起"
+          >
+            ‹
+          </button>
+        </div>
       </div>
 
       <div className={styles.messages}>
