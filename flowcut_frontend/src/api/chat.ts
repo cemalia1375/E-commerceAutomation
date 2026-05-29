@@ -24,6 +24,27 @@ export async function listSessions(tenantKey: string): Promise<SessionSummary[]>
   return res.json()
 }
 
+export interface NavigateDirective {
+  route: string
+  params?: Record<string, string | number>
+  mode?: 'push' | 'replace'
+}
+
+export interface UiHint {
+  render_as?: 'stats_card' | 'table' | 'text' | 'none'
+  title?: string
+}
+
+export interface ToolResultContent {
+  ok?: boolean
+  data?: unknown
+  navigate?: NavigateDirective
+  ui_hint?: UiHint
+  source?: string
+  warning?: string
+  error?: string
+}
+
 export interface ToolResultPayload {
   tool_name: string
   content: unknown
