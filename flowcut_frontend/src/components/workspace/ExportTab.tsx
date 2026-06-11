@@ -33,7 +33,6 @@ export default function ExportTab() {
   const [submitting, setSubmitting] = useState(false)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [task, setTask] = useState<TaskResult | null>(null)
-  const [pollAttempts, setPollAttempts] = useState(0)
   const [pollAborted, setPollAborted] = useState(false)
   const timerRef = useRef<number | null>(null)
   const failuresRef = useRef(0)
@@ -59,7 +58,6 @@ export default function ExportTab() {
 
   const startPolling = (tid: string): void => {
     const tick = async (): Promise<void> => {
-      setPollAttempts((n) => n + 1)
       try {
         const t = (await taskApi.get(tid)) as TaskResult
         failuresRef.current = 0
@@ -94,7 +92,6 @@ export default function ExportTab() {
     setSubmitting(true)
     setTask(null)
     setTaskId(null)
-    setPollAttempts(0)
     setPollAborted(false)
     failuresRef.current = 0
     if (timerRef.current !== null) {
@@ -155,7 +152,7 @@ export default function ExportTab() {
           type="info"
           showIcon
           icon={<Spin size="small" />}
-          message={`任务执行中…（已尝试 ${pollAttempts} 次）`}
+          message="任务执行中…"
           description={`Task ID: ${taskId}`}
         />
       )}

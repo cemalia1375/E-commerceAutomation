@@ -1,0 +1,11 @@
+# OS
+.DS_Store
+
+# 本地向量库数据
+qdrant_storage/
+
+# 本地调试 / 流量录制（可能含 cookie，严禁入库）
+dev/
+
+# Superpowers 会话产物
+.superpowers/

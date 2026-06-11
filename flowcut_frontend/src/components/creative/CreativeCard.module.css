@@ -8,5 +8,10 @@
 .dur { position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,.6); color: #fff; font-size: 10px; padding: 1px 5px; border-radius: 3px; }
 .info { padding: 8px 10px; }
 .name { font-size: 12px; font-weight: 500; color: #0f172a; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.meta { font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; }
+.meta { font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+.qcMetrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; border-top: 1px solid #f1f5f9; padding-top: 6px; margin-top: 2px; }
+.qcItem { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.qcLabel { font-size: 10px; color: #94a3b8; }
+.qcValue { font-size: 11px; font-weight: 600; color: #334155; }
+.qcSyncTime { font-size: 10px; color: #cbd5e1; margin-top: 4px; text-align: right; }

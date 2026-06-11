@@ -214,7 +214,7 @@ async def main() -> None:
         port=int(os.environ.get("MYSQL_PORT", "3306")),
         user=os.environ["MYSQL_USER"],
         password=os.environ["MYSQL_PASSWORD"],
-        database=os.environ["MYSQL_DB"],
+        db=os.environ["MYSQL_DB"],
     )
     await db.connect()
 
@@ -2125,27 +2125,27 @@ app.include_router(tasks_router)
 ```bash
 cd SimpleClaw && ./uvdev.sh
 # 另开窗口
-curl -X POST http://localhost:8000/flowcut/scripts \
+curl -X POST http://localhost:8001/flowcut/scripts \
   -H "Content-Type: application/json" \
   -d '{"tenant_key": "t1", "segments": [{"visual": "v", "copy": "c"}]}'
 ```
 预期返回 `{"ok": true, "script_id": N}`。
 
 ```bash
-curl http://localhost:8000/flowcut/scripts/N
+curl http://localhost:8001/flowcut/scripts/N
 ```
 预期返回完整脚本对象。
 
 ```bash
-curl -X PATCH http://localhost:8000/flowcut/scripts/N \
+curl -X PATCH http://localhost:8001/flowcut/scripts/N \
   -H "Content-Type: application/json" \
   -d '{"segments": [{"visual": "v2", "copy": "c2"}]}'
 ```
 预期 `{"ok": true}`。
 
 ```bash
-curl -X POST http://localhost:8000/flowcut/scripts/N/confirm
-curl -X PATCH http://localhost:8000/flowcut/scripts/N \
+curl -X POST http://localhost:8001/flowcut/scripts/N/confirm
+curl -X PATCH http://localhost:8001/flowcut/scripts/N \
   -H "Content-Type: application/json" \
   -d '{"segments": [{"visual": "v3", "copy": "c3"}]}'
 ```
@@ -2305,7 +2305,7 @@ Create `flowcut_frontend/src/api/script.ts`:
 ```typescript
 import type { Script, ScriptSegment, SegmentMatchResult, TaskStatus } from '../types/script'
 
-const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8001'
 
 interface UploadResp { ok: boolean; script_id: number }
 interface MatchResp { ok: boolean; results: SegmentMatchResult[] }
