@@ -44,9 +44,13 @@ interface ExportResp {
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // 携带登录会话 cookie
     ...init,
   })
   if (!resp.ok) {
+    if (resp.status === 401) {
+      window.dispatchEvent(new Event('auth:unauthorized'))
+    }
     let detail = ''
     try {
       detail = ((await resp.json()) as { detail?: string }).detail || ''

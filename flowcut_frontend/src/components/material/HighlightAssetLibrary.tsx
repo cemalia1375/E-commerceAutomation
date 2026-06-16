@@ -6,10 +6,9 @@ import {
   listHighlightAssets,
   uploadHighlightAsset,
 } from '../../api/highlightAssets'
+import { useAuthStore } from '../../stores/authStore'
 import type { HighlightAsset, HighlightAssetType } from '../../types'
 import styles from './HighlightAssetLibrary.module.css'
-
-const TENANT_KEY = 'flowcut'
 
 type ViewMode = 'episode_source' | 'digital_human_connector'
 
@@ -33,6 +32,7 @@ function groupAssets(assets: HighlightAsset[], mode: ViewMode) {
 }
 
 export default function HighlightAssetLibrary() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const [mode, setMode] = useState<ViewMode>('episode_source')
   const [assets, setAssets] = useState<HighlightAsset[]>([])
   const [loading, setLoading] = useState(false)

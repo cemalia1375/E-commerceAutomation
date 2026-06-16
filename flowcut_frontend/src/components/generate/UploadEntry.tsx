@@ -22,11 +22,10 @@ import {
 } from '../../api/highlightAssets'
 import { scriptApi } from '../../api/script'
 import { useCreativeStore } from '../../stores/creativeStore'
+import { useAuthStore } from '../../stores/authStore'
 import type { HighlightAsset } from '../../types'
 import type { ScriptSegment } from '../../types/script'
 import ExistingScriptsModal from './ExistingScriptsModal'
-
-const TENANT_KEY = 'flowcut'
 
 interface ParsedSegment {
   visual: string
@@ -63,6 +62,7 @@ function toSegmentPayload(parsed: ParsedSegment[]): Partial<ScriptSegment>[] {
 }
 
 export default function UploadEntry() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const navigate = useNavigate()
   const setCreativeSubTab = useCreativeStore((s) => s.setSubTab)
 
