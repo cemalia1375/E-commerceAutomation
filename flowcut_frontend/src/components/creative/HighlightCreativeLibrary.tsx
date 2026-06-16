@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Input, Select, message } from 'antd'
+import { useEffect, useMemo, useState } from 'react'
+import { Button, Input, Select, Tag, message } from 'antd'
 import { composeHighlightCreative, getTaskStatus } from '../../api/qianchuan'
 import { useCreativeStore } from '../../stores/creativeStore'
 import type { Creative } from '../../types'
@@ -60,30 +60,47 @@ export default function HighlightCreativeLibrary() {
   const { creatives, refetch } = useCreativeStore()
   const [keyword, setKeyword] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [activeDrama, setActiveDrama] = useState<string | null>(null)
   const [composingId, setComposingId] = useState<string | null>(null)
 
   useEffect(() => {
     refetch()
   }, [refetch])
 
-  const rows = creatives
-    .filter(isHighlightCreative)
-    .filter((creative) => {
-      if (typeFilter !== 'all' && creative.creativeType !== typeFilter) return false
-      const kw = keyword.trim().toLowerCase()
-      if (!kw) return true
-      return [
-        creative.name,
-        creative.sourceAssetName,
-        creative.sourceDramaName,
-        creative.connectorAssetName,
-        creative.connectorRole,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(kw)
-    })
+  const rows = useMemo(
+    () =>
+      creatives.filter(isHighlightCreative).filter((creative) => {
+        if (typeFilter !== 'all' && creative.creativeType !== typeFilter) return false
+        const kw = keyword.trim().toLowerCase()
+        if (!kw) return true
+        return [
+          creative.name,
+          creative.sourceAssetName,
+          creative.sourceDramaName,
+          creative.connectorAssetName,
+          creative.connectorRole,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(kw)
+      }),
+    [creatives, typeFilter, keyword],
+  )
+
+  const dramaGroups = useMemo(() => {
+    const groups: Record<string, Creative[]> = {}
+    for (const c of rows) {
+      const key = c.sourceDramaName || '未命名剧集'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(c)
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'zh-Hans-CN'))
+  }, [rows])
+
+  const drilledRows = activeDrama
+    ? rows.filter((c) => (c.sourceDramaName || '未命名剧集') === activeDrama)
+    : []
 
   const handleCompose = async (creative: Creative) => {
     setComposingId(creative.id)
@@ -113,6 +130,112 @@ export default function HighlightCreativeLibrary() {
     }
   }
 
+  const renderCreative = (creative: Creative) => {
+    const isDigital = creative.creativeType === 'highlight_digital_human'
+    const previewUrl = segmentPreviewUrl(creative)
+    const hasComposedVideo = Boolean(creative.ossUrl)
+    const bridgeText = creative.highlightReason?.bridge_text
+    const frontloadRecommendation = creative.highlightReason?.frontload_recommendation
+    const sourceMeta = [
+      creative.sourceDramaName,
+      creative.sourceEpisodeNo ? `第${creative.sourceEpisodeNo}集` : null,
+    ]
+      .filter(Boolean)
+      .join(' / ')
+    return (
+      <article key={creative.id} className={styles.card}>
+        <header className={styles.cardHeader}>
+          <div>
+            <div className={styles.titleLine}>
+              <span className={styles.cardTitle}>{creative.sourceAssetName || creative.name}</span>
+              <span className={`${styles.statusPill} ${hasComposedVideo ? styles.statusReady : ''}`}>
+                {statusText(creative)}
+              </span>
+            </div>
+            <div className={styles.subtitle}>
+              {isDigital ? '高光 + 数字人' : '高光 + 原片'}
+              {sourceMeta ? ` · ${sourceMeta}` : ''}
+            </div>
+          </div>
+          <button
+            className={styles.button}
+            disabled={composingId === creative.id || creative.status === 'PROCESSING'}
+            onClick={() => handleCompose(creative)}
+          >
+            {creative.status === 'PROCESSING'
+              ? '生成中'
+              : hasComposedVideo
+                ? '重新生成'
+                : '生成组合视频'}
+          </button>
+        </header>
+
+        <div className={styles.workflowGrid}>
+          <section className={styles.inputPanel}>
+            <div className={styles.sectionTitle}>输入素材</div>
+            <div className={styles.assetStack}>
+              <AssetPreview
+                title="原片"
+                name={creative.sourceAssetName || creative.name}
+                meta={sourceMeta || undefined}
+                url={creative.sourceAssetOssUrl}
+              />
+              {isDigital && (
+                <AssetPreview
+                  title="数字人"
+                  name={creative.connectorAssetName || creative.connectorRole || '-'}
+                  meta={creative.connectorRole || undefined}
+                  url={creative.connectorAssetOssUrl}
+                />
+              )}
+            </div>
+          </section>
+
+          <section className={styles.decisionPanel}>
+            <div className={styles.sectionTitle}>高光判断</div>
+            <div className={styles.highlightBody}>
+              {previewUrl ? (
+                <video className={styles.highlightVideo} src={previewUrl} controls preload="metadata" />
+              ) : (
+                <div className={styles.previewPlaceholder}>暂无片段预览</div>
+              )}
+              <div className={styles.highlightText}>
+                <div className={styles.tagRow}>
+                  <span className={styles.tag}>
+                    {creative.creativeType === 'highlight_digital_human' ? '高光+数字人' : '高光+原片'}
+                  </span>
+                  <span className={styles.tag}>
+                    {formatTime(creative.highlightStart)} - {formatTime(creative.highlightEnd)}
+                  </span>
+                </div>
+                <div className={styles.reason}>
+                  {String(
+                    frontloadRecommendation ||
+                      creative.highlightReason?.reason ||
+                      creative.highlightReason?.open_question ||
+                      '暂无说明',
+                  )}
+                </div>
+                {Boolean(bridgeText) && (
+                  <div className={styles.bridge}>桥接：{String(bridgeText)}</div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.outputPanel}>
+            <div className={styles.sectionTitle}>组合视频</div>
+            {hasComposedVideo ? (
+              <video className={styles.outputVideo} src={creative.ossUrl} controls preload="metadata" />
+            ) : (
+              <div className={styles.outputPlaceholder}>尚未生成</div>
+            )}
+          </section>
+        </div>
+      </article>
+    )
+  }
+
   return (
     <div className={styles.layout}>
       <div className={styles.topBar}>
@@ -139,119 +262,34 @@ export default function HighlightCreativeLibrary() {
         <div className={styles.spacer} />
       </div>
 
-      <div className={styles.list}>
-        {rows.length === 0 && <div className={styles.empty}>暂无高光成片记录</div>}
-        {rows.map((creative) => {
-          const isDigital = creative.creativeType === 'highlight_digital_human'
-          const previewUrl = segmentPreviewUrl(creative)
-          const hasComposedVideo = Boolean(creative.ossUrl)
-          const bridgeText = creative.highlightReason?.bridge_text
-          const frontloadRecommendation = creative.highlightReason?.frontload_recommendation
-          const sourceMeta = [
-            creative.sourceDramaName,
-            creative.sourceEpisodeNo ? `第${creative.sourceEpisodeNo}集` : null,
-          ]
-            .filter(Boolean)
-            .join(' / ')
-          return (
-            <article
-              key={creative.id}
-              className={styles.card}
+      {activeDrama === null ? (
+        <div className={styles.entryGrid}>
+          {dramaGroups.length === 0 && (
+            <div className={styles.empty}>暂无高光成片记录</div>
+          )}
+          {dramaGroups.map(([name, items]) => (
+            <button
+              key={name}
+              type="button"
+              className={styles.entryCard}
+              onClick={() => setActiveDrama(name)}
             >
-              <header className={styles.cardHeader}>
-                <div>
-                  <div className={styles.titleLine}>
-                    <span className={styles.cardTitle}>{creative.sourceAssetName || creative.name}</span>
-                    <span className={`${styles.statusPill} ${hasComposedVideo ? styles.statusReady : ''}`}>
-                      {statusText(creative)}
-                    </span>
-                  </div>
-                  <div className={styles.subtitle}>
-                    {isDigital ? '高光 + 数字人' : '高光 + 原片'}
-                    {sourceMeta ? ` · ${sourceMeta}` : ''}
-                  </div>
-                </div>
-                <button
-                  className={styles.button}
-                  disabled={composingId === creative.id || creative.status === 'PROCESSING'}
-                  onClick={() => handleCompose(creative)}
-                >
-                  {creative.status === 'PROCESSING'
-                    ? '生成中'
-                    : hasComposedVideo
-                      ? '重新生成'
-                      : '生成组合视频'}
-                </button>
-              </header>
-
-              <div className={styles.workflowGrid}>
-                <section className={styles.inputPanel}>
-                  <div className={styles.sectionTitle}>输入素材</div>
-                  <div className={styles.assetStack}>
-                    <AssetPreview
-                      title="原片"
-                      name={creative.sourceAssetName || creative.name}
-                      meta={sourceMeta || undefined}
-                      url={creative.sourceAssetOssUrl}
-                    />
-                    {isDigital && (
-                      <AssetPreview
-                        title="数字人"
-                        name={creative.connectorAssetName || creative.connectorRole || '-'}
-                        meta={creative.connectorRole || undefined}
-                        url={creative.connectorAssetOssUrl}
-                      />
-                    )}
-                  </div>
-                </section>
-
-                <section className={styles.decisionPanel}>
-                  <div className={styles.sectionTitle}>高光判断</div>
-                  <div className={styles.highlightBody}>
-                    {previewUrl ? (
-                      <video className={styles.highlightVideo} src={previewUrl} controls preload="metadata" />
-                    ) : (
-                      <div className={styles.previewPlaceholder}>暂无片段预览</div>
-                    )}
-                    <div className={styles.highlightText}>
-                      <div className={styles.tagRow}>
-                        <span className={styles.tag}>
-                          {creative.creativeType === 'highlight_digital_human' ? '高光+数字人' : '高光+原片'}
-                        </span>
-                        <span className={styles.tag}>
-                          {formatTime(creative.highlightStart)} - {formatTime(creative.highlightEnd)}
-                        </span>
-                      </div>
-                      <div className={styles.reason}>
-                        {String(
-                          frontloadRecommendation ||
-                            creative.highlightReason?.reason ||
-                            creative.highlightReason?.open_question ||
-                            '暂无说明',
-                        )}
-                      </div>
-                      {Boolean(bridgeText) && (
-                        <div className={styles.bridge}>
-                          桥接：{String(bridgeText)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </section>
-
-                <section className={styles.outputPanel}>
-                  <div className={styles.sectionTitle}>组合视频</div>
-                  {hasComposedVideo ? (
-                    <video className={styles.outputVideo} src={creative.ossUrl} controls preload="metadata" />
-                  ) : (
-                    <div className={styles.outputPlaceholder}>尚未生成</div>
-                  )}
-                </section>
-              </div>
-            </article>
-          )
-        })}
-      </div>
+              <span className={styles.entryName}>{name}</span>
+              <Tag>{items.length}</Tag>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.list}>
+          <div className={styles.backBar}>
+            <Button type="link" size="small" onClick={() => setActiveDrama(null)}>
+              ← 返回
+            </Button>
+            <span className={styles.backTitle}>{activeDrama}</span>
+          </div>
+          {drilledRows.map((creative) => renderCreative(creative))}
+        </div>
+      )}
     </div>
   )
 }

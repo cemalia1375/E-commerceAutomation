@@ -270,6 +270,54 @@
   color: #94a3b8;
 }
 
+.entryGrid {
+  padding: 22px 24px 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.entryCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 20px 18px;
+  background: #fff;
+  border: 1px solid #d8e2ef;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.entryCard:hover {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.entryName {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.backTitle {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 800;
+}
+
 @media (max-width: 1440px) {
   .workflowGrid {
     grid-template-columns: 300px 1fr;
