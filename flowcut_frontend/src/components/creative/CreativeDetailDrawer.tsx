@@ -9,11 +9,17 @@ const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'green',
   PENDING: 'blue',
   DRAFT: 'default',
+  PROCESSING: 'processing',
+  READY: 'success',
+  FAILED: 'error',
 }
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: '投放中',
   PENDING: '待上架',
   DRAFT: '草稿',
+  PROCESSING: '处理中',
+  READY: '已分析',
+  FAILED: '失败',
 }
 
 export default function CreativeDetailDrawer() {
@@ -70,6 +76,8 @@ export default function CreativeDetailDrawer() {
     { title: '转化', dataIndex: ['usage', 'conversions'], key: 'conversions', width: 80, render: (v: number) => v.toLocaleString() },
     { title: 'ROI', dataIndex: ['usage', 'roi'], key: 'roi', width: 70, render: (v: number) => v.toFixed(1) },
   ]
+  const isHighlight = creative?.creativeType?.startsWith('highlight_')
+  const highlightReason = creative?.highlightReason ?? null
 
   return (
     <Drawer
@@ -81,6 +89,40 @@ export default function CreativeDetailDrawer() {
       {creative && (
         <>
           <Descriptions column={2} size="small" bordered style={{ marginBottom: 24 }}>
+            {isHighlight && (
+              <>
+                <Descriptions.Item label="高光类型">
+                  {creative.creativeType === 'highlight_digital_human' ? '高光+数字人' : '高光+原片'}
+                </Descriptions.Item>
+                <Descriptions.Item label="剧集">
+                  {creative.sourceDramaName ?? '-'}
+                  {creative.sourceEpisodeNo ? ` / 第${creative.sourceEpisodeNo}集` : ''}
+                </Descriptions.Item>
+                <Descriptions.Item label="原片">{creative.sourceAssetName ?? '-'}</Descriptions.Item>
+                <Descriptions.Item label="数字人">
+                  {creative.connectorAssetName ?? creative.connectorRole ?? '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="高光区间">
+                  {creative.highlightStart !== null &&
+                  creative.highlightStart !== undefined &&
+                  creative.highlightEnd !== null &&
+                  creative.highlightEnd !== undefined
+                    ? `${creative.highlightStart.toFixed(2)}s - ${creative.highlightEnd.toFixed(2)}s`
+                    : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="高光评分">
+                  {highlightReason?.hook_strength !== undefined
+                    ? String(highlightReason.hook_strength)
+                    : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="判断理由" span={2}>
+                  {String(highlightReason?.reason ?? highlightReason?.open_question ?? '-')}
+                </Descriptions.Item>
+                <Descriptions.Item label="衔接话术" span={2}>
+                  {String(highlightReason?.bridge_text ?? '-')}
+                </Descriptions.Item>
+              </>
+            )}
             <Descriptions.Item label="时长">{creative.duration > 0 ? `${creative.duration}s` : '-'}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={STATUS_COLORS[creative.status]}>{STATUS_LABELS[creative.status] ?? creative.status}</Tag>

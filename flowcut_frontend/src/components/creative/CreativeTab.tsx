@@ -1,5 +1,6 @@
 import { useCreativeStore } from '../../stores/creativeStore'
 import CreativeVideoLibrary from './CreativeVideoLibrary'
+import HighlightCreativeLibrary from './HighlightCreativeLibrary'
 import SrtLibrary from './SrtLibrary'
 import CreativeDetailDrawer from './CreativeDetailDrawer'
 import styles from './CreativeTab.module.css'
@@ -7,6 +8,7 @@ import styles from './CreativeTab.module.css'
 const SUB_TABS = [
   { key: 'video' as const, label: '成片视频' },
   { key: 'srt'   as const, label: '字幕文件' },
+  { key: 'highlight' as const, label: '高光' },
 ]
 
 export default function CreativeTab() {
@@ -25,7 +27,9 @@ export default function CreativeTab() {
         ))}
       </div>
       <div className={styles.body}>
-        {activeSubTab === 'video' ? <CreativeVideoLibrary /> : <SrtLibrary />}
+        {activeSubTab === 'video' && <CreativeVideoLibrary />}
+        {activeSubTab === 'srt' && <SrtLibrary />}
+        {activeSubTab === 'highlight' && <HighlightCreativeLibrary />}
       </div>
       <CreativeDetailDrawer />
     </div>

@@ -1,14 +1,14 @@
 import { create } from 'zustand'
-import type { Material, MaterialType } from '../types'
+import type { Material, MaterialLibraryTab } from '../types'
 import { listMaterials } from '../api/materials'
 
 interface MaterialState {
   materials: Material[]
   isLoading: boolean
   error: string | null
-  activeSubTab: MaterialType
+  activeSubTab: MaterialLibraryTab
 
-  setSubTab: (tab: MaterialType) => void
+  setSubTab: (tab: MaterialLibraryTab) => void
   filteredMaterials: () => Material[]
   audioMaterials: () => Material[]
   fetchMaterials: (

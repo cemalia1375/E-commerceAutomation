@@ -7,11 +7,11 @@ const DEFAULT_TENANT_KEY = import.meta.env.VITE_TENANT_KEY ?? 'flowcut'
 
 interface CreativeState {
   creatives: Creative[]
-  activeSubTab: 'video' | 'srt'
+  activeSubTab: 'video' | 'srt' | 'highlight'
   activeStatus: CreativeStatusLabel
   loading: boolean
 
-  setSubTab: (tab: 'video' | 'srt') => void
+  setSubTab: (tab: 'video' | 'srt' | 'highlight') => void
   setStatus: (status: CreativeStatusLabel) => void
   filteredCreatives: () => Creative[]
   refetch: () => Promise<void>

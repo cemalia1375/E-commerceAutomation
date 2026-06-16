@@ -10,18 +10,21 @@ import ScriptTab from './ScriptTab'
 import MatchTab from './MatchTab'
 import PreviewTab from './PreviewTab'
 import ExportTab from './ExportTab'
+import HighlightTab from './HighlightTab'
 
 const POLL_INTERVAL_MS = 3000
-const VALID_TABS: WorkspaceTab[] = ['script', 'match', 'preview', 'export']
+const VALID_TABS: WorkspaceTab[] = ['script', 'highlight', 'match', 'preview', 'export']
 
 const WORKSPACE_ID_KEY = 'flowcut.workspace.activeId'
 const WORKSPACE_TAB_KEY = 'flowcut.workspace.activeTab'
+const WORKSPACE_MODE_KEY = 'flowcut.workspace.activeMode'
 const WORKSPACE_CHANGED_EVENT = 'workspace-changed'
 
-function writeActiveWorkspace(id: string | null, tab: string | null): void {
+function writeActiveWorkspace(id: string | null, tab: string | null, mode: string | null): void {
   try {
     if (id !== null) localStorage.setItem(WORKSPACE_ID_KEY, id)
     if (tab !== null) localStorage.setItem(WORKSPACE_TAB_KEY, tab)
+    if (mode !== null) localStorage.setItem(WORKSPACE_MODE_KEY, mode)
     window.dispatchEvent(new Event(WORKSPACE_CHANGED_EVENT))
   } catch {
     // ignore quota / privacy mode errors
@@ -55,6 +58,20 @@ function statusColor(status: ScriptStatus): string {
   }
 }
 
+function isHighlightScript(script: Script | null): boolean {
+  return Boolean(
+    script?.segments?.some((seg) =>
+      seg.hook_strength !== undefined ||
+      seg.ending_connectability !== undefined ||
+      seg.context_dependency !== undefined ||
+      seg.continuity_risk !== undefined ||
+      seg.candidate_use !== undefined ||
+      seg.followup_fit !== undefined ||
+      seg.bridge_text !== undefined,
+    ),
+  )
+}
+
 export default function WorkspaceLayout() {
   const { scriptId } = useParams<{ scriptId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -70,6 +87,9 @@ export default function WorkspaceLayout() {
   }
 
   const currentTab = parseTab(searchParams.get('tab'))
+  const requestedMode = searchParams.get('mode') === 'highlight' ? 'highlight' : 'reference'
+  const inferredHighlight = isHighlightScript(script)
+  const workflowMode = requestedMode === 'highlight' || inferredHighlight ? 'highlight' : 'reference'
 
   const parsedId = scriptId ? Number(scriptId) : NaN
   const idInvalid = !scriptId || Number.isNaN(parsedId)
@@ -123,14 +143,36 @@ export default function WorkspaceLayout() {
   // 同步当前工作台 id 到 localStorage，供 Header 显示"工作台" tab
   useEffect(() => {
     if (idInvalid || !scriptId) return
-    writeActiveWorkspace(scriptId, currentTab)
-  }, [idInvalid, scriptId, currentTab])
+    writeActiveWorkspace(scriptId, currentTab, workflowMode)
+  }, [idInvalid, scriptId, currentTab, workflowMode])
 
   const handleTabChange = (tab: WorkspaceTab): void => {
     const next = new URLSearchParams(searchParams)
     next.set('tab', tab)
     setSearchParams(next, { replace: true })
   }
+
+  useEffect(() => {
+    if (workflowMode === 'highlight' && searchParams.get('mode') !== 'highlight') {
+      const next = new URLSearchParams(searchParams)
+      next.set('mode', 'highlight')
+      next.set('tab', 'highlight')
+      setSearchParams(next, { replace: true })
+      return
+    }
+    if (workflowMode === 'highlight' && !['script', 'highlight'].includes(currentTab)) {
+      const next = new URLSearchParams(searchParams)
+      next.set('tab', 'highlight')
+      setSearchParams(next, { replace: true })
+      return
+    }
+    if (workflowMode === 'reference' && currentTab === 'highlight') {
+      const next = new URLSearchParams(searchParams)
+      next.delete('mode')
+      next.set('tab', 'script')
+      setSearchParams(next, { replace: true })
+    }
+  }, [currentTab, searchParams, setSearchParams, workflowMode])
 
   const status: ScriptStatus = script?.status ?? 'PROCESSING'
 
@@ -189,6 +231,7 @@ export default function WorkspaceLayout() {
       <WorkspaceTabBar
         current={currentTab}
         status={status}
+        mode={workflowMode}
         onChange={handleTabChange}
       />
 
@@ -197,6 +240,8 @@ export default function WorkspaceLayout() {
           <TabPlaceholder name={currentTab} />
         ) : currentTab === 'script' ? (
           <ScriptTab />
+        ) : currentTab === 'highlight' ? (
+          <HighlightTab />
         ) : currentTab === 'match' ? (
           <MatchTab />
         ) : currentTab === 'preview' ? (

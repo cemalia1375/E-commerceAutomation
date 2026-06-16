@@ -134,7 +134,7 @@ export default function CreativeVideoLibrary() {
     }, POLL_INTERVAL_MS)
   }
 
-  const creatives = filteredCreatives()
+  const creatives = filteredCreatives().filter((creative) => !creative.creativeType?.startsWith('highlight_'))
   const groups = groupByDate(creatives)
 
   return (

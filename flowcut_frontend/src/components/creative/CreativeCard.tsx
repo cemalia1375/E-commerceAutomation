@@ -13,6 +13,9 @@ const STATUS_MAP = {
   ACTIVE:  { label: '投放中', bg: '#d1fae5', color: '#059669' },
   PENDING: { label: '待上架', bg: '#f1f5f9', color: '#475569' },
   DRAFT:   { label: '草稿',   bg: '#f1f5f9', color: '#475569' },
+  PROCESSING: { label: '处理中', bg: '#dbeafe', color: '#2563eb' },
+  READY: { label: '已分析', bg: '#dcfce7', color: '#16a34a' },
+  FAILED: { label: '失败', bg: '#fee2e2', color: '#dc2626' },
 }
 
 function formatSyncTime(isoStr: string | null): string {
@@ -40,6 +43,21 @@ export default function CreativeCard({ creative, index, onClick }: Props) {
     if (v === null) return '—'
     return decimals > 0 ? v.toFixed(decimals) : String(Math.round(v))
   }
+  const isHighlight = creative.creativeType?.startsWith('highlight_')
+  const typeLabel =
+    creative.creativeType === 'highlight_digital_human'
+      ? '高光+数字人'
+      : creative.creativeType === 'highlight_original'
+        ? '高光+原片'
+        : null
+  const highlightRange =
+    creative.highlightStart !== null &&
+    creative.highlightStart !== undefined &&
+    creative.highlightEnd !== null &&
+    creative.highlightEnd !== undefined
+      ? `${creative.highlightStart.toFixed(2)}s - ${creative.highlightEnd.toFixed(2)}s`
+      : null
+  const hookStrength = creative.highlightReason?.hook_strength
 
   return (
     <div className={styles.card} onClick={() => onClick?.(creative)}>
@@ -53,25 +71,50 @@ export default function CreativeCard({ creative, index, onClick }: Props) {
           <span>{dateStr}</span>
           <span className={styles.badge} style={{ background: s.bg, color: s.color }}>{s.label}</span>
         </div>
-        <div className={styles.qcMetrics}>
-          <div className={styles.qcItem}>
-            <span className={styles.qcLabel}>消耗</span>
-            <span className={styles.qcValue}>{fmt(creative.qcCost, 2)}{creative.qcCost !== null ? '元' : ''}</span>
+        {isHighlight ? (
+          <div className={styles.qcMetrics}>
+            <div className={styles.qcItem}>
+              <span className={styles.qcLabel}>类型</span>
+              <span className={styles.qcValue}>{typeLabel}</span>
+            </div>
+            <div className={styles.qcItem}>
+              <span className={styles.qcLabel}>集数</span>
+              <span className={styles.qcValue}>
+                {creative.sourceEpisodeNo ? `第${creative.sourceEpisodeNo}集` : '—'}
+              </span>
+            </div>
+            <div className={styles.qcItem}>
+              <span className={styles.qcLabel}>高光</span>
+              <span className={styles.qcValue}>{highlightRange ?? '待分析'}</span>
+            </div>
+            <div className={styles.qcItem}>
+              <span className={styles.qcLabel}>评分</span>
+              <span className={styles.qcValue}>{hookStrength ? String(hookStrength) : '—'}</span>
+            </div>
           </div>
-          <div className={styles.qcItem}>
-            <span className={styles.qcLabel}>展示</span>
-            <span className={styles.qcValue}>{fmt(creative.qcImpressions)}</span>
-          </div>
-          <div className={styles.qcItem}>
-            <span className={styles.qcLabel}>点击</span>
-            <span className={styles.qcValue}>{fmt(creative.qcClicks)}</span>
-          </div>
-          <div className={styles.qcItem}>
-            <span className={styles.qcLabel}>转化</span>
-            <span className={styles.qcValue}>{fmt(creative.qcConversions)}</span>
-          </div>
-        </div>
-        <div className={styles.qcSyncTime}>{formatSyncTime(creative.qcSyncedAt)}</div>
+        ) : (
+          <>
+            <div className={styles.qcMetrics}>
+              <div className={styles.qcItem}>
+                <span className={styles.qcLabel}>消耗</span>
+                <span className={styles.qcValue}>{fmt(creative.qcCost, 2)}{creative.qcCost !== null ? '元' : ''}</span>
+              </div>
+              <div className={styles.qcItem}>
+                <span className={styles.qcLabel}>展示</span>
+                <span className={styles.qcValue}>{fmt(creative.qcImpressions)}</span>
+              </div>
+              <div className={styles.qcItem}>
+                <span className={styles.qcLabel}>点击</span>
+                <span className={styles.qcValue}>{fmt(creative.qcClicks)}</span>
+              </div>
+              <div className={styles.qcItem}>
+                <span className={styles.qcLabel}>转化</span>
+                <span className={styles.qcValue}>{fmt(creative.qcConversions)}</span>
+              </div>
+            </div>
+            <div className={styles.qcSyncTime}>{formatSyncTime(creative.qcSyncedAt)}</div>
+          </>
+        )}
       </div>
     </div>
   )

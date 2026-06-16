@@ -1,7 +1,7 @@
 import { Tooltip } from 'antd'
 import type { ScriptStatus } from '../../types/script'
 
-export type WorkspaceTab = 'script' | 'match' | 'preview' | 'export'
+export type WorkspaceTab = 'script' | 'highlight' | 'match' | 'preview' | 'export'
 
 interface TabDef {
   key: WorkspaceTab
@@ -10,6 +10,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { key: 'script', label: '脚本' },
+  { key: 'highlight', label: '高光判断' },
   { key: 'match', label: '素材匹配' },
   { key: 'preview', label: '成片预览' },
   { key: 'export', label: '素材导出' },
@@ -18,6 +19,7 @@ const TABS: TabDef[] = [
 interface WorkspaceTabBarProps {
   current: WorkspaceTab
   status: ScriptStatus
+  mode?: 'reference' | 'highlight'
   onChange: (tab: WorkspaceTab) => void
 }
 
@@ -63,8 +65,13 @@ const disabledStyle: React.CSSProperties = {
 export default function WorkspaceTabBar({
   current,
   status,
+  mode = 'reference',
   onChange,
 }: WorkspaceTabBarProps) {
+  const tabs = mode === 'highlight'
+    ? TABS.filter((tab) => tab.key === 'script' || tab.key === 'highlight')
+    : TABS.filter((tab) => tab.key !== 'highlight')
+
   return (
     <div
       style={{
@@ -74,7 +81,7 @@ export default function WorkspaceTabBar({
         padding: '0 16px',
       }}
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const gate = gateFor(tab.key, status)
         const isActive = tab.key === current
         const style = gate.disabled

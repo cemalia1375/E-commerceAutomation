@@ -2,7 +2,7 @@ import { apiClient } from './client'
 import type { Creative } from '../types'
 
 export interface TaskStatus {
-  status: 'queued' | 'running' | 'completed' | 'failed'
+  status: 'queued' | 'running' | 'succeeded' | 'completed' | 'failed' | 'noop' | 'wait_external'
   error: string | null
 }
 
@@ -39,7 +39,10 @@ export function creativeFromBackend(raw: Record<string, unknown>): Creative {
   // 千川导入的 fc_creative.oss_key 形如 "qianchuan/视频名.mp4"
   // → name 取最后一段作为显示名；否则取 ossKey 最后一段（兼容老数据）
   const derivedName =
-    ossKey.split('/').slice(-1)[0] || `creative-${raw.id}`
+    (raw.source_asset_name as string | undefined) ||
+    (raw.ref_video_name as string | undefined) ||
+    ossKey.split('/').slice(-1)[0] ||
+    `creative-${raw.id}`
   return {
     id: String(raw.id),
     ossKey,
@@ -57,6 +60,21 @@ export function creativeFromBackend(raw: Record<string, unknown>): Creative {
     qcClicks: (raw.qc_clicks as number | null) ?? null,
     qcConversions: (raw.qc_conversions as number | null) ?? null,
     qcSyncedAt: (raw.qc_synced_at as string | null) ?? null,
+    creativeType: (raw.creative_type as Creative['creativeType']) ?? 'normal',
+    batchId: (raw.batch_id as string | null) ?? null,
+    sourceAssetId: (raw.source_asset_id as number | null) ?? null,
+    connectorAssetId: (raw.connector_asset_id as number | null) ?? null,
+    sourceAssetName: (raw.source_asset_name as string | null) ?? null,
+    sourceDramaName: (raw.source_drama_name as string | null) ?? null,
+    sourceEpisodeNo: (raw.source_episode_no as number | null) ?? null,
+    sourceAssetOssUrl: (raw.source_asset_oss_url as string | null) ?? null,
+    connectorAssetName: (raw.connector_asset_name as string | null) ?? null,
+    connectorRole: (raw.connector_role as string | null) ?? null,
+    connectorAssetOssUrl: (raw.connector_asset_oss_url as string | null) ?? null,
+    highlightStart: (raw.highlight_start as number | null) ?? null,
+    highlightEnd: (raw.highlight_end as number | null) ?? null,
+    highlightReason: (raw.highlight_reason_json as Record<string, unknown> | null) ?? null,
+    composePlan: (raw.compose_plan_json as Record<string, unknown> | null) ?? null,
   }
 }
 
@@ -86,6 +104,29 @@ export async function listCreatives(tenantKey: string): Promise<Creative[]> {
     data: Record<string, unknown>[]
   }>('/creatives', { params: { tenant_key: tenantKey, limit: 100 } })
   return (data.data ?? []).map(creativeFromBackend)
+}
+
+export async function getHighlightCreativeByScript(
+  tenantKey: string,
+  scriptId: number,
+): Promise<Creative | null> {
+  const { data } = await apiClient.get<{
+    ok: boolean
+    data: Record<string, unknown> | null
+  }>(`/creatives/highlight-by-script/${scriptId}`, {
+    params: { tenant_key: tenantKey },
+  })
+  return data.data ? creativeFromBackend(data.data) : null
+}
+
+export async function composeHighlightCreative(
+  creativeId: string | number,
+): Promise<{ taskId: string }> {
+  const { data } = await apiClient.post<{
+    ok: boolean
+    task_id: string
+  }>(`/creatives/${creativeId}/compose-highlight`)
+  return { taskId: data.task_id }
 }
 
 export async function fetchAccountSummary(

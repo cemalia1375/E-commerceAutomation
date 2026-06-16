@@ -37,6 +37,7 @@ export interface ReferenceVideo {
 export type MaterialCategory = '人物' | '产品' | '场景' | '氛围' | '字幕板' | '真人口播' | '产品展示'
 export type MaterialStatus = 'PROCESSING' | 'READY' | 'FAILED'
 export type MaterialType = 'video' | 'image' | 'audio'
+export type MaterialLibraryTab = MaterialType | 'highlight_asset'
 
 export interface Material {
   id: string
@@ -58,7 +59,25 @@ export interface Material {
   type: MaterialType
 }
 
-export type CreativeStatus = 'DRAFT' | 'PENDING' | 'ACTIVE'
+export type HighlightAssetType = 'episode_source' | 'digital_human_connector'
+
+export interface HighlightAsset {
+  id: number
+  tenantKey: string
+  assetType: HighlightAssetType
+  dramaName?: string
+  episodeNo?: number
+  connectorRole?: string
+  ossKey: string
+  ossUrl: string
+  name: string
+  duration: number
+  fileSize: number
+  status: 'READY' | 'PROCESSING' | 'FAILED'
+  createdAt: string
+}
+
+export type CreativeStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'PROCESSING' | 'READY' | 'FAILED'
 export type CreativeStatusLabel = '投放中' | '待上架' | '草稿' | '全部'
 
 export interface Creative {
@@ -79,6 +98,21 @@ export interface Creative {
   qcClicks: number | null
   qcConversions: number | null
   qcSyncedAt: string | null
+  creativeType?: 'normal' | 'highlight_original' | 'highlight_digital_human'
+  batchId?: string | null
+  sourceAssetId?: number | null
+  connectorAssetId?: number | null
+  sourceAssetName?: string | null
+  sourceDramaName?: string | null
+  sourceEpisodeNo?: number | null
+  sourceAssetOssUrl?: string | null
+  connectorAssetName?: string | null
+  connectorRole?: string | null
+  connectorAssetOssUrl?: string | null
+  highlightStart?: number | null
+  highlightEnd?: number | null
+  highlightReason?: Record<string, unknown> | null
+  composePlan?: Record<string, unknown> | null
 }
 
 /**

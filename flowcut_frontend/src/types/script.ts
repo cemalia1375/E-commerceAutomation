@@ -8,6 +8,22 @@ export interface ScriptSegment {
   visual: string
   copy: string
   category?: string
+  narrative_role?: string
+  hook_strength?: number
+  context_dependency?: number
+  ending_connectability?: number
+  continuity_risk?: number
+  ending_state?: string
+  open_question?: string
+  bridge_text?: string
+  candidate_use?: string
+  reason?: string
+  followup_fit?: {
+    original_video?: number
+    digital_human?: number
+    ad?: number
+    reason?: string
+  }
 }
 
 export interface Script {

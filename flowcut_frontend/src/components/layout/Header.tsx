@@ -11,6 +11,7 @@ const TABS = [
 
 const WORKSPACE_ID_KEY = 'flowcut.workspace.activeId'
 const WORKSPACE_TAB_KEY = 'flowcut.workspace.activeTab'
+const WORKSPACE_MODE_KEY = 'flowcut.workspace.activeMode'
 const WORKSPACE_CHANGED_EVENT = 'workspace-changed'
 
 function readActiveWorkspaceId(): string | null {
@@ -26,6 +27,14 @@ function readActiveWorkspaceTab(): string {
     return localStorage.getItem(WORKSPACE_TAB_KEY) ?? 'script'
   } catch {
     return 'script'
+  }
+}
+
+function readActiveWorkspaceMode(): string {
+  try {
+    return localStorage.getItem(WORKSPACE_MODE_KEY) ?? 'reference'
+  } catch {
+    return 'reference'
   }
 }
 
@@ -73,7 +82,11 @@ export default function Header() {
             className={`${styles.tab} ${isWorkspaceActive ? styles.active : ''}`}
             onClick={() => {
               const tab = readActiveWorkspaceTab()
-              navigate(`/workspace/${activeWorkspaceId}?tab=${tab}`)
+              const mode = readActiveWorkspaceMode()
+              const params = new URLSearchParams()
+              if (mode === 'highlight') params.set('mode', 'highlight')
+              params.set('tab', mode === 'highlight' && tab !== 'script' ? 'highlight' : tab)
+              navigate(`/workspace/${activeWorkspaceId}?${params.toString()}`)
             }}
           >
             工作台

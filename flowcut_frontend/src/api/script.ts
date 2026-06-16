@@ -91,6 +91,24 @@ export const scriptApi = {
       method: 'POST',
     }),
 
+  saveHighlightCreative: (
+    scriptId: number,
+    tenantKey: string,
+    creativeType: 'highlight_original' | 'highlight_digital_human' = 'highlight_original',
+  ) =>
+    jsonFetch<{
+      ok: boolean
+      creative_id: number
+      highlight_start: number
+      highlight_end: number
+    }>(`/flowcut/scripts/${scriptId}/save-highlight-creative`, {
+      method: 'POST',
+      body: JSON.stringify({
+        tenant_key: tenantKey,
+        creative_type: creativeType,
+      }),
+    }),
+
   match: (scriptId: number, tenantKey: string, product = '') =>
     jsonFetch<MatchResp>(`/flowcut/scripts/${scriptId}/match`, {
       method: 'POST',

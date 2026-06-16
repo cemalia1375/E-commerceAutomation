@@ -3,12 +3,18 @@ import type { VideoScene, VideoSegment, ReferenceVideoStatus } from '../types'
 
 export interface UploadReferenceVideoResult {
   ref_video_id: number
-  script_id: number
-  task_id: string
+  script_id: number | null
+  task_id: string | null
   oss_key: string
   product: string | null
+  workflow_type?: string
   status: string
   message?: string
+}
+
+export interface UploadReferenceVideoOptions {
+  continuationType?: 'original' | 'digital_human' | 'ad' | 'landing_page' | 'unspecified'
+  connectorRefVideoId?: number
 }
 
 export interface ReferenceVideo {
@@ -61,11 +67,18 @@ export async function uploadReferenceVideo(
   file: File,
   product?: string,
   onProgress?: (percent: number) => void,
+  workflowType?: 'reference_video' | 'highlight_extract' | 'pending',
+  options?: UploadReferenceVideoOptions,
 ): Promise<UploadReferenceVideoResult> {
   const form = new FormData()
   form.append('tenant_key', tenantKey)
   form.append('file', file)
   if (product) form.append('product', product)
+  if (workflowType) form.append('workflow_type', workflowType)
+  if (options?.continuationType) form.append('continuation_type', options.continuationType)
+  if (options?.connectorRefVideoId !== undefined) {
+    form.append('connector_ref_video_id', String(options.connectorRefVideoId))
+  }
 
   const { data } = await apiClient.post<UploadReferenceVideoResult>(
     '/reference-videos/upload',
@@ -100,4 +113,3 @@ export async function pollReferenceVideo(
   }
   throw new Error('等待超时（5 分钟）')
 }
-

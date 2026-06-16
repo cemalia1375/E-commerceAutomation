@@ -21,9 +21,9 @@ const COLLAPSED_LS_KEY = 'flowcut.chat.collapsed'
 
 // 工具结果可以请求跳转的白名单路由（防 agent 幻觉路径）
 const ALLOWED_ROUTE_PATTERNS = [
-  /^\/workspace\/[^/]+$/,
-  /^\/material$/,
-  /^\/creative$/,
+  /^\/workspace\/[^/?]+(?:\?.*)?$/,
+  /^\/material(?:\?.*)?$/,
+  /^\/creative(?:\?.*)?$/,
 ]
 
 type Role = 'user' | 'agent' | 'tool'
@@ -88,8 +88,8 @@ function loadMessages(sessionKey: string): ChatMsg[] {
 
 interface Attachment {
   refVideoId: number
-  scriptId: number
-  taskId: string
+  scriptId: number | null
+  taskId: string | null
   filename: string
   ossKey: string
 }
@@ -249,6 +249,7 @@ export default function ChatPanel() {
           file,
           undefined,
           (percent) => setUploadProgress(percent),
+          'pending',
         )
         setAttachment({
           refVideoId: resp.ref_video_id,
@@ -324,8 +325,7 @@ export default function ChatPanel() {
       const safeName = attachment.filename.replace(/"/g, '\\"')
       queryParts.push(
         `[USER_ATTACHED_VIDEO ref_video_id=${attachment.refVideoId} ` +
-          `script_id=${attachment.scriptId} task_id=${attachment.taskId} ` +
-          `filename="${safeName}"]`,
+          `filename="${safeName}" status="pending"]`,
       )
     }
     if (text) queryParts.push(text)
