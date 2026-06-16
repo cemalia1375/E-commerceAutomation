@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useMaterialStore } from '../../stores/materialStore'
 import { useProductTreeStore } from '../../stores/productTreeStore'
+import { useAuthStore } from '../../stores/authStore'
 import type { MaterialLibraryTab } from '../../types'
 import VideoLibrary from './VideoLibrary'
 import ImageLibrary from './ImageLibrary'
@@ -9,8 +10,6 @@ import HighlightAssetLibrary from './HighlightAssetLibrary'
 import MaterialDetailDrawer from './MaterialDetailDrawer'
 import MaterialSidebar from './MaterialSidebar'
 import styles from './MaterialTab.module.css'
-
-const TENANT_KEY = 'flowcut'
 
 const SUB_TABS: { key: MaterialLibraryTab; label: string }[] = [
   { key: 'video', label: '视频' },
@@ -27,13 +26,14 @@ const LIB_MAP: Record<MaterialLibraryTab, React.ComponentType> = {
 }
 
 export default function MaterialTab() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const { activeSubTab, setSubTab } = useMaterialStore()
   const fetchTree = useProductTreeStore((s) => s.fetchTree)
   const Lib = LIB_MAP[activeSubTab]
 
   useEffect(() => {
     fetchTree(TENANT_KEY)
-  }, [fetchTree])
+  }, [fetchTree, TENANT_KEY])
 
   return (
     <div className={`${styles.tab} ${styles.layout}`}>

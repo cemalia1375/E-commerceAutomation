@@ -2,8 +2,7 @@ import { create } from 'zustand'
 import type { Creative, CreativeStatus, CreativeStatusLabel } from '../types'
 import { mockCreatives } from '../mocks/creatives'
 import { listCreatives } from '../api/qianchuan'
-
-const DEFAULT_TENANT_KEY = import.meta.env.VITE_TENANT_KEY ?? 'flowcut'
+import { getTenantKey } from './authStore'
 
 interface CreativeState {
   creatives: Creative[]
@@ -40,7 +39,7 @@ export const useCreativeStore = create<CreativeState>((set, get) => ({
   refetch: async () => {
     set({ loading: true })
     try {
-      const creatives = await listCreatives(DEFAULT_TENANT_KEY)
+      const creatives = await listCreatives(getTenantKey())
       set({ creatives })
     } catch {
       // 后端不可用时保持现有列表，不中断 UI

@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Space, Spin, Statistic, message } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useScriptStore } from '../../stores/scriptStore'
+import { useAuthStore } from '../../stores/authStore'
 import { scriptApi, taskApi } from '../../api/script'
 import type { TaskStatus } from '../../types/script'
 
-const TENANT_KEY = 'flowcut'
 const POLL_INTERVAL_MS = 2000
 const MAX_CONSECUTIVE_POLL_FAILURES = 5
 
@@ -29,6 +29,7 @@ interface TaskResult extends TaskStatus {
 }
 
 export default function ExportTab() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const { currentScript, selectedMaterials } = useScriptStore()
   const [submitting, setSubmitting] = useState(false)
   const [taskId, setTaskId] = useState<string | null>(null)

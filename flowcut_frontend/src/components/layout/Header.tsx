@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, matchPath } from 'react-router-dom'
+import { Dropdown, type MenuProps } from 'antd'
+import { useAuthStore } from '../../stores/authStore'
 import styles from './Header.module.css'
 
 const TABS = [
@@ -41,9 +43,21 @@ function readActiveWorkspaceMode(): string {
 export default function Header() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
     () => readActiveWorkspaceId(),
   )
+
+  const userMenu: MenuProps['items'] = [
+    {
+      key: 'logout',
+      label: '退出登录',
+      onClick: () => {
+        void logout().then(() => navigate('/login', { replace: true }))
+      },
+    },
+  ]
 
   useEffect(() => {
     const sync = (): void => {
@@ -94,7 +108,11 @@ export default function Header() {
         )}
       </div>
       <div className={styles.right}>
-        <div className={styles.avatar}>运</div>
+        <Dropdown menu={{ items: userMenu }} trigger={['click']} placement="bottomRight">
+          <div className={styles.avatar} title={user?.displayName ?? ''} style={{ cursor: 'pointer' }}>
+            {(user?.displayName ?? user?.username ?? '运').slice(0, 1)}
+          </div>
+        </Dropdown>
       </div>
     </header>
   )

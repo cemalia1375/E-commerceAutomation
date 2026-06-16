@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Empty, Input, Modal, Space, Tag, message } from 'antd'
 import { useScriptStore } from '../../stores/scriptStore'
+import { useAuthStore } from '../../stores/authStore'
 import { scriptApi } from '../../api/script'
 import type { MatchedMaterial } from '../../types/script'
 import MediaPreview, { inferMediaType } from '../common/MediaPreview'
-
-const TENANT_KEY = 'flowcut'
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -74,6 +73,7 @@ function MaterialCard({ mat, checked, order, onToggle, onPreview, dim }: Materia
 }
 
 export default function MatchTab() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const {
     currentScript,
     matchResults,
@@ -113,7 +113,7 @@ export default function MatchTab() {
       }
     }
     void run()
-  }, [currentScript, matchResults.length, setMatchResults])
+  }, [currentScript, matchResults.length, setMatchResults, TENANT_KEY])
 
   if (!currentScript) {
     return <div style={{ padding: 24 }}>加载中…</div>

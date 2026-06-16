@@ -12,6 +12,7 @@ export async function createSession(tenantKey: string, title?: string): Promise<
   const res = await fetch(`${BASE_URL}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ tenant_key: tenantKey, title }),
   })
   if (!res.ok) throw new Error(`Failed to create session: ${res.status}`)
@@ -19,7 +20,9 @@ export async function createSession(tenantKey: string, title?: string): Promise<
 }
 
 export async function listSessions(tenantKey: string): Promise<SessionSummary[]> {
-  const res = await fetch(`${BASE_URL}/sessions?tenant_key=${encodeURIComponent(tenantKey)}`)
+  const res = await fetch(`${BASE_URL}/sessions?tenant_key=${encodeURIComponent(tenantKey)}`, {
+    credentials: 'include',
+  })
   if (!res.ok) throw new Error(`Failed to list sessions: ${res.status}`)
   return res.json()
 }
@@ -69,6 +72,7 @@ export function streamChat(params: StreamChatParams): () => void {
   fetch(`${BASE_URL}/agent/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ tenant_key: tenantKey, session_key: sessionKey, query }),
     signal: ctrl.signal,
   })

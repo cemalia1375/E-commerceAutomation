@@ -3,6 +3,7 @@ import { Button, Tooltip, message } from 'antd'
 import { SyncOutlined } from '@ant-design/icons'
 import { useCreativeStore } from '../../stores/creativeStore'
 import { useDetailDrawerStore } from '../../stores/detailDrawerStore'
+import { useAuthStore } from '../../stores/authStore'
 import type { CreativeStatusLabel } from '../../types'
 import FilterChips from '../common/FilterChips'
 import DateGroup from '../common/DateGroup'
@@ -16,8 +17,6 @@ import {
   uploadCreative,
   type AccountSummary,
 } from '../../api/qianchuan'
-
-const TENANT_KEY = import.meta.env.VITE_TENANT_KEY ?? 'flowcut'
 
 function fmtNum(n: number | null | undefined, decimals = 0): string {
   if (n === null || n === undefined) return '—'
@@ -44,6 +43,7 @@ function groupByDate(creatives: Creative[]) {
 }
 
 export default function CreativeVideoLibrary() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const { filteredCreatives, activeStatus, setStatus, refetch } = useCreativeStore()
   const { openCreativeDetail } = useDetailDrawerStore()
   const [syncing, setSyncing] = useState(false)
@@ -59,7 +59,7 @@ export default function CreativeVideoLibrary() {
     fetchAccountSummary(TENANT_KEY).then(setSummary).catch(() => {
       // 后端不可用 → 不展示汇总条
     })
-  }, [refetch])
+  }, [refetch, TENANT_KEY])
 
   const reloadSummary = () => {
     fetchAccountSummary(TENANT_KEY).then(setSummary).catch(() => {})

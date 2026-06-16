@@ -3,6 +3,7 @@ import { Modal, Tabs, AutoComplete, Select, Upload, message } from 'antd'
 import { InboxOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import { useProductTreeStore } from '../../stores/productTreeStore'
+import { useAuthStore } from '../../stores/authStore'
 import { getProducts } from '../../api/products'
 import {
   uploadMaterial,
@@ -11,8 +12,6 @@ import {
 } from '../../api/materials'
 import type { ZipPreviewItem, ZipOverride } from '../../types'
 import ZipPreview from './ZipPreview'
-
-const TENANT_KEY = 'flowcut'
 
 const PRESET_SCENE_ROLES = ['医生', '药材', '冲洗', '产品展示', '痛点', '美好']
 
@@ -23,6 +22,7 @@ interface UploadModalProps {
 }
 
 export default function UploadModal({ open, onClose, onSuccess }: UploadModalProps) {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const { activeProduct, activeSceneRole } = useProductTreeStore()
   const refreshTree = useProductTreeStore((s) => s.refreshTree)
   const treeNodes = useProductTreeStore((s) => s.treeNodes)
@@ -57,7 +57,7 @@ export default function UploadModal({ open, onClose, onSuccess }: UploadModalPro
     setZipPreview(null)
     setZipEdits({})
     setTab('single')
-  }, [open, activeProduct, activeSceneRole])
+  }, [open, activeProduct, activeSceneRole, TENANT_KEY])
 
   const handleSingleUpload = async () => {
     if (!file) {

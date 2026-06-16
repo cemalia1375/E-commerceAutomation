@@ -9,14 +9,15 @@ import {
   type NavigateDirective,
 } from '../../api/chat'
 import { uploadReferenceVideo } from '../../api/referenceVideos'
+import { getTenantKey, useAuthStore } from '../../stores/authStore'
 import StatsBubble from './StatsBubble'
 import styles from './ChatPanel.module.css'
 
-const TENANT_KEY = 'flowcut'
-const SESSION_LS_KEY = 'flowcut.chat.session'
+// 会话 / 消息的 localStorage key 按 tenant 命名空间隔离，避免同一浏览器多账号串数据。
 // 每个 session 一份独立的 messages 存储 key，避免会话之间相互污染。
 // 拆镜成功后 ChatPanel 会被 navigate 卸载，没有持久化历史就会丢光。
-const MESSAGES_LS_KEY_PREFIX = 'flowcut.chat.messages.'
+const sessionLsKey = () => `${getTenantKey()}.chat.session`
+const messagesLsKey = (sessionKey: string) => `${getTenantKey()}.chat.messages.${sessionKey}`
 const COLLAPSED_LS_KEY = 'flowcut.chat.collapsed'
 
 // 工具结果可以请求跳转的白名单路由（防 agent 幻觉路径）
@@ -45,7 +46,7 @@ function shouldRenderToolBubble(content: ToolResultContent | null): boolean {
 }
 
 function messagesStorageKey(sessionKey: string): string {
-  return `${MESSAGES_LS_KEY_PREFIX}${sessionKey}`
+  return messagesLsKey(sessionKey)
 }
 
 function isChatMsg(value: unknown): value is ChatMsg {
@@ -105,10 +106,10 @@ function TypingIndicator() {
 }
 
 function getOrCreateSessionKey(): string {
-  let key = localStorage.getItem(SESSION_LS_KEY)
+  let key = localStorage.getItem(sessionLsKey())
   if (!key) {
     key = crypto.randomUUID()
-    localStorage.setItem(SESSION_LS_KEY, key)
+    localStorage.setItem(sessionLsKey(), key)
   }
   return key
 }
@@ -139,6 +140,7 @@ function asToolResultContent(value: unknown): ToolResultContent | null {
 
 export default function ChatPanel() {
   const navigate = useNavigate()
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const [sessionKey] = useState<string>(() => getOrCreateSessionKey())
   const [messages, setMessages] = useState<ChatMsg[]>(() => loadMessages(sessionKey))
   const [input, setInput] = useState('')
@@ -266,7 +268,7 @@ export default function ChatPanel() {
         setUploadProgress(0)
       }
     },
-    [],
+    [TENANT_KEY],
   )
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -377,7 +379,7 @@ export default function ChatPanel() {
     // 必须在 reload 之前同步删，否则刷新后就找不到旧 sessionKey 了。
     localStorage.removeItem(messagesStorageKey(sessionKey))
     const fresh = crypto.randomUUID()
-    localStorage.setItem(SESSION_LS_KEY, fresh)
+    localStorage.setItem(sessionLsKey(), fresh)
     // 通过 reload 触发 sessionKey 重新读取（保持组件简单）
     window.location.reload()
   }

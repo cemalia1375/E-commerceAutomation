@@ -3,6 +3,7 @@ import { Input, Select } from 'antd'
 import { useMaterialStore } from '../../stores/materialStore'
 import { useProductTreeStore } from '../../stores/productTreeStore'
 import { useDetailDrawerStore } from '../../stores/detailDrawerStore'
+import { useAuthStore } from '../../stores/authStore'
 import DateGroup from '../common/DateGroup'
 import MaterialCard from './MaterialCard'
 import UploadCard from './UploadCard'
@@ -10,7 +11,6 @@ import UploadModal from './UploadModal'
 import styles from './Library.module.css'
 import type { Material } from '../../types'
 
-const TENANT_KEY = 'flowcut'
 const UNSPECIFIED_VALUE = '__UNSPECIFIED__'
 
 function groupByDate(materials: Material[]) {
@@ -25,6 +25,7 @@ function groupByDate(materials: Material[]) {
 }
 
 export default function VideoLibrary() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const { filteredMaterials, fetchMaterials, isLoading } = useMaterialStore()
   const { activeProduct, activeSceneRole } = useProductTreeStore()
   const { openMaterialDetail } = useDetailDrawerStore()
@@ -37,7 +38,7 @@ export default function VideoLibrary() {
       product: activeProduct ?? undefined,
       sceneRole: activeSceneRole ?? undefined,
     })
-  }, [fetchMaterials, activeProduct, activeSceneRole])
+  }, [fetchMaterials, activeProduct, activeSceneRole, TENANT_KEY])
 
   const materials = filteredMaterials()
 

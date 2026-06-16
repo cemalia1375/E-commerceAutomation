@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { message } from 'antd'
 import { useMaterialStore } from '../../stores/materialStore'
 import { useDetailDrawerStore } from '../../stores/detailDrawerStore'
+import { useAuthStore } from '../../stores/authStore'
 import FilterChips from '../common/FilterChips'
 import DateGroup from '../common/DateGroup'
 import MaterialCard from './MaterialCard'
@@ -9,17 +10,17 @@ import UploadCard from './UploadCard'
 import styles from './Library.module.css'
 import { uploadMaterial } from '../../api/materials'
 
-const TENANT_KEY = 'flowcut'
 const CATEGORIES = ['全部', '产品图', '背景图', '字幕板']
 
 export default function ImageLibrary() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const { filteredMaterials, fetchMaterials, isLoading, addMaterial } = useMaterialStore()
   const { openMaterialDetail } = useDetailDrawerStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchMaterials(TENANT_KEY)
-  }, [fetchMaterials])
+  }, [fetchMaterials, TENANT_KEY])
 
   const materials = filteredMaterials()
 

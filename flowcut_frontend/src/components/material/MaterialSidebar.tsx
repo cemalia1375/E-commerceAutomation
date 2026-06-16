@@ -5,10 +5,9 @@ import { DeleteOutlined } from '@ant-design/icons'
 import { useProductTreeStore } from '../../stores/productTreeStore'
 import { useMaterialStore } from '../../stores/materialStore'
 import { deleteMaterialsByProduct } from '../../api/materials'
+import { useAuthStore } from '../../stores/authStore'
 import type { ProductNode } from '../../types'
 import styles from './MaterialSidebar.module.css'
-
-const TENANT_KEY = 'flowcut'
 
 interface ProductTitleProps {
   product: string
@@ -44,6 +43,7 @@ function ProductTitle({
 }
 
 export default function MaterialSidebar() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const {
     treeNodes,
     activeProduct,

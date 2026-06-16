@@ -5,10 +5,10 @@ import { composeHighlightCreative, getHighlightCreativeByScript } from '../../ap
 import { scriptApi } from '../../api/script'
 import { useCreativeStore } from '../../stores/creativeStore'
 import { useScriptStore } from '../../stores/scriptStore'
+import { useAuthStore } from '../../stores/authStore'
 import type { Creative } from '../../types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
-const TENANT_KEY = 'flowcut'
 
 function scoreText(value: number | undefined): string {
   return typeof value === 'number' ? value.toFixed(1) : '-'
@@ -50,6 +50,7 @@ function SegmentPreviewVideo({ src }: { src: string }) {
 }
 
 export default function HighlightTab() {
+  const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const navigate = useNavigate()
   const script = useScriptStore((s) => s.currentScript)
   const setCreativeSubTab = useCreativeStore((s) => s.setSubTab)
@@ -76,7 +77,7 @@ export default function HighlightTab() {
     return () => {
       cancelled = true
     }
-  }, [script?.id])
+  }, [script?.id, TENANT_KEY])
 
   const saveToCreativeLibrary = async (): Promise<number | null> => {
     if (!script?.id) return null
