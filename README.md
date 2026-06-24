@@ -79,7 +79,8 @@ Flowcut/
 │       ├── highlight_assets.py
 │       ├── qianchuan.py
 │       ├── tasks.py        # 轮询任务状态
-│       ├── sessions.py     # Agent 对话（目前前端未接入）
+│       ├── chat.py         # Agent 对话（POST /agent/chat，SSE 流式，前端已接入）
+│       ├── sessions.py     # 会话列表管理（创建 / 查询 session）
 │       ├── auth.py         # 登录 / 登出
 │       └── health.py       # 健康检查
 │
@@ -93,14 +94,16 @@ Flowcut/
 │   ├── qianchuan_repo.py
 │   ├── user_repo.py
 │   ├── session_repo.py
+│   ├── session_store.py    # 内存会话状态（ReactLoop 实例缓存）
 │   ├── task_repo.py        # 异步任务状态持久化
-│   └── vector_store.py     # Qdrant 向量库封装
+│   ├── vector_store.py     # Qdrant 向量库封装
+│   └── oss_client.py       # 火山引擎 OSS / 兼容 S3 封装
 │
 ├── services/          # 原子业务能力
 │   ├── gemini_video.py      # Gemini 视频语义拆镜
 │   ├── scene_align.py       # PySceneDetect 物理切点对齐
 │   ├── script_generator.py  # Gemini 脚本生成
-│   ├── embedding.py         # bge-m3 向量化（via Ollama）
+│   ├── embedding.py         # 向量化（支持 Ollama/bge-m3、OpenAI-compatible、火山 Ark）
 │   ├── material_matcher.py  # 双向量召回（visual + copy）
 │   ├── zip_parser.py        # ZIP 素材包解析
 │   ├── clip_planner.py      # 高光切片规划
@@ -114,15 +117,17 @@ Flowcut/
 │   ├── worker.py      # TaskWorker 实例化
 │   └── reconcile.py   # 向量修复对账
 │
-├── agent/             # Agent 对话轨道（基础设施已建，前端暂未接入）
+├── agent/             # Agent 对话轨道（前端已接入，通过 ChatPanel 与 Agent 交互）
 │   ├── main_agent.py
 │   ├── first_token.py
+│   ├── postprocess.py
 │   ├── cold_path.py
 │   └── capabilities.py
 │
-├── tools/             # Agent 工具（对话轨使用）
-├── context/           # Agent 动态上下文（stub）
+├── tools/             # Agent 工具（对话轨使用，前端可通过 Agent 触发所有 Tool）
+├── context/           # Agent 动态上下文（注入 UI 位置等运行时信息）
 ├── workspace/         # Agent 系统 prompt（Agent.md / SOUL.md / TOOL.md）
+├── browser/           # 千川网页自动化（cookie 采集、流量录制）
 ├── auth/              # JWT 鉴权逻辑
 ├── skills/            # 高光分析技能
 └── config.py          # 所有环境变量读取入口
@@ -135,7 +140,7 @@ Flowcut/
 | 轨道 | 入口 | 当前状态 |
 |------|------|---------|
 | **UI 轨** | `Flowcut/api/routes/*` → 直接调 services / 入队 | 已接入，前端按钮走这里 |
-| **对话轨** | `POST /agent/chat` → ReactLoop → Tools | 基础设施齐全，前端暂未接入 |
+| **对话轨** | `POST /agent/chat` → ReactLoop → Tools | 已接入，前端 ChatPanel 可与 Agent 对话并触发所有 Tool |
 
 业务逻辑统一写在 `Tools` 里，REST 路由只做薄薄一层 HTTP 适配，保证两条轨共用同一份实现。
 
@@ -166,10 +171,3 @@ Flowcut/
 | `runtime/` | TaskQueue（内存/Redis）、TaskWorker、ScopeLock |
 | `context/builder.py` | 系统 prompt 拼装、prefix cache |
 
----
-
-## 更多文档
-
-- [交接文档（部署 & 数据库）](docs/handover.md)
-- [Flowcut 架构小册](docs/flowcut/architecture.md)
-- [流程设计](docs/flowcut/process-design.md)
