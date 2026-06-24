@@ -1,0 +1,21 @@
+# 合并镜像构建上下文裁剪（context = 仓库根目录）
+.git
+flowcut_frontend/node_modules
+flowcut_frontend/dist
+SimpleClaw/.venv
+SimpleClaw/__pycache__
+SimpleClaw/**/__pycache__
+SimpleClaw/**/*.pyc
+SimpleClaw/.pytest_cache
+SimpleClaw/logs
+SimpleClaw/qdrant_storage
+SimpleClaw/docs
+SimpleClaw/admin
+SimpleClaw/dev
+SimpleClaw/tests
+SimpleClaw/Mojing
+SimpleClaw/architecture.html
+SimpleClaw/README.md
+SimpleClaw/DESIGN.md
+.DS_Store
+*.log

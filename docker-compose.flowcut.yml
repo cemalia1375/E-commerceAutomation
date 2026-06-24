@@ -1,0 +1,56 @@
+# FlowCut 本地开发一键启动
+#   构建并启动:  docker compose -f docker-compose.flowcut.yml up -d --build --wait
+#   停止移除:    docker compose -f docker-compose.flowcut.yml down
+#   查看日志:    docker compose -f docker-compose.flowcut.yml logs -f
+#   前端访问:    http://localhost:8080
+#
+# 外部依赖（远程）：MySQL、Embedding、OSS、Gemini、ASR —— 见 SimpleClaw/.env
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  app:
+    image: flowcut:${TAG:-latest}
+    container_name: flowcut
+    build:
+      context: .
+      dockerfile: Dockerfile.flowcut
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        http_proxy: ""
+        https_proxy: ""
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    env_file:
+      - ./SimpleClaw/.env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379/0?socket_timeout=30&socket_connect_timeout=5
+      # 仅 Gemini 请求走宿主机代理（其余国内服务直连）；无代理需求时置为空串
+      - GEMINI_PROXY=${GEMINI_PROXY:-http://host.docker.internal:7890}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - qdrant
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  qdrant_data:
+  redis_data:

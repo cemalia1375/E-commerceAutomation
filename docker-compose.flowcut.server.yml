@@ -1,0 +1,47 @@
+# FlowCut 服务器端部署 compose（test / formal）
+# 服务器只 pull + tag + up，不 build。
+#
+# 用法（在 /root/zyj/flowcut/ 下执行）：
+#   docker compose -f docker-compose.flowcut.server.yml -p flowcut up -d --no-build --wait
+#
+# 镜像本地别名（pull + tag 后）：
+#   flowcut:latest  ← registry: .../mojing-nb_hao:flowcut-v<ver>
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  app:
+    image: flowcut:flowcut-v0.0.1
+    container_name: flowcut
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379/0?socket_timeout=30&socket_connect_timeout=5
+      # 服务器 Clash 代理出口（与 agent 容器惯例一致）
+      - GEMINI_PROXY=http://172.17.0.1:7890
+    depends_on:
+      - qdrant
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  qdrant_data:
+  redis_data:
