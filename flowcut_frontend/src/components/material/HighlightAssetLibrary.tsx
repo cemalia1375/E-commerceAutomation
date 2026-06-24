@@ -21,6 +21,7 @@ import {
 } from '../../api/highlightAssets'
 import type { HighlightAsset, HighlightAssetType } from '../../types'
 import { useAuthStore } from '../../stores/authStore'
+import { useUIContextStore } from '../../stores/uiContextStore'
 import styles from './HighlightAssetLibrary.module.css'
 
 type ViewMode = 'episode_source' | 'digital_human_connector'
@@ -60,6 +61,7 @@ export default function HighlightAssetLibrary() {
   const [uploading, setUploading] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [activeDrama, setActiveDrama] = useState<string | null>(null)
+  const setDrama = useUIContextStore((s) => s.setDrama)
   const [dramaName, setDramaName] = useState('')
   const [episodeNo, setEpisodeNo] = useState<number | null>(null)
   const [connectorRole, setConnectorRole] = useState('通用数字人')
@@ -84,6 +86,10 @@ export default function HighlightAssetLibrary() {
     setActiveDrama(null)
     fetchAssets(mode)
   }, [mode])
+
+  useEffect(() => {
+    setDrama(activeDrama)
+  }, [activeDrama, setDrama])
 
   const visibleAssets = useMemo(() => {
     const kw = keyword.trim().toLowerCase()

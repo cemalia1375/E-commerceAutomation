@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useMaterialStore } from '../../stores/materialStore'
 import { useProductTreeStore } from '../../stores/productTreeStore'
 import { useAuthStore } from '../../stores/authStore'
+import { useUIContextStore } from '../../stores/uiContextStore'
 import type { MaterialLibraryTab } from '../../types'
 import VideoLibrary from './VideoLibrary'
 import ImageLibrary from './ImageLibrary'
@@ -30,10 +31,15 @@ export default function MaterialTab() {
   const { activeSubTab, setSubTab } = useMaterialStore()
   const fetchTree = useProductTreeStore((s) => s.fetchTree)
   const Lib = LIB_MAP[activeSubTab]
+  const setUIContext = useUIContextStore((s) => s.setUIContext)
 
   useEffect(() => {
     fetchTree(TENANT_KEY)
   }, [fetchTree, TENANT_KEY])
+
+  useEffect(() => {
+    setUIContext({ route: '/material', tab: activeSubTab })
+  }, [activeSubTab, setUIContext])
 
   return (
     <div className={`${styles.tab} ${styles.layout}`}>
