@@ -10,6 +10,7 @@ import {
 } from '../../api/chat'
 import { uploadReferenceVideo } from '../../api/referenceVideos'
 import { getTenantKey, useAuthStore } from '../../stores/authStore'
+import { useUIContextStore } from '../../stores/uiContextStore'
 import StatsBubble from './StatsBubble'
 import styles from './ChatPanel.module.css'
 
@@ -27,7 +28,7 @@ const ALLOWED_ROUTE_PATTERNS = [
   /^\/creative(?:\?.*)?$/,
 ]
 
-type Role = 'user' | 'agent' | 'tool'
+type Role = 'user' | 'agent' | 'tool' | 'tool_call'
 
 interface ChatMsg {
   id: string
@@ -54,7 +55,7 @@ function isChatMsg(value: unknown): value is ChatMsg {
   const obj = value as Record<string, unknown>
   return (
     typeof obj.id === 'string' &&
-    (obj.role === 'user' || obj.role === 'agent' || obj.role === 'tool') &&
+    (obj.role === 'user' || obj.role === 'agent' || obj.role === 'tool' || obj.role === 'tool_call') &&
     typeof obj.content === 'string'
   )
 }
@@ -108,10 +109,26 @@ function TypingIndicator() {
 function getOrCreateSessionKey(): string {
   let key = localStorage.getItem(sessionLsKey())
   if (!key) {
-    key = crypto.randomUUID()
+    key = safeUUID()
     localStorage.setItem(sessionLsKey(), key)
   }
   return key
+}
+
+/** 生成 RFC 4122 v4 UUID，兼容 HTTP 非安全上下文（crypto.randomUUID() 仅在 HTTPS/localhost 可用）。 */
+function safeUUID(): string {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    // fallback: crypto.getRandomValues 在不安全上下文仍然可用
+    const arr = new Uint8Array(16)
+    crypto.getRandomValues(arr)
+    arr[6] = (arr[6]! & 0x0f) | 0x40 // version 4
+    arr[8] = (arr[8]! & 0x3f) | 0x80 // variant 10
+    const hex = (n: number) => n.toString(16).padStart(2, '0')
+    const d = (i: number) => hex(arr[i]!)
+    return `${d(0)}${d(1)}${d(2)}${d(3)}-${d(4)}${d(5)}-${d(6)}${d(7)}-${d(8)}${d(9)}-${d(10)}${d(11)}${d(12)}${d(13)}${d(14)}${d(15)}`
+  }
 }
 
 function genId(): string {
@@ -141,6 +158,7 @@ function asToolResultContent(value: unknown): ToolResultContent | null {
 export default function ChatPanel() {
   const navigate = useNavigate()
   const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
+  const uiCtx = useUIContextStore((s) => s.ctx)
   const [sessionKey] = useState<string>(() => getOrCreateSessionKey())
   const [messages, setMessages] = useState<ChatMsg[]>(() => loadMessages(sessionKey))
   const [input, setInput] = useState('')
@@ -201,6 +219,16 @@ export default function ChatPanel() {
       if (payload.ok === false) return
       const content = asToolResultContent(payload.content)
       if (!content || content.ok === false) return
+
+      // 降级工具感知：后端无「工具开始」事件，收到 tool_result 时补一条提示
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: genId(),
+          role: 'tool_call',
+          content: payload.tool_name,
+        },
+      ])
 
       if (shouldRenderToolBubble(content)) {
         setMessages((prev) => [
@@ -344,6 +372,7 @@ export default function ChatPanel() {
       tenantKey: TENANT_KEY,
       sessionKey,
       query,
+      uiContext: uiCtx,
       onChunk: (token) => {
         setIsAgentTyping(false)
         appendAgentText(token)
@@ -378,7 +407,7 @@ export default function ChatPanel() {
     // 先清掉旧 session 的持久化消息，避免遗留垃圾在 localStorage 里堆积。
     // 必须在 reload 之前同步删，否则刷新后就找不到旧 sessionKey 了。
     localStorage.removeItem(messagesStorageKey(sessionKey))
-    const fresh = crypto.randomUUID()
+    const fresh = safeUUID()
     localStorage.setItem(sessionLsKey(), fresh)
     // 通过 reload 触发 sessionKey 重新读取（保持组件简单）
     window.location.reload()
@@ -421,6 +450,16 @@ export default function ChatPanel() {
 
       <div className={styles.messages}>
         {messages.map((msg) => {
+          if (msg.role === 'tool_call') {
+            return (
+              <div key={msg.id} className={`${styles.msg} ${styles.agent}`}>
+                <div className={styles.toolCallChip}>
+                  <span className={styles.toolCallIcon}>🔧</span>
+                  <span>已调用工具：{msg.content}</span>
+                </div>
+              </div>
+            )
+          }
           if (msg.role === 'tool' && msg.toolResult) {
             return (
               <div key={msg.id} className={`${styles.msg} ${styles.agent}`}>

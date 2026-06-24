@@ -62,18 +62,24 @@ interface StreamChatParams {
   onDone: () => void
   onError: (msg: string) => void
   onToolResult?: (payload: ToolResultPayload) => void
+  uiContext?: { route: string; tab?: string; drama?: string }
 }
 
 // Returns a cancel function
 export function streamChat(params: StreamChatParams): () => void {
-  const { tenantKey, sessionKey, query, onChunk, onDone, onError, onToolResult } = params
+  const { tenantKey, sessionKey, query, onChunk, onDone, onError, onToolResult, uiContext } = params
   const ctrl = new AbortController()
 
   fetch(`${BASE_URL}/agent/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ tenant_key: tenantKey, session_key: sessionKey, query }),
+    body: JSON.stringify({
+      tenant_key: tenantKey,
+      session_key: sessionKey,
+      query,
+      ...(uiContext ? { ui_context: uiContext } : {}),
+    }),
     signal: ctrl.signal,
   })
     .then(async (res) => {
