@@ -59,7 +59,7 @@ export interface Material {
   type: MaterialType
 }
 
-export type HighlightAssetType = 'episode_source' | 'digital_human_connector'
+export type HighlightAssetType = 'episode_source' | 'digital_human_connector' | 'preroll'
 
 export interface HighlightAsset {
   id: number
@@ -80,6 +80,20 @@ export interface HighlightAsset {
 export type CreativeStatus = 'DRAFT' | 'PENDING' | 'ACTIVE' | 'PROCESSING' | 'READY' | 'FAILED'
 export type CreativeStatusLabel = '投放中' | '待上架' | '草稿' | '全部'
 
+export interface ClipPlanEntry {
+  episodeNo: number
+  cutStart: number
+  cutEnd: number
+}
+
+export interface ClipPlan {
+  dramaName?: string
+  boundaryType?: string
+  totalDuration?: number
+  startEpisodeNo?: number
+  entries: ClipPlanEntry[]
+}
+
 export interface Creative {
   id: string
   ossKey: string
@@ -98,10 +112,11 @@ export interface Creative {
   qcClicks: number | null
   qcConversions: number | null
   qcSyncedAt: string | null
-  creativeType?: 'normal' | 'highlight_original' | 'highlight_digital_human'
+  creativeType?: 'normal' | 'highlight_original' | 'highlight_digital_human' | 'continuous_cross_episode'
   batchId?: string | null
   sourceAssetId?: number | null
   connectorAssetId?: number | null
+  prerollAssetId?: number | null
   sourceAssetName?: string | null
   sourceDramaName?: string | null
   sourceEpisodeNo?: number | null
@@ -113,6 +128,7 @@ export interface Creative {
   highlightEnd?: number | null
   highlightReason?: Record<string, unknown> | null
   composePlan?: Record<string, unknown> | null
+  clipPlan?: ClipPlan | null
 }
 
 /**

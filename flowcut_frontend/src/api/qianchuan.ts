@@ -1,9 +1,10 @@
 import { apiClient } from './client'
-import type { Creative } from '../types'
+import type { Creative, ClipPlan, ClipPlanEntry } from '../types'
 
 export interface TaskStatus {
   status: 'queued' | 'running' | 'succeeded' | 'completed' | 'failed' | 'noop' | 'wait_external'
   error: string | null
+  resultUrl: string | null
 }
 
 export interface AccountSummary {
@@ -27,10 +28,37 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
     ok: boolean
     status: TaskStatus['status']
     last_error: string | null
+    result_url: string | null
   }>(`/flowcut/tasks/${taskId}`)
   return {
     status: data.status,
     error: data.last_error ?? null,
+    resultUrl: data.result_url ?? null,
+  }
+}
+
+function parseClipPlan(rawValue: unknown): ClipPlan | null {
+  try {
+    const obj: unknown = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null
+    const o = obj as Record<string, unknown>
+    const rawEntries = Array.isArray(o.entries) ? o.entries : []
+    const entries: ClipPlanEntry[] = rawEntries
+      .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && !Array.isArray(e))
+      .map((e) => ({
+        episodeNo: typeof e.episode_no === 'number' ? e.episode_no : 0,
+        cutStart: typeof e.cut_start === 'number' ? e.cut_start : 0,
+        cutEnd: typeof e.cut_end === 'number' ? e.cut_end : 0,
+      }))
+    return {
+      dramaName: typeof o.drama_name === 'string' ? o.drama_name : undefined,
+      boundaryType: typeof o.boundary_type === 'string' ? o.boundary_type : undefined,
+      totalDuration: typeof o.total_duration === 'number' ? o.total_duration : undefined,
+      startEpisodeNo: typeof o.start_episode_no === 'number' ? o.start_episode_no : undefined,
+      entries,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -64,6 +92,7 @@ export function creativeFromBackend(raw: Record<string, unknown>): Creative {
     batchId: (raw.batch_id as string | null) ?? null,
     sourceAssetId: (raw.source_asset_id as number | null) ?? null,
     connectorAssetId: (raw.connector_asset_id as number | null) ?? null,
+    prerollAssetId: (raw.preroll_asset_id as number | null) ?? null,
     sourceAssetName: (raw.source_asset_name as string | null) ?? null,
     sourceDramaName: (raw.source_drama_name as string | null) ?? null,
     sourceEpisodeNo: (raw.source_episode_no as number | null) ?? null,
@@ -75,6 +104,7 @@ export function creativeFromBackend(raw: Record<string, unknown>): Creative {
     highlightEnd: (raw.highlight_end as number | null) ?? null,
     highlightReason: (raw.highlight_reason_json as Record<string, unknown> | null) ?? null,
     composePlan: (raw.compose_plan_json as Record<string, unknown> | null) ?? null,
+    clipPlan: raw.clip_plan_json != null ? parseClipPlan(raw.clip_plan_json) : null,
   }
 }
 
@@ -106,6 +136,30 @@ export async function listCreatives(tenantKey: string): Promise<Creative[]> {
   return (data.data ?? []).map(creativeFromBackend)
 }
 
+export interface HighlightPlanTask {
+  taskId: string
+  status: string
+  dramaName: string | null
+  numCandidates: number | null
+  batchId: string | null
+}
+
+export async function listHighlightPlanTasks(
+  tenantKey: string,
+): Promise<HighlightPlanTask[]> {
+  const { data } = await apiClient.get<{
+    ok: boolean
+    data: Array<Record<string, unknown>>
+  }>('/creatives/highlight-plan-tasks', { params: { tenant_key: tenantKey } })
+  return (data.data ?? []).map((t) => ({
+    taskId: typeof t.task_id === 'string' ? t.task_id : '',
+    status: typeof t.status === 'string' ? t.status : '',
+    dramaName: typeof t.drama_name === 'string' ? t.drama_name : null,
+    numCandidates: typeof t.num_candidates === 'number' ? t.num_candidates : null,
+    batchId: typeof t.batch_id === 'string' ? t.batch_id : null,
+  }))
+}
+
 export async function getHighlightCreativeByScript(
   tenantKey: string,
   scriptId: number,
@@ -127,6 +181,55 @@ export async function composeHighlightCreative(
     task_id: string
   }>(`/creatives/${creativeId}/compose-highlight`)
   return { taskId: data.task_id }
+}
+
+export async function setCreativeConnector(
+  creativeId: string | number,
+  connectorAssetId: number | null,
+): Promise<void> {
+  await apiClient.patch(`/creatives/${creativeId}/connector`, {
+    connector_asset_id: connectorAssetId,
+  })
+}
+
+export async function setCreativePreroll(
+  creativeId: string | number,
+  prerollAssetId: number | null,
+): Promise<void> {
+  await apiClient.patch(`/creatives/${creativeId}/preroll`, {
+    preroll_asset_id: prerollAssetId,
+  })
+}
+
+export async function exportHighlightCreative(
+  creativeId: string | number,
+): Promise<{ taskId: string }> {
+  const { data } = await apiClient.post<{
+    ok: boolean
+    task_id: string
+  }>(`/creatives/${creativeId}/export-highlight`)
+  return { taskId: data.task_id }
+}
+
+export async function deleteCreative(creativeId: string | number): Promise<void> {
+  await apiClient.delete(`/creatives/${creativeId}`)
+}
+
+export async function batchDownloadZip(
+  tenantKey: string,
+  creativeIds: Array<string | number>,
+): Promise<{ downloadUrl: string; count: number }> {
+  const { data } = await apiClient.post<{
+    ok: boolean
+    token: string
+    count: number
+  }>('/creatives/batch-download-zip/prepare', {
+    tenant_key: tenantKey,
+    creative_ids: creativeIds,
+  })
+  const base = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001') as string
+  const downloadUrl = `${base}/creatives/batch-download-zip/${data.token}`
+  return { downloadUrl, count: data.count }
 }
 
 export async function fetchAccountSummary(
