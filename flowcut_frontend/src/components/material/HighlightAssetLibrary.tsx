@@ -24,7 +24,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useUIContextStore } from '../../stores/uiContextStore'
 import styles from './HighlightAssetLibrary.module.css'
 
-type ViewMode = 'episode_source' | 'digital_human_connector'
+type ViewMode = 'episode_source' | 'digital_human_connector' | 'preroll'
 
 function formatSize(bytes: number) {
   if (!bytes) return '0 MB'
@@ -41,6 +41,9 @@ function formatDuration(seconds: number) {
 }
 
 function groupAssets(assets: HighlightAsset[], mode: ViewMode) {
+  if (mode === 'preroll') {
+    return [['前贴', assets]] as [string, HighlightAsset[]][]
+  }
   const groups: Record<string, HighlightAsset[]> = {}
   for (const asset of assets) {
     const key =
@@ -112,7 +115,7 @@ export default function HighlightAssetLibrary() {
 
   const canUpload =
     files.length > 0 &&
-    (mode === 'digital_human_connector' || dramaName.trim().length > 0)
+    (mode === 'digital_human_connector' || mode === 'preroll' || dramaName.trim().length > 0)
 
   const handleUpload = async () => {
     if (!canUpload) return
@@ -219,21 +222,31 @@ export default function HighlightAssetLibrary() {
               onChange={() => toggleSelected(asset.id)}
             />
             <div className={styles.thumbWrap}>
-              <video
-                className={styles.thumb}
-                src={asset.ossUrl}
-                controls
-                preload="metadata"
-                onLoadedMetadata={(e) => {
-                  const dur = e.currentTarget.duration
-                  if (Number.isFinite(dur) && dur > 0) {
-                    setDurations((prev) => ({ ...prev, [asset.id]: dur }))
-                  }
-                }}
-              />
-              <span className={styles.duration}>
-                {formatDuration(durations[asset.id] ?? asset.duration)}
-              </span>
+              {asset.assetType === 'preroll' ? (
+                <img
+                  className={styles.thumb}
+                  src={asset.ossUrl}
+                  alt={asset.name}
+                />
+              ) : (
+                <video
+                  className={styles.thumb}
+                  src={asset.ossUrl}
+                  controls
+                  preload="metadata"
+                  onLoadedMetadata={(e) => {
+                    const dur = e.currentTarget.duration
+                    if (Number.isFinite(dur) && dur > 0) {
+                      setDurations((prev) => ({ ...prev, [asset.id]: dur }))
+                    }
+                  }}
+                />
+              )}
+              {asset.assetType !== 'preroll' && (
+                <span className={styles.duration}>
+                  {formatDuration(durations[asset.id] ?? asset.duration)}
+                </span>
+              )}
             </div>
             <div className={styles.body}>
               <div className={styles.title}>{asset.name}</div>
@@ -272,6 +285,7 @@ export default function HighlightAssetLibrary() {
           options={[
             { label: '原片库', value: 'episode_source' },
             { label: '数字人库', value: 'digital_human_connector' },
+            { label: '前贴库', value: 'preroll' },
           ]}
           size="small"
         />
@@ -313,7 +327,7 @@ export default function HighlightAssetLibrary() {
                 size="small"
               />
             </>
-          ) : (
+          ) : mode === 'digital_human_connector' ? (
             <Select
               value={connectorRole}
               onChange={setConnectorRole}
@@ -326,9 +340,9 @@ export default function HighlightAssetLibrary() {
               style={{ width: 150 }}
               size="small"
             />
-          )}
+          ) : null}
           <Upload
-            accept="video/*"
+            accept={mode === 'preroll' ? 'image/*' : 'video/*'}
             multiple
             beforeUpload={(file) => {
               setFiles((prev) => [...prev, file])
@@ -344,7 +358,7 @@ export default function HighlightAssetLibrary() {
             }
           >
             <Button size="small" icon={<UploadOutlined />}>
-              选择视频
+              {mode === 'preroll' ? '选择图片' : '选择视频'}
             </Button>
           </Upload>
           <Button
