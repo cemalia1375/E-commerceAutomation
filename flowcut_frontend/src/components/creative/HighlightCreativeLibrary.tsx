@@ -8,6 +8,7 @@ import {
   getTaskStatus,
   listHighlightPlanTasks,
   setCreativeConnector,
+  setCreativePreroll,
   type HighlightPlanTask,
 } from '../../api/qianchuan'
 import { listHighlightAssets } from '../../api/highlightAssets'
@@ -36,17 +37,19 @@ function SequentialPreview({
   urls,
   labels,
   className,
+  onSegmentChange,
 }: {
   urls: string[]
   labels?: string[]
   className?: string
+  onSegmentChange?: (idx: number) => void
 }) {
   const clips = urls
     .map((url, i) => ({ url, label: labels?.[i] ?? `第 ${i + 1} 段` }))
     .filter((c) => Boolean(c.url))
   const [idx, setIdx] = useState(0)
   const joined = clips.map((c) => c.url).join('|')
-  useEffect(() => { setIdx(0) }, [joined])
+  useEffect(() => { setIdx(0); onSegmentChange?.(0) }, [joined])
   if (clips.length === 0) {
     return <div className={className}>暂无预览</div>
   }
@@ -60,7 +63,13 @@ function SequentialPreview({
         controls
         autoPlay={idx > 0}
         preload="metadata"
-        onEnded={() => setIdx((i) => (i < clips.length - 1 ? i + 1 : i))}
+        onEnded={() => {
+          setIdx((i) => {
+            const next = i < clips.length - 1 ? i + 1 : i
+            onSegmentChange?.(next)
+            return next
+          })
+        }}
       />
       {clips.length > 1 && (
         <div className={styles.seqDots}>
@@ -72,13 +81,55 @@ function SequentialPreview({
               title={clip.label}
               aria-label={`跳到${clip.label}`}
               aria-current={i === current}
-              onClick={() => setIdx(i)}
+              onClick={() => { setIdx(i); onSegmentChange?.(i) }}
             />
           ))}
           <span className={styles.seqDotLabel}>
             {`${current + 1}/${clips.length} · ${clips[current].label}`}
           </span>
         </div>
+      )}
+    </div>
+  )
+}
+
+function PrerollOverlayPreview({
+  clipUrl,
+  dhUrl,
+  prerollUrl,
+  videoClassName,
+}: {
+  clipUrl: string
+  dhUrl: string
+  prerollUrl: string | null
+  videoClassName?: string
+}) {
+  const urls = [clipUrl, dhUrl].filter(Boolean)
+  const labels = ['剪辑', '数字人'].slice(0, urls.length)
+  const [segIdx, setSegIdx] = useState(0)
+  const isClipSegment = segIdx === 0
+  return (
+    <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+      <SequentialPreview
+        urls={urls}
+        labels={labels}
+        className={videoClassName}
+        onSegmentChange={setSegIdx}
+      />
+      {prerollUrl && isClipSegment && (
+        <img
+          src={prerollUrl}
+          alt="前贴预览"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'fill',
+            pointerEvents: 'none',
+          }}
+        />
       )}
     </div>
   )
@@ -141,6 +192,8 @@ export default function HighlightCreativeLibrary() {
   const [digitalHumans, setDigitalHumans] = useState<HighlightAsset[]>([])
   // 每条跨集成片要拼接的数字人选择（null = 纯片）；未设置时回退到 creative.connectorAssetId
   const [dhChoice, setDhChoice] = useState<Record<string, number | null>>({})
+  const [prerollAssets, setPrerollAssets] = useState<HighlightAsset[]>([])
+  const [prerollChoice, setPrerollChoice] = useState<Record<string, number | null | undefined>>({})
 
   const refetchTasks = useCallback(async () => {
     try {
@@ -160,6 +213,15 @@ export default function HighlightCreativeLibrary() {
         )
       } catch {
         // 数字人素材拉取失败不阻断主流程
+      }
+    })()
+    void (async () => {
+      try {
+        setPrerollAssets(
+          await listHighlightAssets(getTenantKey(), { assetType: 'preroll' }),
+        )
+      } catch {
+        // 前贴素材拉取失败不阻断主流程
       }
     })()
   }, [refetch, refetchTasks])
@@ -275,6 +337,11 @@ export default function HighlightCreativeLibrary() {
   const connectorOf = (creative: Creative): number | null =>
     creative.id in dhChoice ? dhChoice[creative.id] : (creative.connectorAssetId ?? null)
 
+  const prerollOf = (creative: Creative): number | null =>
+    creative.id in prerollChoice
+      ? (prerollChoice[creative.id] ?? null)
+      : (creative.prerollAssetId ?? null)
+
   const handleSelectConnector = async (creative: Creative, connectorId: number | null) => {
     setDhChoice((prev) => ({ ...prev, [creative.id]: connectorId }))
     try {
@@ -282,6 +349,16 @@ export default function HighlightCreativeLibrary() {
       await refetch()
     } catch (err) {
       message.error(err instanceof Error ? err.message : '保存数字人选择失败')
+    }
+  }
+
+  const handleSelectPreroll = async (creative: Creative, prerollId: number | null) => {
+    setPrerollChoice((prev) => ({ ...prev, [creative.id]: prerollId }))
+    try {
+      await setCreativePreroll(creative.id, prerollId)
+      await refetch()
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '保存前贴选择失败')
     }
   }
 
@@ -345,8 +422,8 @@ export default function HighlightCreativeLibrary() {
     if (!creative.ossUrl) return
     setExportingId(creative.id)
     try {
-      // 没选数字人：后端 302 → presigned URL（含 attachment 文件名），用 <a> 触发下载
-      if (connectorOf(creative) == null) {
+      // 没选数字人且没选前贴：后端 302 → presigned URL（含 attachment 文件名），用 <a> 触发下载
+      if (connectorOf(creative) == null && prerollOf(creative) == null) {
         triggerBrowserDownload(`${API_BASE}/flowcut/creatives/${creative.id}/download`)
         return
       }
@@ -535,14 +612,44 @@ export default function HighlightCreativeLibrary() {
                 <div className={styles.crossPlaceholder}>未选择数字人</div>
               )}
             </section>
+            <section className={styles.crossPanel}>
+              <div className={styles.sectionTitle}>前贴</div>
+              <Select
+                size="small"
+                className={styles.crossSelect}
+                style={{ width: '100%' }}
+                value={prerollOf(creative) ?? 0}
+                disabled={busy}
+                onChange={(v) => handleSelectPreroll(creative, v === 0 ? null : (v as number))}
+                options={[
+                  { label: '不使用前贴', value: 0 },
+                  ...prerollAssets.map((p) => ({ label: p.name, value: p.id })),
+                ]}
+              />
+              {(() => {
+                const asset = prerollAssets.find((p) => p.id === prerollOf(creative))
+                return asset ? (
+                  <img
+                    src={asset.ossUrl}
+                    alt={asset.name}
+                    style={{ width: '100%', marginTop: 8, objectFit: 'contain', maxHeight: 120, background: '#f0f0f0' }}
+                  />
+                ) : null
+              })()}
+            </section>
           </div>
           <section className={styles.crossPanel}>
             <div className={styles.sectionTitle}>顺序预览（剪辑 → 数字人）</div>
             {clipUrl ? (
-              <SequentialPreview
-                urls={[clipUrl, dhAsset?.ossUrl ?? '']}
-                labels={['剪辑', '数字人']}
-                className={styles.crossVideo}
+              <PrerollOverlayPreview
+                clipUrl={clipUrl}
+                dhUrl={dhAsset?.ossUrl ?? ''}
+                prerollUrl={
+                  prerollOf(creative) != null
+                    ? (prerollAssets.find((p) => p.id === prerollOf(creative))?.ossUrl ?? null)
+                    : null
+                }
+                videoClassName={styles.crossVideo}
               />
             ) : (
               <div className={styles.crossPlaceholder}>待生成</div>
