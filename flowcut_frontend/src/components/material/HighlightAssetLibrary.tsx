@@ -19,6 +19,7 @@ import {
   listHighlightAssets,
   uploadHighlightAsset,
 } from '../../api/highlightAssets'
+import { useAuthStore } from '../../stores/authStore'
 import type { HighlightAsset, HighlightAssetType } from '../../types'
 import { useAuthStore } from '../../stores/authStore'
 import { useUIContextStore } from '../../stores/uiContextStore'

@@ -30,6 +30,7 @@ export default function App() {
     return () => document.removeEventListener('play', handlePlay, true)
   }, [])
 
+
   if (status === 'loading') {
     return (
       <div
