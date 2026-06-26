@@ -39,6 +39,12 @@
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cardSelected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb, 0 10px 26px rgba(15, 23, 42, 0.05);
 }
 
 .cardHeader {
@@ -47,8 +53,22 @@
   border-bottom: 1px solid #edf2f7;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 18px;
+}
+
+.cardLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .titleLine {
@@ -87,6 +107,19 @@
 .statusReady {
   background: #ecfdf3;
   color: #16a34a;
+}
+
+.planningBody {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 26px 22px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.planningText {
+  color: #64748b;
 }
 
 .workflowGrid {
@@ -137,7 +170,7 @@
   background: #0f172a;
   border-radius: 8px;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .assetVideo {
@@ -154,6 +187,92 @@
 .outputVideo {
   aspect-ratio: 16 / 9;
   max-height: 260px;
+}
+
+/* 跨集成片：左右两栏（左=剪辑/数字人上下分区，右=顺序预览） */
+.crossGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+}
+
+.crossLeft {
+  display: flex;
+  flex-direction: column;
+}
+
+.crossPanel {
+  padding: 16px 22px 20px;
+  min-width: 0;
+}
+
+.crossLeft .crossPanel + .crossPanel {
+  border-top: 1px solid #edf2f7;
+}
+
+.crossGrid > .crossPanel {
+  border-left: 1px solid #edf2f7;
+}
+
+.crossVideo {
+  width: 100%;
+  background: #0f172a;
+  border-radius: 8px;
+  display: block;
+  object-fit: contain;
+  aspect-ratio: 9 / 16;
+  max-height: 360px;
+}
+
+.crossSelect {
+  margin-bottom: 12px;
+}
+
+/* 顺序预览段落指示点：表明共几段、当前第几段，点击可跳段 */
+.seqDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.seqDot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.seqDot:hover {
+  background: #93c5fd;
+}
+
+.seqDotActive {
+  background: #2563eb;
+  transform: scale(1.25);
+}
+
+.seqDotLabel {
+  margin-left: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.crossPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  aspect-ratio: 9 / 16;
+  max-height: 360px;
+  color: #94a3b8;
+  font-size: 13px;
 }
 
 .assetPlaceholder,
@@ -309,7 +428,7 @@
 .backBar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
 .backTitle {

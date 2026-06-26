@@ -4,7 +4,7 @@
 
 跨集高光成片（`continuous_cross_episode`）目前的拼接链路是：剪辑（1 分钟跨集片段）→（可选）数字人。本功能新增「前贴」——一张带透明背景的全幅 PNG（角标、底部文字等视觉元素已经画在图里），可叠加显示在成片的某一段或全片，用于品牌标识/免责声明等场景。
 
-前贴本身**不是**独立拼接的视频片段，而是叠加在现有画面上的图层。
+前贴本身**不是**独立拼接的视频片段，而是叠加在现有画面上的图层。前贴**只叠加在剪辑段**，数字人段不叠加。
 
 ## 范围
 
@@ -24,12 +24,11 @@
 
 ### 成片关联
 
-`fc_creative` 新增两个字段：
+`fc_creative` 新增一个字段：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `preroll_asset_id` | int, nullable | 引用 `fc_highlight_asset.id`（`asset_type='preroll'`）；null = 不使用前贴 |
-| `preroll_scope` | enum: `clip` / `digital_human` / `full` | 叠加范围：仅剪辑段 / 仅数字人段 / 贯穿全片 |
 
 与现有 `connector_asset_id` 的语义一致：只是记录用户的选择，不会立即触发任何合成动作，真正的烧录发生在导出（`export-highlight`）时。
 
@@ -47,10 +46,11 @@
 
 ### 改动
 
-**归一化阶段插入 overlay 滤镜**：根据 `preroll_scope`，在对应片段的归一化步骤中追加 `ffmpeg overlay` 滤镜，将前贴 PNG 缩放铺满画面、持续整段时长：
-- `preroll_scope == 'full'`：clip 和数字人段都叠加
-- `preroll_scope == 'clip'`：仅 clip 段叠加
-- `preroll_scope == 'digital_human'`：仅数字人段叠加（前提：必须已选数字人，否则该选项在 UI 层不会出现）
+**归一化阶段插入 overlay 滤镜**：若 `preroll_asset_id` 不为空，在 clip 段的归一化步骤中追加 `ffmpeg overlay` 滤镜，将前贴 PNG 缩放铺满画面、持续整段时长。数字人段不做任何 overlay 处理。
+
+executor 需处理两条分支：
+- **仅前贴（无数字人）**：下载 clip → 对 clip 应用 overlay 归一化 → 直接上传产出（不 concat）
+- **前贴 + 数字人**：下载 clip + 数字人 → 对 clip 应用 overlay 归一化、数字人正常归一化 → concat → 上传产出
 
 **纯片下载快路径收紧**：`download_creative` 路由判断逻辑改为——只要 `preroll_asset_id` 不为空（即使未选数字人），也不能再走直接 302 快路径，必须走 `export-highlight` 异步任务产出带前贴的文件。未选前贴时维持现有快路径不变。
 
@@ -60,7 +60,7 @@
 
 `PATCH /creatives/{creative_id}/preroll`
 ```json
-{ "preroll_asset_id": 123, "preroll_scope": "full" }
+{ "preroll_asset_id": 123 }
 ```
 持久化前贴选择，逻辑与现有 `PATCH /creatives/{id}/connector` 一致（仅落库，不触发合成）。
 
@@ -79,25 +79,20 @@
 
 `HighlightCreativeLibrary.tsx` 的 `renderCrossEpisodeCreative` 中，数字人 `Select` 旁新增前贴 `Select`：
 - 选项：不使用前贴 / 前贴素材列表
-- 选中后追加范围 `Select`：仅剪辑段 / 仅数字人段（未选数字人时隐藏此选项）/ 贯穿全片
 - 变更后调用 `PATCH /creatives/{id}/preroll` 持久化，与现有 `handleSelectConnector` 的模式一致
 
 ### 顺序预览叠加效果
 
-不在预览阶段调用 ffmpeg。在 `SequentialPreview` 组件内，用绝对定位的 `<img>` 叠在 `<video>` 上方模拟效果：
-- `scope='full'`：图片全程显示
-- `scope='clip'`：仅播放第 1 段（剪辑）时显示
-- `scope='digital_human'`：仅播放第 2 段（数字人）时显示
+不在预览阶段调用 ffmpeg。在 `SequentialPreview` 组件内，用绝对定位的 `<img>` 叠在 `<video>` 上方模拟效果：只要选了前贴，仅在播放第 1 段（剪辑）时显示；播放第 2 段（数字人）时不显示。
 
 真正烧录进文件由后端导出时的 ffmpeg 完成；预览只是前端视觉模拟，两者职责分离，互不依赖。
 
 ## 错误处理
 
 - 上传前贴图片：非图片格式拒绝（复用现有 `Upload` 组件的 `accept` 约束 + 后端 MIME 校验）
-- 选择前贴范围为 `digital_human` 但未选数字人：前端禁止此组合出现（UI 层屏蔽），后端 PATCH 接口也应校验拒绝
 - 导出时前贴素材已被删除（`preroll_asset_id` 指向不存在的记录）：executor 内校验，返回 `TaskExecutionResult.failed`，提示前贴素材不存在
 
 ## 测试
 
-- 后端：`export-highlight` executor 对三种 `preroll_scope` 的 overlay 滤镜参数构造单测；`download_creative` 快路径收紧后的分支测试（有/无前贴 × 有/无数字人四种组合）
-- 前端：`SequentialPreview` 叠加显示逻辑的组件测试（按 scope 切换可见性）
+- 后端：`export-highlight` executor 的 overlay 滤镜参数构造单测，覆盖两条分支（仅前贴/前贴+数字人）；`download_creative` 快路径收紧后的分支测试（有/无前贴 × 有/无数字人四种组合）
+- 前端：`SequentialPreview` 叠加显示逻辑的组件测试（选前贴时 clip 段显示 `<img>`，DH 段不显示；未选前贴时均不显示）

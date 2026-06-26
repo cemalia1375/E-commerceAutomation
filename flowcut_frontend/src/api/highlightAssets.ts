@@ -70,6 +70,35 @@ export async function uploadHighlightAsset(
   return fromBackend(data)
 }
 
+export async function uploadHighlightZip(
+  tenantKey: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<{ ok: boolean; dramaNames: string[]; created: number; assets: HighlightAsset[] }> {
+  const form = new FormData()
+  form.append('tenant_key', tenantKey)
+  form.append('file', file)
+
+  const { data } = await apiClient.post<{
+    ok: boolean
+    drama_names: string[]
+    created: number
+    assets: Record<string, unknown>[]
+  }>('/highlight-assets/upload-zip', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100))
+    },
+  })
+
+  return {
+    ok: data.ok,
+    dramaNames: data.drama_names,
+    created: data.created,
+    assets: data.assets.map(fromBackend),
+  }
+}
+
 export async function deleteHighlightAsset(assetId: number): Promise<void> {
   await apiClient.delete(`/highlight-assets/${assetId}`)
 }
@@ -94,35 +123,3 @@ export async function deleteHighlightAssets(
   }
 }
 
-export async function runHighlightAssetBatch(
-  tenantKey: string,
-  options: {
-    dramaName: string
-    mode: 'highlight_original' | 'highlight_digital_human'
-    connectorAssetId?: number
-    connectorQuery?: string
-    limit?: number
-  },
-): Promise<{
-  batchId: string
-  createdCount: number
-}> {
-  const { data } = await apiClient.post<{
-    ok: boolean
-    data: {
-      batch_id: string
-      created_count: number
-    }
-  }>('/highlight-assets/batch-run', {
-    tenant_key: tenantKey,
-    drama_name: options.dramaName,
-    mode: options.mode,
-    connector_asset_id: options.connectorAssetId,
-    connector_query: options.connectorQuery,
-    limit: options.limit ?? 200,
-  })
-  return {
-    batchId: data.data.batch_id,
-    createdCount: data.data.created_count,
-  }
-}

@@ -194,15 +194,6 @@ Mojing/
 
 - **`Mojing/runtime/worker.py`** — `TaskWorker`.
   - Consumes tasks from `TaskQueue` streams, executes via named executors, updates task state.
-  - Streams: `POSTPROCESS`, `TOPIC_TRACKING`, `IMAGE_ANALYSIS`, `SKIN_DIARY`, `MEMORY_EXTRACT`, `DEEP_RESEARCH`, `SUBAGENT_DISPATCH`, `BACKGROUND`.
-
-### Workspace Prompt Files (`Mojing/workspace/`)
-These are markdown files that form the system prompt, loaded in order:
-1. `Agent.md` — Agent identity and behavior rules
-2. `SOUL.md` — Personality and tone
-3. `TOOL.md` — Tool usage guidelines
-4. `compliance.md` — Shared compliance constraints
-5. `journey/{stage}.md` — Stage-specific strategy (novice / explore / mature)
 
 ## FlowCut MVP — Architecture (`Flowcut/`)
 
@@ -248,32 +239,11 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 |--------|------|------|
 | `MATERIAL_PROCESS` | 素材 ASR + 描述 + 向量索引 | 已实现 |
 | `SCENE_DECOMPOSE` | 爆款视频拆镜 → fc_script + 音轨 | 已实现（含 ASR copy 字段）|
-| `CLIP_CREATE` | 子片段切割（已废弃，待清理） | 代码残留，不再触发 |
 | `VIDEO_COMPOSE` | FFmpeg 拼片 | Stubbed |
 | `QIANCHUAN_PUBLISH` | 千川素材上传 + 创建计划 | Stubbed |
 | `QIANCHUAN_SYNC` | T+1 数据回流 | Stubbed |
 | `VECTOR_REPAIR` | 补建 Qdrant 向量 | 已实现 |
 | `EXPORT_PACKAGE` | 素材打包 zip 下载 | 已实现 |
-
-### Implementation Status (as of 2026-05-23)
-
-**Fully implemented:**
-- `storage/` — `Database` + `ensure_schema()`; `MaterialRepo`, `CreativeRepo`, `ScriptRepo`, `ReferenceVideoRepo`, `SessionRepo`, `TaskRepo`, `VectorStore`, `OSSClient`, `SessionStore`
-- `runtime/executors.py` — `make_material_process_executor()`, `make_scene_decompose_executor()` (Gemini 拆镜 + ASR copy + 落 fc_script + audio OSS), `make_vector_repair_executor()`, `make_export_package_executor()` (zip 打包 OSS 上传)
-- `tools/` — `decompose_video`, `generate_scripts`, `search_materials`, `upload_script`, `update_script`, `match_by_script` (visual+copy 双向量召回), `export_package`, `check_task_status`
-- `api/routes/` — `chat.py`, `materials.py` (含 `/tree`, `/upload-zip`), `reference_videos.py`, `scripts.py` (CRUD + `/confirm` + `/reopen` + `/match` + `/export`), `sessions.py`, `creatives.py`, `qianchuan.py`, `tasks.py`, `health.py`
-- Frontend — `ScriptEditor`, `MaterialPreview`, `ExportButton`; `scriptStore`; `/scripts/:id` + `/scripts/:id/preview` 路由
-
-**Stubbed (`raise NotImplementedError`):**
-- `tools/compose_video.py` → `prepare_task()`
-- `tools/publish_to_qianchuan.py` → `prepare_task()`
-- `runtime/executors.py` → `make_video_compose_executor()`, `make_qianchuan_publish_executor()`, `make_qianchuan_sync_executor()`
-- `context/providers.py` → `TaskContextProvider` — returns `[]`
-
-**Pending cleanup (per 2026-05-23 spec):**
-- `CLIP_CREATE` stream/executor/worker 注册 — 应删除
-- `POST /reference-videos/{id}/classify` 路由 — 应删除
-- `fc_reference_video.status` `AWAITING_CLASSIFICATION` / `DECOMPOSED` 状态 — 应迁移至 `READY`
 
 ### Key Flowcut design decisions
 - **No journey stages** — MainAgent uses single `"default"` stage
@@ -291,14 +261,9 @@ uv run python -m uvicorn Flowcut.api.server:app --reload --port 8001
 - **Dual-vector recall** — `match_by_script` 分别对 `visual` 和 `copy` embed，查对应向量池
 - **Export is async** — `export_package` 走 `EXPORT_PACKAGE` stream，前端轮询 `/tasks/{task_id}`
 
-## Important Design Principles
+## simpleclaw-specific Design Notes
 
-- **Immutable data** — Never mutate existing objects; always return new copies.
-- **Small files** — 200-400 lines typical, 800 max. Extract utilities from large modules.
-- **Error handling** — Handle errors explicitly at every level. Never silently swallow exceptions.
-- **Input validation** — Validate all user input before processing. Fail fast with clear messages.
-- **No hardcoded secrets** — Use `.env` and `os.environ`. `.env` is gitignored.
 - **Prefix cache** — `ContextBuilder` supports Volcengine prefix cache via `_cache_stable_prefix` / `_cache_dynamic_tail` keys in system messages.
 - **Attention packets** — Injected into the message stream at specific placements (`before_last_user`, `after_history`, `tail`) with deduplication logic (`until_changed`, `periodic`, `one_turn`, `always`).
 - **Image handling** — Only the most recent user image is sent as multimodal input. Historical images are replaced with `[用户已上传图片]` placeholder.
-- **durable tools** — Tools that trigger long-running work (e.g., image analysis, deep research) use `execution_mode="durable"` and are queued via `RuntimeServices.submit_task()`. The ReAct loop receives an immediate ack and continues.
+- **durable tools** — Tools that trigger long-running work use `execution_mode="durable"` and are queued via `RuntimeServices.submit_task()`. The ReAct loop receives an immediate ack and continues.
