@@ -11,6 +11,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Add submodule SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SUBMODULE_SSH_KEY }}
+
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
         with:
