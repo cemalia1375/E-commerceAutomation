@@ -5,6 +5,7 @@ export interface TaskStatus {
   status: 'queued' | 'running' | 'succeeded' | 'completed' | 'failed' | 'noop' | 'wait_external'
   error: string | null
   resultUrl: string | null
+  resultOssKey: string | null
 }
 
 export interface AccountSummary {
@@ -29,11 +30,13 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
     status: TaskStatus['status']
     last_error: string | null
     result_url: string | null
+    details?: Record<string, unknown>
   }>(`/flowcut/tasks/${taskId}`)
   return {
     status: data.status,
     error: data.last_error ?? null,
     resultUrl: data.result_url ?? null,
+    resultOssKey: typeof data.details?.oss_key === 'string' ? data.details.oss_key : null,
   }
 }
 
@@ -226,6 +229,23 @@ export async function batchDownloadZip(
   }>('/creatives/batch-download-zip/prepare', {
     tenant_key: tenantKey,
     creative_ids: creativeIds,
+  })
+  const base = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001') as string
+  const downloadUrl = `${base}/creatives/batch-download-zip/${data.token}`
+  return { downloadUrl, count: data.count }
+}
+
+export async function batchDownloadZipByKeys(
+  tenantKey: string,
+  items: Array<{ ossKey: string; filename: string }>,
+): Promise<{ downloadUrl: string; count: number }> {
+  const { data } = await apiClient.post<{
+    ok: boolean
+    token: string
+    count: number
+  }>('/creatives/batch-download-zip/prepare-by-keys', {
+    tenant_key: tenantKey,
+    items: items.map((it) => ({ oss_key: it.ossKey, filename: it.filename })),
   })
   const base = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001') as string
   const downloadUrl = `${base}/creatives/batch-download-zip/${data.token}`

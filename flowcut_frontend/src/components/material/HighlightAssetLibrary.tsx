@@ -21,7 +21,6 @@ import {
 } from '../../api/highlightAssets'
 import { useAuthStore } from '../../stores/authStore'
 import type { HighlightAsset, HighlightAssetType } from '../../types'
-import { useAuthStore } from '../../stores/authStore'
 import { useUIContextStore } from '../../stores/uiContextStore'
 import styles from './HighlightAssetLibrary.module.css'
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Checkbox, Input, Popconfirm, Select, Spin, Tag, message } from 'antd'
 import {
-  batchDownloadZip,
+  batchDownloadZipByKeys,
   composeHighlightCreative,
   deleteCreative,
   exportHighlightCreative,
@@ -337,10 +337,11 @@ export default function HighlightCreativeLibrary() {
   const connectorOf = (creative: Creative): number | null =>
     creative.id in dhChoice ? dhChoice[creative.id] : (creative.connectorAssetId ?? null)
 
-  const prerollOf = (creative: Creative): number | null =>
-    creative.id in prerollChoice
-      ? (prerollChoice[creative.id] ?? null)
-      : (creative.prerollAssetId ?? null)
+  const prerollOf = (creative: Creative): number | null => {
+    if (creative.id in prerollChoice) return prerollChoice[creative.id] ?? null
+    if (creative.prerollAssetId != null) return creative.prerollAssetId
+    return prerollAssets[0]?.id ?? null
+  }
 
   const handleSelectConnector = async (creative: Creative, connectorId: number | null) => {
     setDhChoice((prev) => ({ ...prev, [creative.id]: connectorId }))
@@ -418,6 +419,14 @@ export default function HighlightCreativeLibrary() {
     })
   }
 
+  // 若前端的前贴选择与 DB 不一致，先持久化再导出
+  const ensurePrerollSaved = async (creative: Creative) => {
+    const resolved = prerollOf(creative)
+    if (resolved !== (creative.prerollAssetId ?? null)) {
+      await setCreativePreroll(creative.id, resolved)
+    }
+  }
+
   const handleExport = async (creative: Creative) => {
     if (!creative.ossUrl) return
     setExportingId(creative.id)
@@ -427,7 +436,8 @@ export default function HighlightCreativeLibrary() {
         triggerBrowserDownload(`${API_BASE}/flowcut/creatives/${creative.id}/download`)
         return
       }
-      // 选了数字人：后端 ffmpeg 拼接任务 → 轮询 → 下载产物
+      await ensurePrerollSaved(creative)
+      // 选了数字人或前贴：后端 ffmpeg 拼接任务 → 轮询 → 下载产物
       const { taskId } = await exportHighlightCreative(creative.id)
       message.loading({ content: '正在拼接导出…', key: `export-${creative.id}`, duration: 0 })
       const startedAt = Date.now()
@@ -463,11 +473,62 @@ export default function HighlightCreativeLibrary() {
     setBatchExporting(true)
     const msgKey = 'batch-zip'
     try {
-      message.loading({ content: `正在打包 ${exportable.length} 个成片…`, key: msgKey, duration: 0 })
-      const { downloadUrl, count } = await batchDownloadZip(
-        getTenantKey(),
-        exportable.map((c) => c.id),
+      message.loading({ content: `正在合成导出 ${exportable.length} 个成片…`, key: msgKey, duration: 0 })
+
+      // 有数字人或前贴的需先 ffmpeg 合成，其余直接使用已有 oss_key
+      const needsCompose = exportable.filter((c) => connectorOf(c) != null || prerollOf(c) != null)
+      const simple = exportable.filter((c) => connectorOf(c) == null && prerollOf(c) == null)
+
+      // 先确保所有前贴选择已写入 DB，再并行触发合成任务
+      await Promise.all(needsCompose.map((c) => ensurePrerollSaved(c)))
+      const composeTasks = await Promise.all(
+        needsCompose.map(async (c) => {
+          const { taskId } = await exportHighlightCreative(c.id)
+          return { creative: c, taskId }
+        }),
       )
+
+      // 轮询直到所有合成任务完成，收集 oss_key
+      const composeResults: Array<{ creative: typeof exportable[0]; ossKey: string }> = []
+      if (composeTasks.length > 0) {
+        const startedAt = Date.now()
+        const pending = new Map(composeTasks.map(({ creative, taskId }, i) => [i, { creative, taskId }]))
+        while (pending.size > 0 && Date.now() - startedAt < POLL_TIMEOUT_MS) {
+          await new Promise((resolve) => window.setTimeout(resolve, POLL_INTERVAL_MS))
+          for (const [i, { creative, taskId }] of Array.from(pending.entries())) {
+            const task = await getTaskStatus(taskId)
+            if (task.status === 'succeeded' || task.status === 'completed') {
+              if (task.resultOssKey) composeResults.push({ creative, ossKey: task.resultOssKey })
+              pending.delete(i)
+            } else if (task.status === 'failed') {
+              pending.delete(i)
+            }
+          }
+        }
+      }
+
+      // 组装所有 items：合成产物 + 纯片
+      const buildFilename = (c: typeof exportable[0], suffix = '') => {
+        const drama = c.sourceDramaName || c.sourceAssetName || c.name || '高光'
+        const episode = c.sourceEpisodeNo ? `_第${c.sourceEpisodeNo}集` : ''
+        return `${drama}${episode}_${c.id}${suffix}.mp4`
+      }
+
+      const items: Array<{ ossKey: string; filename: string }> = [
+        ...composeResults.map(({ creative, ossKey }) => ({
+          ossKey,
+          filename: buildFilename(creative, '_导出'),
+        })),
+        ...simple
+          .filter((c) => Boolean(c.ossKey))
+          .map((c) => ({ ossKey: c.ossKey, filename: buildFilename(c) })),
+      ]
+
+      if (items.length === 0) {
+        throw new Error('所有成片合成均失败，无法打包')
+      }
+
+      const { downloadUrl, count } = await batchDownloadZipByKeys(getTenantKey(), items)
       message.destroy(msgKey)
       triggerBrowserDownload(downloadUrl)
       message.success(`已打包 ${count} 个成片，开始下载`)

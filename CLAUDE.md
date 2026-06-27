@@ -90,7 +90,7 @@ uv run python -m tests.smoke_test
 Copy `.env.example` to `.env` and fill in (Flowcut requires Google Gemini; Mojing uses Volcengine/Doubao):
 
 **Google Gemini (Flowcut):**
-- `GOOGLE_API_KEY`, `GOOGLE_MODEL` (default: `gemini-2.5-flash`)
+- `GOOGLE_API_KEY`, `GOOGLE_MODEL` (default: `gemini-3.5-flash`)
 - `FLOWCUT_HOOK_MODEL`, `FLOWCUT_FIRST_TOKEN_MODEL`, `FLOWCUT_FIRST_TOKEN_ENABLED`
 - `FLOWCUT_DECOMPOSE_MODEL` (default: `gemini-3.1-flash-lite-preview`)
 

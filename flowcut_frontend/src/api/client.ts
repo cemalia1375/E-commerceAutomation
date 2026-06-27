@@ -5,6 +5,10 @@ export const apiClient = axios.create({
   withCredentials: true, // 携带登录会话 cookie
 })
 
+export function updateApiPort(port: number): void {
+  apiClient.defaults.baseURL = `http://localhost:${port}`
+}
+
 // 受保护接口返回 401 时，广播强制登出事件（/auth/* 自身的 401 不触发，避免登录探测循环）。
 apiClient.interceptors.response.use(
   (response) => response,

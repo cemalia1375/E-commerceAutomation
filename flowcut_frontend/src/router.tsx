@@ -7,10 +7,12 @@ import WorkspaceLayout from './components/workspace/WorkspaceLayout'
 import LoginPage from './components/auth/LoginPage'
 import RequireAuth from './components/auth/RequireAuth'
 import AppShell from './components/layout/AppShell'
+import SetupWizard from './components/setup/SetupWizard'
 
 export default function AppRouter() {
   return (
     <Routes>
+      <Route path="/setup" element={<SetupWizard />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         element={
