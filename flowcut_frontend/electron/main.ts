@@ -66,7 +66,18 @@ function pythonExePath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'backend', 'flowcut_server.exe')
   }
-  return process.platform === 'win32' ? 'uv.exe' : 'uv'
+  if (process.platform === 'win32') {
+    // PATH 可能还没包含 uv，按常见安装路径回退查找
+    const candidates = [
+      path.join(process.env.USERPROFILE ?? '', '.local', 'bin', 'uv.exe'),
+      path.join(process.env.USERPROFILE ?? '', '.cargo', 'bin', 'uv.exe'),
+      'uv.exe',
+    ]
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p
+    }
+  }
+  return 'uv'
 }
 
 function pythonArgs(): string[] {
@@ -88,7 +99,13 @@ function buildEnv(cfg: AppConfig): NodeJS.ProcessEnv {
     QDRANT_URL: cfg.QDRANT_URL ?? 'http://localhost:6333',
     FFMPEG_PATH: app.isPackaged
       ? path.join(process.resourcesPath, 'ffmpeg.exe')
-      : (process.env.FFMPEG_PATH ?? 'ffmpeg'),
+      : (process.env.FFMPEG_PATH
+        ?? (() => {
+          // Dev 模式：优先读项目根目录的 ffmpeg.exe（与 electron-builder extraResources 同一来源）
+          const local = path.join(__dirname, '../ffmpeg.exe')
+          if (fs.existsSync(local)) return local
+          return 'ffmpeg'
+        })()),
   }
 }
 
