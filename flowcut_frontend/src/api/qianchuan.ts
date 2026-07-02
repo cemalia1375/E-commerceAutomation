@@ -1,11 +1,26 @@
 import { apiClient } from './client'
 import type { Creative, ClipPlan, ClipPlanEntry } from '../types'
 
+export interface TaskProgress {
+  stage: string           // starting | stage_a_done | stage_b_done | stage_c | stage_c_done | done
+  stage_label: string     // 中文标签：开始规划 | 合并+拆镜完成 | 已选出高光起点 | ...
+  progress_pct: number    // 0-100
+  drama?: string          // 当前处理的剧名
+  drama_count?: number    // 总剧数
+  candidate_count?: number
+  created_count?: number
+  stage_a_s?: number
+  stage_b_s?: number
+  stage_c_s?: number
+  wall_clock_s?: number
+}
+
 export interface TaskStatus {
   status: 'queued' | 'running' | 'succeeded' | 'completed' | 'failed' | 'noop' | 'wait_external'
   error: string | null
   resultUrl: string | null
   resultOssKey: string | null
+  progress: TaskProgress | null
 }
 
 export interface AccountSummary {
@@ -32,11 +47,26 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
     result_url: string | null
     details?: Record<string, unknown>
   }>(`/flowcut/tasks/${taskId}`)
+  const details = data.details ?? {}
+  const progressRaw = details as Record<string, unknown>
   return {
     status: data.status,
     error: data.last_error ?? null,
     resultUrl: data.result_url ?? null,
-    resultOssKey: typeof data.details?.oss_key === 'string' ? data.details.oss_key : null,
+    resultOssKey: typeof details.oss_key === 'string' ? (details.oss_key as string) : null,
+    progress: progressRaw.stage != null ? {
+      stage: typeof progressRaw.stage === 'string' ? progressRaw.stage : '',
+      stage_label: typeof progressRaw.stage_label === 'string' ? progressRaw.stage_label : '',
+      progress_pct: typeof progressRaw.progress_pct === 'number' ? progressRaw.progress_pct : 0,
+      drama: typeof progressRaw.drama === 'string' ? progressRaw.drama : undefined,
+      drama_count: typeof progressRaw.drama_count === 'number' ? progressRaw.drama_count : undefined,
+      candidate_count: typeof progressRaw.candidate_count === 'number' ? progressRaw.candidate_count : undefined,
+      created_count: typeof progressRaw.created_count === 'number' ? progressRaw.created_count : undefined,
+      stage_a_s: typeof progressRaw.stage_a_s === 'number' ? progressRaw.stage_a_s : undefined,
+      stage_b_s: typeof progressRaw.stage_b_s === 'number' ? progressRaw.stage_b_s : undefined,
+      stage_c_s: typeof progressRaw.stage_c_s === 'number' ? progressRaw.stage_c_s : undefined,
+      wall_clock_s: typeof progressRaw.wall_clock_s === 'number' ? progressRaw.wall_clock_s : undefined,
+    } : null,
   }
 }
 

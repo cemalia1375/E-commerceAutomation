@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Checkbox, Input, Popconfirm, Select, Spin, Tag, message } from 'antd'
+import { Button, Checkbox, Input, Popconfirm, Progress, Select, Spin, Tag, message } from 'antd'
 import {
   batchDownloadZipByKeys,
   composeHighlightCreative,
@@ -10,6 +10,7 @@ import {
   setCreativeConnector,
   setCreativePreroll,
   type HighlightPlanTask,
+  type TaskProgress,
 } from '../../api/qianchuan'
 import { listHighlightAssets } from '../../api/highlightAssets'
 import { useCreativeStore } from '../../stores/creativeStore'
@@ -189,6 +190,7 @@ export default function HighlightCreativeLibrary() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [batchExporting, setBatchExporting] = useState(false)
   const [activeTasks, setActiveTasks] = useState<HighlightPlanTask[]>([])
+  const [taskProgress, setTaskProgress] = useState<Record<string, TaskProgress>>({})
   const [digitalHumans, setDigitalHumans] = useState<HighlightAsset[]>([])
   // 每条跨集成片要拼接的数字人选择（null = 纯片）；未设置时回退到 creative.connectorAssetId
   const [dhChoice, setDhChoice] = useState<Record<string, number | null>>({})
@@ -308,6 +310,34 @@ export default function HighlightCreativeLibrary() {
     }, 3000)
     return () => { window.clearInterval(id) }
   }, [shouldPoll, refetch, refetchTasks])
+
+  // 为在途高光规划任务轮询进度（每 2s）。
+  // 用 ref 追踪最新 tasks 避免 activeTasks 数组引用变化导致 effect 反复重建。
+  const activeTasksRef = useRef(activeTasks)
+  activeTasksRef.current = activeTasks
+  useEffect(() => {
+    let cancelled = false
+    const poll = async () => {
+      if (cancelled) return
+      const tasks = activeTasksRef.current.filter(
+        (t) => t.status === 'running' || t.status === 'queued',
+      )
+      if (tasks.length === 0) return
+      const next: Record<string, TaskProgress> = {}
+      for (const t of tasks) {
+        try {
+          const ts = await getTaskStatus(t.taskId)
+          if (ts.progress) next[t.taskId] = ts.progress
+        } catch { /* ignore */ }
+      }
+      if (!cancelled && Object.keys(next).length > 0) {
+        setTaskProgress((prev) => ({ ...prev, ...next }))
+      }
+    }
+    void poll()
+    const id = window.setInterval(poll, 2000)
+    return () => { cancelled = true; window.clearInterval(id) }
+  }, [])  // 空依赖 — effect 只跑一次，通过 ref 读取最新值
 
   useEffect(() => {
     setDrama(activeDrama)
@@ -853,29 +883,56 @@ export default function HighlightCreativeLibrary() {
     )
   }
 
-  const renderPlanningCard = (task: HighlightPlanTask) => (
-    <article key={`planning-${task.taskId}`} className={styles.card}>
-      <header className={styles.cardHeader}>
-        <div>
-          <div className={styles.titleLine}>
-            <span className={styles.cardTitle}>{task.dramaName || '跨集高光'}</span>
-            <span className={styles.statusPill}>生成中</span>
+  const renderPlanningCard = (task: HighlightPlanTask) => {
+    const pg = taskProgress[task.taskId]
+    const pct = pg?.progress_pct ?? 0
+    const stageLabel = pg?.stage_label ?? '准备中'
+    const drama = pg?.drama ?? task.dramaName
+    const detailParts: string[] = []
+    if (pg?.candidate_count != null && pg.candidate_count > 0) {
+      detailParts.push(`${pg.candidate_count} 个候选`)
+    }
+    if (pg?.stage_a_s != null) detailParts.push(`合并 ${pg.stage_a_s}s`)
+    if (pg?.stage_b_s != null) detailParts.push(`选点 ${pg.stage_b_s}s`)
+    if (pg?.stage_c_s != null) detailParts.push(`规划 ${pg.stage_c_s}s`)
+    if (pg?.created_count != null && pg.created_count > 0) {
+      detailParts.push(`已产出 ${pg.created_count} 条`)
+    }
+
+    return (
+      <article key={`planning-${task.taskId}`} className={styles.card}>
+        <header className={styles.cardHeader}>
+          <div>
+            <div className={styles.titleLine}>
+              <span className={styles.cardTitle}>{drama || '跨集高光'}</span>
+              <span className={styles.statusPill}>
+                {pct >= 100 ? '已完成' : pct > 0 ? `生成中 ${pct}%` : '生成中'}
+              </span>
+            </div>
+            <div className={styles.subtitle}>
+              跨集高光
+              {drama ? ` · ${drama}` : ''}
+              {task.numCandidates ? ` · 约 ${task.numCandidates} 条候选` : ''}
+            </div>
           </div>
-          <div className={styles.subtitle}>
-            跨集高光
-            {task.dramaName ? ` · ${task.dramaName}` : ''}
-            {task.numCandidates ? ` · 约 ${task.numCandidates} 条候选` : ''}
+        </header>
+        <div className={styles.planningBody}>
+          <div style={{ width: '100%' }}>
+            <Progress
+              percent={pct}
+              status={pct >= 100 ? 'success' : 'active'}
+              strokeColor={{ from: '#108ee9', to: '#87d068' }}
+              size="small"
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: '#8c8c8c' }}>
+              <span>{stageLabel}</span>
+              {detailParts.length > 0 && <span>{detailParts.join(' · ')}</span>}
+            </div>
           </div>
         </div>
-      </header>
-      <div className={styles.planningBody}>
-        <Spin />
-        <span className={styles.planningText}>
-          正在识别高光起点并拼接生成，预计 1–3 分钟…
-        </span>
-      </div>
-    </article>
-  )
+      </article>
+    )
+  }
 
   return (
     <div className={styles.layout}>

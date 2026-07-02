@@ -111,15 +111,16 @@
 
 .planningBody {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 26px 22px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 22px 26px;
   color: #475569;
   font-size: 14px;
 }
 
 .planningText {
   color: #64748b;
+  padding-left: 22px;
 }
 
 .workflowGrid {
