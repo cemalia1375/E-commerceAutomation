@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import type { Creative, CreativeStatus, CreativeStatusLabel } from '../types'
-import { mockCreatives } from '../mocks/creatives'
 import { listCreatives } from '../api/qianchuan'
 import { getTenantKey } from './authStore'
 
@@ -17,7 +16,7 @@ interface CreativeState {
 }
 
 export const useCreativeStore = create<CreativeState>((set, get) => ({
-  creatives: mockCreatives,
+  creatives: [],
   activeSubTab: 'video',
   activeStatus: '全部',
   loading: false,

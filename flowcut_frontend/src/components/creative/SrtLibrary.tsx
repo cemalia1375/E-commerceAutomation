@@ -1,4 +1,5 @@
 import { useCreativeStore } from '../../stores/creativeStore'
+import { Spin } from 'antd'
 import DateGroup from '../common/DateGroup'
 import SrtCard from './SrtCard'
 import styles from './CreativeLibrary.module.css'
@@ -17,12 +18,25 @@ function groupByDate(creatives: Creative[]) {
 }
 
 export default function SrtLibrary() {
-  const { creatives } = useCreativeStore()
-  const groups = groupByDate(creatives.filter((c) => c.srtLineCount !== undefined))
+  const { creatives, loading } = useCreativeStore()
+  const filtered = creatives.filter((c) => c.srtLineCount !== undefined)
+  const groups = groupByDate(filtered)
+
+  if (loading && creatives.length === 0) {
+    return (
+      <div className={styles.layout}>
+        <Spin size="large" style={{ display: 'block', marginTop: 80 }} />
+      </div>
+    )
+  }
+
   return (
     <div className={styles.layout}>
       <div className={styles.topBar} />
       <div className={styles.grid}>
+        {!loading && filtered.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>暂未生成字幕文件</div>
+        )}
         {Object.entries(groups).map(([label, items]) => (
           <DateGroup key={label} label={label}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

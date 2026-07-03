@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Tooltip, message } from 'antd'
+import { Button, Spin, Tooltip, message } from 'antd'
 import { SyncOutlined } from '@ant-design/icons'
 import { useCreativeStore } from '../../stores/creativeStore'
 import { useDetailDrawerStore } from '../../stores/detailDrawerStore'
@@ -44,7 +44,7 @@ function groupByDate(creatives: Creative[]) {
 
 export default function CreativeVideoLibrary() {
   const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
-  const { filteredCreatives, activeStatus, setStatus, refetch } = useCreativeStore()
+  const { filteredCreatives, activeStatus, setStatus, refetch, loading } = useCreativeStore()
   const { openCreativeDetail } = useDetailDrawerStore()
   const [syncing, setSyncing] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -141,6 +141,15 @@ export default function CreativeVideoLibrary() {
   )
   const groups = groupByDate(creatives)
 
+  // 首次加载中 — 避免闪现空态或 mock 数据
+  if (loading && creatives.length === 0) {
+    return (
+      <div className={styles.layout}>
+        <Spin size="large" style={{ display: 'block', marginTop: 80 }} />
+      </div>
+    )
+  }
+
   return (
     <div className={styles.layout}>
       {summary && (
@@ -198,6 +207,9 @@ export default function CreativeVideoLibrary() {
         </div>
       </div>
       <div className={styles.grid}>
+        {!loading && creatives.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>暂无成片，上传第一个视频吧</div>
+        )}
         {Object.entries(groups).map(([label, items]) => (
           <DateGroup key={label} label={label}>
             <div className={styles.cardGrid}>

@@ -181,7 +181,7 @@ function AssetPreview({
 }
 
 export default function HighlightCreativeLibrary() {
-  const { creatives, refetch } = useCreativeStore()
+  const { creatives, refetch, loading } = useCreativeStore()
   const [keyword, setKeyword] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [activeDrama, setActiveDrama] = useState<string | null>(null)
@@ -993,6 +993,15 @@ export default function HighlightCreativeLibrary() {
           </div>
         </div>
       </article>
+    )
+  }
+
+  // 首次加载中 — 避免闪现空态或 mock 数据
+  if (loading && creatives.length === 0) {
+    return (
+      <div className={styles.layout}>
+        <Spin size="large" style={{ display: 'block', marginTop: 80 }} />
+      </div>
     )
   }
 
