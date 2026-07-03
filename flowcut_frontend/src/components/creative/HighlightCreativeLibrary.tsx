@@ -9,6 +9,7 @@ import {
   listHighlightPlanTasks,
   setCreativeConnector,
   setCreativePreroll,
+  type FailedDrama,
   type HighlightPlanTask,
   type TaskProgress,
 } from '../../api/qianchuan'
@@ -191,6 +192,8 @@ export default function HighlightCreativeLibrary() {
   const [batchExporting, setBatchExporting] = useState(false)
   const [activeTasks, setActiveTasks] = useState<HighlightPlanTask[]>([])
   const [taskProgress, setTaskProgress] = useState<Record<string, TaskProgress>>({})
+  // 已完成任务的 id 集合：卡片在完成后保留 30s 以便用户看到错误/结果
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const [digitalHumans, setDigitalHumans] = useState<HighlightAsset[]>([])
   // 每条跨集成片要拼接的数字人选择（null = 纯片）；未设置时回退到 creative.connectorAssetId
   const [dhChoice, setDhChoice] = useState<Record<string, number | null>>({})
@@ -332,6 +335,26 @@ export default function HighlightCreativeLibrary() {
       }
       if (!cancelled && Object.keys(next).length > 0) {
         setTaskProgress((prev) => ({ ...prev, ...next }))
+        // 检测已完成的任务：progress_pct >= 100 的加入 completedIds，卡片保留 30s
+        const done: string[] = []
+        for (const [tid, pg] of Object.entries(next)) {
+          if (pg.progress_pct >= 100) done.push(tid)
+        }
+        if (done.length > 0) {
+          setCompletedIds((prev) => {
+            const nextSet = new Set(prev)
+            for (const tid of done) nextSet.add(tid)
+            return nextSet
+          })
+          // 30s 后清理
+          setTimeout(() => {
+            setCompletedIds((prev) => {
+              const nextSet = new Set(prev)
+              for (const tid of done) nextSet.delete(tid)
+              return nextSet
+            })
+          }, 30000)
+        }
       }
     }
     void poll()
@@ -347,6 +370,27 @@ export default function HighlightCreativeLibrary() {
     ? rows.filter((c) => (c.sourceDramaName || '未命名剧集') === activeDrama)
     : []
   const drilledTasks = activeDrama ? pendingByDrama[activeDrama] ?? [] : []
+  // 已完成但卡片仍在展示期的任务：从 taskProgress 中提取 progress_pct=100 的任务
+  const completedDrilledTasks = useMemo(() => {
+    if (!activeDrama) return [] as HighlightPlanTask[]
+    return Array.from(completedIds)
+      .filter((tid) => {
+        const pg = taskProgress[tid]
+        if (!pg) return false
+        // 匹配剧名筛选
+        if (pg.drama && pg.drama !== activeDrama) return false
+        // 排除已在 activeTasks 中的（避免重复卡片）
+        if (drilledTasks.some((t) => t.taskId === tid)) return false
+        return true
+      })
+      .map((tid) => ({
+        taskId: tid,
+        status: 'completed' as const,
+        dramaName: taskProgress[tid]?.drama ?? null,
+        numCandidates: 0,
+        batchId: null,
+      }))
+  }, [completedIds, taskProgress, activeDrama, drilledTasks])
 
   const exportableInView = useMemo(
     () => drilledRows.filter((c) => Boolean(c.ossUrl)),
@@ -928,6 +972,24 @@ export default function HighlightCreativeLibrary() {
               <span>{stageLabel}</span>
               {detailParts.length > 0 && <span>{detailParts.join(' · ')}</span>}
             </div>
+            {pg?.failed_dramas != null && pg.failed_dramas.length > 0 && (
+              <div style={{ marginTop: 12, padding: '10px 14px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, fontSize: 12 }}>
+                <div style={{ fontWeight: 600, color: '#cf1322', marginBottom: 6 }}>
+                  {pg.failed_dramas.length} 个剧处理失败：
+                </div>
+                {pg.failed_dramas.map((f) => (
+                  <div key={f.drama} style={{ color: '#595959', marginBottom: 4, lineHeight: 1.6 }}>
+                    <span style={{ fontWeight: 500 }}>{f.drama}</span>
+                    <span style={{ marginLeft: 8, color: '#8c8c8c' }}>
+                      {f.error.length > 120 ? f.error.slice(0, 120) + '...' : f.error}
+                    </span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 8, color: '#8c8c8c' }}>
+                  请稍后重新触发跨集高光（Gemini 瞬态过载已自动重试，若仍失败请等待几分钟再试）
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </article>
@@ -1044,6 +1106,7 @@ export default function HighlightCreativeLibrary() {
             )}
           </div>
           {drilledTasks.map((task) => renderPlanningCard(task))}
+          {completedDrilledTasks.map((task) => renderPlanningCard(task))}
           {drilledRows.map((creative) => renderCreative(creative))}
         </div>
       )}

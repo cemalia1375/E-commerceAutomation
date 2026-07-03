@@ -1,6 +1,11 @@
 import { apiClient } from './client'
 import type { Creative, ClipPlan, ClipPlanEntry } from '../types'
 
+export interface FailedDrama {
+  drama: string
+  error: string
+}
+
 export interface TaskProgress {
   stage: string           // starting | stage_a_done | stage_b_done | stage_c | stage_c_done | done
   stage_label: string     // 中文标签：开始规划 | 合并+拆镜完成 | 已选出高光起点 | ...
@@ -9,6 +14,7 @@ export interface TaskProgress {
   drama_count?: number    // 总剧数
   candidate_count?: number
   created_count?: number
+  failed_dramas?: FailedDrama[]
   stage_a_s?: number
   stage_b_s?: number
   stage_c_s?: number
@@ -66,6 +72,12 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
       stage_b_s: typeof progressRaw.stage_b_s === 'number' ? progressRaw.stage_b_s : undefined,
       stage_c_s: typeof progressRaw.stage_c_s === 'number' ? progressRaw.stage_c_s : undefined,
       wall_clock_s: typeof progressRaw.wall_clock_s === 'number' ? progressRaw.wall_clock_s : undefined,
+      failed_dramas: Array.isArray(progressRaw.failed_dramas)
+        ? (progressRaw.failed_dramas as Array<Record<string, unknown>>).map((f) => ({
+            drama: typeof f.drama === 'string' ? f.drama : '?',
+            error: typeof f.error === 'string' ? f.error : '未知错误',
+          }))
+        : undefined,
     } : null,
   }
 }
