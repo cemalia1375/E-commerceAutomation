@@ -17,10 +17,9 @@ import { listHighlightAssets } from '../../api/highlightAssets'
 import { useCreativeStore } from '../../stores/creativeStore'
 import { getTenantKey } from '../../stores/authStore'
 import { useUIContextStore } from '../../stores/uiContextStore'
+import { getApiBase } from '../../api/client'
 import type { Creative, HighlightAsset } from '../../types'
 import styles from './HighlightCreativeLibrary.module.css'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
 const POLL_INTERVAL_MS = 2500
 const POLL_TIMEOUT_MS = 180000
 
@@ -145,7 +144,7 @@ function segmentPreviewUrl(creative: Creative) {
   const scriptId = creative.composePlan?.script_id
   const idx = creative.highlightReason?.idx
   if (typeof scriptId !== 'number' || typeof idx !== 'number') return null
-  return `${API_BASE}/flowcut/scripts/${scriptId}/segments/${idx}/preview.mp4`
+  return `${getApiBase()}/flowcut/scripts/${scriptId}/segments/${idx}/preview.mp4`
 }
 
 function statusText(creative: Creative) {
@@ -524,7 +523,7 @@ export default function HighlightCreativeLibrary() {
     try {
       // 没选数字人且没选前贴：后端 302 → presigned URL（含 attachment 文件名），用 <a> 触发下载
       if (connectorOf(creative) == null && prerollOf(creative) == null) {
-        triggerBrowserDownload(`${API_BASE}/flowcut/creatives/${creative.id}/download`)
+        triggerBrowserDownload(`${getApiBase()}/flowcut/creatives/${creative.id}/download`)
         return
       }
       await ensurePrerollSaved(creative)

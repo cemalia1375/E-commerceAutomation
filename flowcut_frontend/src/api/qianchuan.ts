@@ -1,4 +1,4 @@
-import { apiClient } from './client'
+import { apiClient, getApiBase } from './client'
 import type { Creative, ClipPlan, ClipPlanEntry } from '../types'
 
 export interface FailedDrama {
@@ -273,7 +273,7 @@ export async function batchDownloadZip(
     tenant_key: tenantKey,
     creative_ids: creativeIds,
   })
-  const base = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001') as string
+  const base = getApiBase()
   const downloadUrl = `${base}/creatives/batch-download-zip/${data.token}`
   return { downloadUrl, count: data.count }
 }
@@ -290,7 +290,7 @@ export async function batchDownloadZipByKeys(
     tenant_key: tenantKey,
     items: items.map((it) => ({ oss_key: it.ossKey, filename: it.filename })),
   })
-  const base = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001') as string
+  const base = getApiBase()
   const downloadUrl = `${base}/creatives/batch-download-zip/${data.token}`
   return { downloadUrl, count: data.count }
 }
