@@ -10,6 +10,7 @@ interface ConfigValues {
   FLOWCUT_LLM_PROVIDER: string
   VOLCENGINE_API_KEY: string
   VOLCENGINE_API_BASE: string
+  GEMINI_PROXY: string
   MYSQL_HOST: string
   MYSQL_PORT: string
   MYSQL_USER: string
@@ -77,6 +78,9 @@ export default function SetupWizard() {
               </Form.Item>
               <Form.Item label="Model" name="GOOGLE_MODEL">
                 <Input placeholder="gemini-2.5-flash" />
+              </Form.Item>
+              <Form.Item label="代理地址（国内必填）" name="GEMINI_PROXY">
+                <Input placeholder="http://127.0.0.1:7890" />
               </Form.Item>
             </>
           )}

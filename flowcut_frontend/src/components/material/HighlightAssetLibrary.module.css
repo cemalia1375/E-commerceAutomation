@@ -12,7 +12,7 @@
 .card.selected { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
 .selectBox { position: absolute; z-index: 2; top: 8px; left: 8px; }
 .thumbWrap { position: relative; }
-.thumb { width: 100%; max-height: 420px; background: #0f172a; display: block; object-fit: contain; }
+.thumb { width: 100%; aspect-ratio: 9 / 16; background: #0f172a; display: block; object-fit: contain; }
 .thumb::-webkit-media-controls-current-time-display,
 .thumb::-webkit-media-controls-time-remaining-display { display: none; }
 .duration { position: absolute; z-index: 2; bottom: 8px; right: 8px; padding: 1px 6px; border-radius: 4px; background: rgba(15, 23, 42, 0.78); color: #fff; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }

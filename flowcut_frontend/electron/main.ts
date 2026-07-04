@@ -68,6 +68,7 @@ interface AppConfig {
   FLOWCUT_LLM_PROVIDER?: string        // gemini | volcengine
   VOLCENGINE_API_KEY?: string
   VOLCENGINE_API_BASE?: string
+  GEMINI_PROXY?: string                // Gemini API 代理地址（国内直连被墙）
   // OSS 对象存储
   FLOWCUT_OSS_ENDPOINT?: string
   FLOWCUT_OSS_ACCESS_KEY_ID?: string
@@ -152,6 +153,9 @@ function buildEnv(_cfg?: AppConfig): NodeJS.ProcessEnv {
       })())
   if (app.isPackaged && frontendOrigin) {
     env.FLOWCUT_CORS_ORIGINS = frontendOrigin
+  }
+  if (_cfg?.GEMINI_PROXY) {
+    env.GEMINI_PROXY = _cfg.GEMINI_PROXY
   }
   return env
 }
