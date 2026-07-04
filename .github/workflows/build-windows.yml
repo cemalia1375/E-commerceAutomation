@@ -59,10 +59,25 @@ jobs:
         working-directory: flowcut_frontend
         run: pnpm install
 
+      - name: Prepare code signing certificate (if configured)
+        shell: pwsh
+        run: |
+          $b64 = "${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}"
+          if ($b64) {
+            $certPath = "${{ runner.temp }}\flowcut-signing.pfx"
+            [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($b64))
+            echo "CSC_LINK=$certPath" >> $env:GITHUB_ENV
+            Write-Host "✅ Code signing certificate decoded to $certPath"
+          } else {
+            Write-Host "⚠️ WINDOWS_SIGNING_CERT_BASE64 not configured — installer will NOT be signed"
+          }
+
       - name: Build frontend + Electron installer
         working-directory: flowcut_frontend
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+          ASAR_ENCRYPTION_KEY: ${{ secrets.ASAR_ENCRYPTION_KEY }}
         run: pnpm run electron:build
 
       # ── 上传产物 ──────────────────────────────────────────────────────────────

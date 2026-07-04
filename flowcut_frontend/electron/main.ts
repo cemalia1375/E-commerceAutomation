@@ -8,8 +8,50 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
 // CJS 输出时 __dirname 原生可用；ESM 输出时用此 polyfill
-const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url)
-const __dirname = typeof __dirname !== 'undefined' ? __dirname : dirname(__filename)
+// 注意：必须用 var 不能 const——CJS 中 __filename/__dirname 是函数参数，const 不可重声明
+var __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url)
+var __dirname = typeof __dirname !== 'undefined' ? __dirname : dirname(__filename)
+
+// ── 生产模式静态文件服务（替代 loadFile，解决 SameSite cookie 问题）────────────
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+}
+
+function startStaticServer(staticDir: string): Promise<{ port: number; server: http.Server }> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      const url = new URL(req.url ?? '/', `http://localhost`)
+      let filePath = path.join(staticDir, url.pathname === '/' ? 'index.html' : url.pathname)
+
+      // SPA fallback: 非文件路径全部返回 index.html（HashRouter 理论上不需要，兜底）
+      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        filePath = path.join(staticDir, 'index.html')
+      }
+
+      const ext = path.extname(filePath).toLowerCase()
+      res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'application/octet-stream' })
+      fs.createReadStream(filePath).pipe(res)
+    })
+
+    server.listen(0, '127.0.0.1', () => {
+      const port = (server.address() as net.AddressInfo).port
+      resolve({ port, server })
+    })
+    server.on('error', reject)
+  })
+}
+
+let staticServer: http.Server | null = null
+let frontendOrigin = ''  // http://localhost:<port>，前后端同 host，SameSite cookie 正常工作
 
 // ── 配置文件 ──────────────────────────────────────────────────────────────────
 
@@ -22,6 +64,16 @@ interface AppConfig {
   MYSQL_PORT: string
   QDRANT_URL?: string
   GOOGLE_MODEL?: string
+  // LLM 提供方
+  FLOWCUT_LLM_PROVIDER?: string        // gemini | volcengine
+  VOLCENGINE_API_KEY?: string
+  VOLCENGINE_API_BASE?: string
+  // OSS 对象存储
+  FLOWCUT_OSS_ENDPOINT?: string
+  FLOWCUT_OSS_ACCESS_KEY_ID?: string
+  FLOWCUT_OSS_ACCESS_KEY_SECRET?: string
+  FLOWCUT_OSS_BUCKET?: string
+  FLOWCUT_OSS_REGION?: string
 }
 
 function configPath(): string {
@@ -85,28 +137,23 @@ function pythonArgs(): string[] {
   return ['run', 'python', '-m', 'uvicorn', 'Flowcut.api.server:app', '--port', String(apiPort), '--host', '127.0.0.1']
 }
 
-function buildEnv(cfg: AppConfig): NodeJS.ProcessEnv {
-  return {
-    ...process.env,
-    PORT: String(apiPort),
-    GOOGLE_API_KEY: cfg.GOOGLE_API_KEY,
-    GOOGLE_MODEL: cfg.GOOGLE_MODEL ?? 'gemini-2.5-flash',
-    MYSQL_HOST: cfg.MYSQL_HOST,
-    MYSQL_USER: cfg.MYSQL_USER,
-    MYSQL_PASSWORD: cfg.MYSQL_PASSWORD,
-    MYSQL_DB: cfg.MYSQL_DB,
-    MYSQL_PORT: cfg.MYSQL_PORT ?? '3306',
-    QDRANT_URL: cfg.QDRANT_URL ?? 'http://localhost:6333',
-    FFMPEG_PATH: app.isPackaged
-      ? path.join(process.resourcesPath, 'ffmpeg.exe')
-      : (process.env.FFMPEG_PATH
-        ?? (() => {
-          // Dev 模式：优先读项目根目录的 ffmpeg.exe（与 electron-builder extraResources 同一来源）
-          const local = path.join(__dirname, '../ffmpeg.exe')
-          if (fs.existsSync(local)) return local
-          return 'ffmpeg'
-        })()),
+function buildEnv(_cfg?: AppConfig): NodeJS.ProcessEnv {
+  // 生产模式：配置由 .env 文件提供（打包在 resources/backend/.env），Python load_dotenv() 自动加载。
+  // 这里只传运行时才能确定的变量：端口、CORS origin、FFmpeg 路径。
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  env.PORT = String(apiPort)
+  env.FFMPEG_PATH = app.isPackaged
+    ? path.join(process.resourcesPath, 'ffmpeg.exe')
+    : (process.env.FFMPEG_PATH
+      ?? (() => {
+        const local = path.join(__dirname, '../ffmpeg.exe')
+        if (fs.existsSync(local)) return local
+        return 'ffmpeg'
+      })())
+  if (app.isPackaged && frontendOrigin) {
+    env.FLOWCUT_CORS_ORIGINS = frontendOrigin
   }
+  return env
 }
 
 function startPython(cfg: AppConfig): void {
@@ -196,7 +243,8 @@ function createMainWindow(): BrowserWindow {
   })
 
   if (app.isPackaged) {
-    win.loadFile(path.join(__dirname, '../dist/index.html'))
+    // 生产模式也走 HTTP（不走 file://），确保 SameSite cookie 策略正常工作
+    win.loadURL(`${frontendOrigin}/`)
   } else {
     win.loadURL('http://localhost:5173')
     win.webContents.openDevTools()
@@ -218,7 +266,7 @@ function createSetupWindow(): BrowserWindow {
   })
 
   if (app.isPackaged) {
-    win.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '/setup' })
+    win.loadURL(`${frontendOrigin}/#/setup`)
   } else {
     win.loadURL('http://localhost:5173/#/setup')
   }
@@ -236,19 +284,37 @@ declare global {
 app.on('before-quit', () => {
   (app as unknown as { isQuitting: boolean }).isQuitting = true
   pythonProcess?.kill()
+  staticServer?.close()
 })
 
+// GPU 降级兜底：老旧显卡 / 虚拟机 / 远程桌面可通过 --disable-gpu 参数强制软件渲染
+// 用法：FlowCut.exe --disable-gpu
+if (process.argv.includes('--disable-gpu')) {
+  app.disableHardwareAcceleration()
+}
+
 app.whenReady().then(async () => {
+  // 生产模式：先启动静态文件 HTTP 服务，再用 loadURL 加载（避免 file:// 导致的 SameSite cookie 问题）
+  if (app.isPackaged) {
+    const staticDir = path.join(__dirname, '../dist')
+    const result = await startStaticServer(staticDir)
+    staticServer = result.server
+    frontendOrigin = `http://localhost:${result.port}`
+    console.log(`[static] serving ${staticDir} on ${frontendOrigin}`)
+  }
+
+  // 配置由 .env 提供（打包在 resources/backend/.env），配置向导仅作兜底
   const cfg = loadConfig()
 
-  if (!cfg) {
+  if (!cfg && !app.isPackaged) {
+    // 开发模式：无配置则显示向导
     mainWindow = createSetupWindow()
     return
   }
 
   apiPort = await findFreePort(8001)
   mainWindow = createMainWindow()
-  startPython(cfg)
+  startPython(cfg ?? ({} as AppConfig))
   pollHealth(mainWindow)
 })
 

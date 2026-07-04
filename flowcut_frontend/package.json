@@ -26,7 +26,10 @@
     "zustand": "^5.0.13"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "esbuild"]
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -34,8 +37,9 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "electron": "^35.0.0",
+    "electron": "35.7.5",
     "electron-builder": "^26.0.0",
+    "esbuild": "^0.28.1",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
