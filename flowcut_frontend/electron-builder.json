@@ -1,0 +1,44 @@
+{
+  "appId": "com.flowcut.app",
+  "productName": "FlowCut",
+  "copyright": "Copyright © 2025 FlowCut",
+  "directories": {
+    "output": "../release",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "node_modules/**/*",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "../backend-dist/",
+      "to": "backend/",
+      "filter": [
+        "**/*"
+      ]
+    },
+    {
+      "from": "ffmpeg.exe",
+      "to": "ffmpeg.exe"
+    }
+  ],
+  "asar": true,
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "public/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}
