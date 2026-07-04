@@ -127,6 +127,7 @@ export function creativeFromBackend(raw: Record<string, unknown>): Creative {
     srtUrl: (raw.srt_url as string | null) ?? undefined,
     srtLineCount: (raw.srt_line_count as number | null) ?? undefined,
     createdAt: (raw.created_at as string) ?? new Date().toISOString(),
+    updatedAt: (raw.updated_at as string) ?? new Date().toISOString(),
     qcMaterialId: (raw.qc_material_id as string | null) ?? null,
     qcCost: (raw.qc_cost as number | null) ?? null,
     qcImpressions: (raw.qc_impressions as number | null) ?? null,

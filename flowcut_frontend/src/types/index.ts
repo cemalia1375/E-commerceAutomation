@@ -105,6 +105,7 @@ export interface Creative {
   srtUrl?: string
   srtLineCount?: number
   createdAt: string
+  updatedAt: string
   // 千川回流指标（null 表示尚未同步）
   qcMaterialId: string | null
   qcCost: number | null

@@ -155,6 +155,12 @@ function statusText(creative: Creative) {
   return '待合成'
 }
 
+function formatCardTime(isoStr: string | undefined): string {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 function AssetPreview({
   title,
   name,
@@ -643,6 +649,9 @@ export default function HighlightCreativeLibrary() {
     const subtitleParts = [
       '跨集高光',
       creative.sourceDramaName,
+      hasVideo
+        ? `${formatCardTime(creative.updatedAt)} 完成`
+        : `${formatCardTime(creative.createdAt)} 创建`,
     ].filter(Boolean).join(' · ')
     const busy = composingId === creative.id || creative.status === 'PROCESSING'
     const selectedConnectorId = connectorOf(creative)
@@ -833,6 +842,9 @@ export default function HighlightCreativeLibrary() {
               <div className={styles.subtitle}>
                 {isDigital ? '高光 + 数字人' : '高光 + 原片'}
                 {sourceMeta ? ` · ${sourceMeta}` : ''}
+                {hasComposedVideo
+                  ? ` · ${formatCardTime(creative.updatedAt)} 完成`
+                  : ` · ${formatCardTime(creative.createdAt)} 创建`}
               </div>
             </div>
           </div>
