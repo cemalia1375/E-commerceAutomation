@@ -6,6 +6,7 @@ import type {
   SegmentMatchResult,
   TaskStatus,
 } from '../types/script'
+import { getApiBase } from './client'
 
 export interface ScriptListItem {
   id: number
@@ -24,8 +25,6 @@ interface ListResp {
   scripts: ScriptListItem[]
 }
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
-
 interface UploadResp {
   ok: boolean
   script_id: number
@@ -42,7 +41,7 @@ interface ExportResp {
 }
 
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(`${BASE}${path}`, {
+  const resp = await fetch(`${getApiBase()}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include', // 携带登录会话 cookie
     ...init,

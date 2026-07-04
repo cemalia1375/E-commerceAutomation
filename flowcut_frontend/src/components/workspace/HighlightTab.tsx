@@ -6,9 +6,8 @@ import { scriptApi } from '../../api/script'
 import { useCreativeStore } from '../../stores/creativeStore'
 import { useScriptStore } from '../../stores/scriptStore'
 import { useAuthStore } from '../../stores/authStore'
+import { getApiBase } from '../../api/client'
 import type { Creative } from '../../types'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
 
 function scoreText(value: number | undefined): string {
   return typeof value === 'number' ? value.toFixed(1) : '-'
@@ -232,7 +231,7 @@ export default function HighlightTab() {
           >
             {script?.reference_video_id && (
               <SegmentPreviewVideo
-                src={`${API_BASE}/flowcut/scripts/${script.id}/segments/${index}/preview.mp4`}
+                src={`${getApiBase()}/flowcut/scripts/${script.id}/segments/${index}/preview.mp4`}
               />
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>

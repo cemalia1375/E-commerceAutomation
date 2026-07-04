@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
+import { getApiBase } from './client'
 
 export interface SessionSummary {
   session_key: string
@@ -9,7 +9,7 @@ export interface SessionSummary {
 }
 
 export async function createSession(tenantKey: string, title?: string): Promise<SessionSummary> {
-  const res = await fetch(`${BASE_URL}/sessions`, {
+  const res = await fetch(`${getApiBase()}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -70,7 +70,7 @@ export function streamChat(params: StreamChatParams): () => void {
   const { tenantKey, sessionKey, query, onChunk, onDone, onError, onToolResult, uiContext } = params
   const ctrl = new AbortController()
 
-  fetch(`${BASE_URL}/agent/chat`, {
+  fetch(`${getApiBase()}/agent/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

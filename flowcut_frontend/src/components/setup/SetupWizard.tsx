@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Form, Input, Button, Typography, Divider, message } from 'antd'
+import { Form, Input, Button, Select, Typography, Divider, message } from 'antd'
 import styles from './SetupWizard.module.css'
 
 const { Title, Text } = Typography
@@ -7,16 +7,25 @@ const { Title, Text } = Typography
 interface ConfigValues {
   GOOGLE_API_KEY: string
   GOOGLE_MODEL: string
+  FLOWCUT_LLM_PROVIDER: string
+  VOLCENGINE_API_KEY: string
+  VOLCENGINE_API_BASE: string
   MYSQL_HOST: string
   MYSQL_PORT: string
   MYSQL_USER: string
   MYSQL_PASSWORD: string
   MYSQL_DB: string
   QDRANT_URL: string
+  FLOWCUT_OSS_ENDPOINT: string
+  FLOWCUT_OSS_ACCESS_KEY_ID: string
+  FLOWCUT_OSS_ACCESS_KEY_SECRET: string
+  FLOWCUT_OSS_BUCKET: string
+  FLOWCUT_OSS_REGION: string
 }
 
 export default function SetupWizard() {
   const [saving, setSaving] = useState(false)
+  const [llmProvider, setLlmProvider] = useState('gemini')
 
   async function handleFinish(values: ConfigValues) {
     if (!window.electronAPI) {
@@ -43,15 +52,48 @@ export default function SetupWizard() {
         <Form
           layout="vertical"
           onFinish={handleFinish}
-          initialValues={{ GOOGLE_MODEL: 'gemini-2.5-flash', MYSQL_PORT: '3306', QDRANT_URL: '' }}
+          initialValues={{
+            FLOWCUT_LLM_PROVIDER: 'gemini',
+            GOOGLE_MODEL: 'gemini-2.5-flash',
+            MYSQL_PORT: '3306',
+            QDRANT_URL: '',
+            VOLCENGINE_API_BASE: 'https://ark.cn-beijing.volces.com/api/v3',
+          }}
         >
-          <Form.Item label="Google API Key" name="GOOGLE_API_KEY" rules={[{ required: true, message: '必填' }]}>
-            <Input.Password placeholder="AIza..." />
+          <Form.Item label="LLM 提供方" name="FLOWCUT_LLM_PROVIDER">
+            <Select
+              onChange={(v) => setLlmProvider(v)}
+              options={[
+                { value: 'gemini', label: 'Google Gemini（需 API Key，格式 AIza...）' },
+                { value: 'volcengine', label: '火山引擎 / 豆包（需 AK/SK）' },
+              ]}
+            />
           </Form.Item>
 
-          <Form.Item label="Google Model" name="GOOGLE_MODEL">
-            <Input placeholder="gemini-2.5-flash" />
-          </Form.Item>
+          {llmProvider === 'gemini' && (
+            <>
+              <Form.Item label="Google API Key" name="GOOGLE_API_KEY" rules={[{ required: true, message: '必填' }]}>
+                <Input.Password placeholder="AIza...（Google AI Studio 获取）" />
+              </Form.Item>
+              <Form.Item label="Model" name="GOOGLE_MODEL">
+                <Input placeholder="gemini-2.5-flash" />
+              </Form.Item>
+            </>
+          )}
+
+          {llmProvider === 'volcengine' && (
+            <>
+              <Form.Item label="API Key" name="VOLCENGINE_API_KEY" rules={[{ required: true, message: '必填' }]}>
+                <Input.Password placeholder="火山引擎 API Key" />
+              </Form.Item>
+              <Form.Item label="API Base" name="VOLCENGINE_API_BASE">
+                <Input placeholder="https://ark.cn-beijing.volces.com/api/v3" />
+              </Form.Item>
+              <Form.Item label="Model" name="GOOGLE_MODEL">
+                <Input placeholder="doubao-seed-2-0-lite-260215" />
+              </Form.Item>
+            </>
+          )}
 
           <Divider orientation="left" plain>MySQL</Divider>
 
@@ -79,6 +121,28 @@ export default function SetupWizard() {
 
           <Form.Item label="Qdrant URL" name="QDRANT_URL">
             <Input placeholder="留空使用默认云端实例" />
+          </Form.Item>
+
+          <Divider orientation="left" plain>OSS 对象存储（可选，素材/成片云存储）</Divider>
+
+          <Form.Item label="Endpoint" name="FLOWCUT_OSS_ENDPOINT">
+            <Input placeholder="tos-cn-guangzhou.volces.com" />
+          </Form.Item>
+
+          <Form.Item label="Access Key ID" name="FLOWCUT_OSS_ACCESS_KEY_ID">
+            <Input />
+          </Form.Item>
+
+          <Form.Item label="Access Key Secret" name="FLOWCUT_OSS_ACCESS_KEY_SECRET">
+            <Input.Password />
+          </Form.Item>
+
+          <Form.Item label="Bucket" name="FLOWCUT_OSS_BUCKET">
+            <Input placeholder="flowcut" />
+          </Form.Item>
+
+          <Form.Item label="Region" name="FLOWCUT_OSS_REGION">
+            <Input placeholder="cn-guangzhou" />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, marginTop: 8 }}>
