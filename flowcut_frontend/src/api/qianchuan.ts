@@ -178,7 +178,7 @@ export async function listCreatives(tenantKey: string): Promise<Creative[]> {
   const { data } = await apiClient.get<{
     ok: boolean
     data: Record<string, unknown>[]
-  }>('/creatives', { params: { tenant_key: tenantKey, limit: 100 } })
+  }>('/creatives', { params: { tenant_key: tenantKey, limit: 500 } })
   return (data.data ?? []).map(creativeFromBackend)
 }
 

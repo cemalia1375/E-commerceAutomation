@@ -40,6 +40,19 @@ function formatDuration(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function parseEpisodeFromName(name: string): number | null {
+  const m = name.match(/(\d+)/)
+  return m ? parseInt(m[1], 10) : null
+}
+
+function assetSortKey(a: HighlightAsset): number {
+  // 优先从文件名解析真实集数（避免 episode_no 与文件名不一致的脏数据问题）
+  const fromName = parseEpisodeFromName(a.name)
+  if (fromName !== null) return fromName
+  // fallback 到 episode_no，最后置底
+  return a.episodeNo ?? Number.MAX_SAFE_INTEGER
+}
+
 function groupAssets(assets: HighlightAsset[], mode: ViewMode) {
   if (mode === 'preroll') {
     return [['前贴', assets]] as [string, HighlightAsset[]][]
@@ -53,7 +66,10 @@ function groupAssets(assets: HighlightAsset[], mode: ViewMode) {
     if (!groups[key]) groups[key] = []
     groups[key].push(asset)
   }
-  return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'zh-Hans-CN'))
+  return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'zh-Hans-CN')).map(([name, items]) => {
+    items.sort((a, b) => assetSortKey(a) - assetSortKey(b))
+    return [name, items] as [string, HighlightAsset[]]
+  })
 }
 
 export default function HighlightAssetLibrary() {
@@ -374,9 +390,6 @@ export default function HighlightAssetLibrary() {
       </div>
 
       <div className={styles.content}>
-        <div className={styles.summary}>
-          {loading ? '加载中...' : `共 ${visibleAssets.length} / ${assets.length} 个资产`}
-        </div>
         {!loading && grouped.length === 0 && (
           <div className={styles.empty}>暂无资产，先上传原片或数字人视频。</div>
         )}

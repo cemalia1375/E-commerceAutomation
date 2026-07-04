@@ -265,6 +265,17 @@ export default function HighlightCreativeLibrary() {
       if (!groups[key]) groups[key] = []
       groups[key].push(c)
     }
+    // 每组内按集数升序：优先从源资产名解析真实集数，episode_no 作为 fallback
+    for (const items of Object.values(groups)) {
+      items.sort((a, b) => {
+        const parseEp = (c: Creative) => {
+          const fromName = (c.sourceAssetName ?? '').match(/(\d+)/)
+          if (fromName) return parseInt(fromName[1], 10)
+          return c.sourceEpisodeNo ?? Number.MAX_SAFE_INTEGER
+        }
+        return parseEp(a) - parseEp(b)
+      })
+    }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'zh-Hans-CN'))
   }, [rows])
 

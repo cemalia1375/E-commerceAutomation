@@ -33,6 +33,7 @@ export async function listHighlightAssets(
       asset_type: filters?.assetType,
       drama_name: filters?.dramaName,
       connector_role: filters?.connectorRole,
+      limit: 500,
     },
   })
   return data.map(fromBackend)

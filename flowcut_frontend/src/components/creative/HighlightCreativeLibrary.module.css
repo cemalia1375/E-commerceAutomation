@@ -430,6 +430,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  position: sticky;
+  top: 52px;           /* .topBar 之下，紧贴不留空隙 */
+  z-index: 1;
+  background: #f5f8fc;
+  margin-top: -22px;    /* 抵消 .list 的 padding-top，消除间隙 */
+  padding-top: 10px;
+  padding-bottom: 12px;
 }
 
 .backTitle {
