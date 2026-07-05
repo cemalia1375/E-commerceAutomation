@@ -11,6 +11,7 @@ interface ConfigValues {
   VOLCENGINE_API_KEY: string
   VOLCENGINE_API_BASE: string
   GEMINI_PROXY: string
+  GEMINI_BASE_URL: string
   MYSQL_HOST: string
   MYSQL_PORT: string
   MYSQL_USER: string
@@ -79,8 +80,11 @@ export default function SetupWizard() {
               <Form.Item label="Model" name="GOOGLE_MODEL">
                 <Input placeholder="gemini-2.5-flash" />
               </Form.Item>
-              <Form.Item label="代理地址（国内必填）" name="GEMINI_PROXY">
+              <Form.Item label="代理地址（国内必填）" name="GEMINI_PROXY" extra="HTTP 代理，如 Clash http://127.0.0.1:7890">
                 <Input placeholder="http://127.0.0.1:7890" />
+              </Form.Item>
+              <Form.Item label="API 中转地址（可选）" name="GEMINI_BASE_URL" extra="第三方 Gemini 中转服务，如 https://moyu.info。填写后优先使用，无需代理">
+                <Input placeholder="https://moyu.info" />
               </Form.Item>
             </>
           )}

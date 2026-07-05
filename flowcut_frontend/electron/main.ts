@@ -72,7 +72,8 @@ interface AppConfig {
   FLOWCUT_LLM_PROVIDER?: string        // gemini | volcengine
   VOLCENGINE_API_KEY?: string
   VOLCENGINE_API_BASE?: string
-  GEMINI_PROXY?: string                // Gemini API 代理地址（国内直连被墙）
+  GEMINI_PROXY?: string                // Gemini API 代理地址（国内直连被墙，如 Clash http://127.0.0.1:7890）
+  GEMINI_BASE_URL?: string             // Gemini API 中转地址（第三方代理如 moyu.info）
   // OSS 对象存储
   FLOWCUT_OSS_ENDPOINT?: string
   FLOWCUT_OSS_ACCESS_KEY_ID?: string
@@ -143,10 +144,14 @@ function pythonArgs(): string[] {
 }
 
 function buildEnv(_cfg?: AppConfig): NodeJS.ProcessEnv {
-  // 生产模式：配置由 .env 文件提供（打包在 resources/backend/.env），Python load_dotenv() 自动加载。
-  // 这里只传运行时才能确定的变量：端口、CORS origin、FFmpeg 路径。
+  // 生产模式：config.json 所有字段透传为环境变量，供 Python load_dotenv() 之后使用。
+  // load_dotenv 不会覆盖已有的环境变量，因此 Electron 传入的值优先级最高。
   const env: NodeJS.ProcessEnv = { ...process.env }
+
+  // 运行时端口
   env.PORT = String(apiPort)
+
+  // FFmpeg 路径
   env.FFMPEG_PATH = app.isPackaged
     ? path.join(process.resourcesPath, 'ffmpeg.exe')
     : (process.env.FFMPEG_PATH
@@ -155,11 +160,32 @@ function buildEnv(_cfg?: AppConfig): NodeJS.ProcessEnv {
         if (fs.existsSync(local)) return local
         return 'ffmpeg'
       })())
+
+  // CORS（生产模式前端端口是动态的）
   if (app.isPackaged && frontendOrigin) {
     env.FLOWCUT_CORS_ORIGINS = frontendOrigin
   }
-  if (_cfg?.GEMINI_PROXY) {
-    env.GEMINI_PROXY = _cfg.GEMINI_PROXY
+
+  // ── config.json 全部字段透传 ──
+  if (_cfg) {
+    if (_cfg.GOOGLE_API_KEY)           env.GOOGLE_API_KEY = _cfg.GOOGLE_API_KEY
+    if (_cfg.GOOGLE_MODEL)             env.GOOGLE_MODEL = _cfg.GOOGLE_MODEL
+    if (_cfg.FLOWCUT_LLM_PROVIDER)     env.FLOWCUT_LLM_PROVIDER = _cfg.FLOWCUT_LLM_PROVIDER
+    if (_cfg.VOLCENGINE_API_KEY)       env.VOLCENGINE_API_KEY = _cfg.VOLCENGINE_API_KEY
+    if (_cfg.VOLCENGINE_API_BASE)      env.VOLCENGINE_API_BASE = _cfg.VOLCENGINE_API_BASE
+    if (_cfg.GEMINI_PROXY)             env.GEMINI_PROXY = _cfg.GEMINI_PROXY
+    if (_cfg.GEMINI_BASE_URL)          env.GEMINI_BASE_URL = _cfg.GEMINI_BASE_URL
+    if (_cfg.MYSQL_HOST)               env.MYSQL_HOST = _cfg.MYSQL_HOST
+    if (_cfg.MYSQL_USER)               env.MYSQL_USER = _cfg.MYSQL_USER
+    if (_cfg.MYSQL_PASSWORD)           env.MYSQL_PASSWORD = _cfg.MYSQL_PASSWORD
+    if (_cfg.MYSQL_DB)                 env.MYSQL_DB = _cfg.MYSQL_DB
+    if (_cfg.MYSQL_PORT)               env.MYSQL_PORT = _cfg.MYSQL_PORT
+    if (_cfg.QDRANT_URL)               env.QDRANT_URL = _cfg.QDRANT_URL
+    if (_cfg.FLOWCUT_OSS_ENDPOINT)        env.FLOWCUT_OSS_ENDPOINT = _cfg.FLOWCUT_OSS_ENDPOINT
+    if (_cfg.FLOWCUT_OSS_ACCESS_KEY_ID)   env.FLOWCUT_OSS_ACCESS_KEY_ID = _cfg.FLOWCUT_OSS_ACCESS_KEY_ID
+    if (_cfg.FLOWCUT_OSS_ACCESS_KEY_SECRET) env.FLOWCUT_OSS_ACCESS_KEY_SECRET = _cfg.FLOWCUT_OSS_ACCESS_KEY_SECRET
+    if (_cfg.FLOWCUT_OSS_BUCKET)          env.FLOWCUT_OSS_BUCKET = _cfg.FLOWCUT_OSS_BUCKET
+    if (_cfg.FLOWCUT_OSS_REGION)          env.FLOWCUT_OSS_REGION = _cfg.FLOWCUT_OSS_REGION
   }
   return env
 }
