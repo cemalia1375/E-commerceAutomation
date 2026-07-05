@@ -6,6 +6,12 @@ export interface FailedDrama {
   error: string
 }
 
+export interface DramaProgressEntry {
+  stage: string
+  stage_label: string
+  progress_pct: number
+}
+
 export interface TaskProgress {
   stage: string           // starting | stage_a_done | stage_b_done | stage_c | stage_c_done | done
   stage_label: string     // 中文标签：开始规划 | 合并+拆镜完成 | 已选出高光起点 | ...
@@ -19,6 +25,8 @@ export interface TaskProgress {
   stage_b_s?: number
   stage_c_s?: number
   wall_clock_s?: number
+  // 客户端累积的每剧进度（非后端字段，前端从连续 poll 响应中累积）
+  drama_progress?: Record<string, DramaProgressEntry>
 }
 
 export interface TaskStatus {

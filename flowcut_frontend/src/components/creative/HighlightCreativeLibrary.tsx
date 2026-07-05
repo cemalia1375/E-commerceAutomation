@@ -9,7 +9,6 @@ import {
   listHighlightPlanTasks,
   setCreativeConnector,
   setCreativePreroll,
-  type FailedDrama,
   type HighlightPlanTask,
   type TaskProgress,
 } from '../../api/qianchuan'
@@ -121,6 +120,7 @@ function PrerollOverlayPreview({
         <img
           src={prerollUrl}
           alt="前贴预览"
+          loading="lazy"
           style={{
             position: 'absolute',
             top: 0,
@@ -321,23 +321,20 @@ export default function HighlightCreativeLibrary() {
   // 不会自行变化，纳入会导致永不停歇的轮询（每次 refetch 重签 oss_url → 视频闪烁）。
   const hasProcessing = rows.some((c) => c.status === 'PROCESSING')
   const shouldPoll = hasProcessing || activeTasks.length > 0
-  useEffect(() => {
-    if (!shouldPoll) return
-    const id = window.setInterval(() => {
-      void refetch()
-      void refetchTasks()
-    }, 3000)
-    return () => { window.clearInterval(id) }
-  }, [shouldPoll, refetch, refetchTasks])
-
-  // 为在途高光规划任务轮询进度（每 2s）。
-  // 用 ref 追踪最新 tasks 避免 activeTasks 数组引用变化导致 effect 反复重建。
+  // 统一轮询：refetch + progress 合并为单一定时器（3s），消除双间隔竞态
   const activeTasksRef = useRef(activeTasks)
   activeTasksRef.current = activeTasks
+  // 客户端累积每剧进度：后端每次 poll 只返回单剧最新进度，
+  // 此处跨 poll 累积，使 renderPlanningCard 可展示各剧独立进度条
+  const dramaProgressRef = useRef<Record<string, Record<string, { stage: string; stage_label: string; progress_pct: number }>>>({})
+
   useEffect(() => {
+    if (!shouldPoll) return
     let cancelled = false
     const poll = async () => {
       if (cancelled) return
+      void refetch()
+      void refetchTasks()
       const tasks = activeTasksRef.current.filter(
         (t) => t.status === 'running' || t.status === 'queued',
       )
@@ -346,12 +343,35 @@ export default function HighlightCreativeLibrary() {
       for (const t of tasks) {
         try {
           const ts = await getTaskStatus(t.taskId)
-          if (ts.progress) next[t.taskId] = ts.progress
+          if (ts.progress) {
+            const pg = ts.progress
+            // 累积每剧进度
+            if (pg.drama) {
+              const acc = dramaProgressRef.current
+              if (!acc[t.taskId]) acc[t.taskId] = {}
+              acc[t.taskId][pg.drama] = {
+                stage: pg.stage,
+                stage_label: pg.stage_label,
+                progress_pct: pg.progress_pct,
+              }
+              pg.drama_progress = { ...acc[t.taskId] }
+            }
+            next[t.taskId] = pg
+          }
         } catch { /* ignore */ }
       }
       if (!cancelled && Object.keys(next).length > 0) {
-        setTaskProgress((prev) => ({ ...prev, ...next }))
-        // 检测已完成的任务：progress_pct >= 100 的加入 completedIds，卡片保留 30s
+        // 单调性防护：仅保留 progress_pct >= 当前值的更新，防止并行多剧回退
+        setTaskProgress((prev) => {
+          const merged = { ...prev }
+          for (const [tid, pg] of Object.entries(next)) {
+            const cur = prev[tid]
+            if (!cur || pg.progress_pct >= cur.progress_pct) {
+              merged[tid] = pg
+            }
+          }
+          return merged
+        })
         const done: string[] = []
         for (const [tid, pg] of Object.entries(next)) {
           if (pg.progress_pct >= 100) done.push(tid)
@@ -362,7 +382,6 @@ export default function HighlightCreativeLibrary() {
             for (const tid of done) nextSet.add(tid)
             return nextSet
           })
-          // 30s 后清理
           setTimeout(() => {
             setCompletedIds((prev) => {
               const nextSet = new Set(prev)
@@ -374,9 +393,9 @@ export default function HighlightCreativeLibrary() {
       }
     }
     void poll()
-    const id = window.setInterval(poll, 2000)
+    const id = window.setInterval(poll, POLL_INTERVAL_MS)
     return () => { cancelled = true; window.clearInterval(id) }
-  }, [])  // 空依赖 — effect 只跑一次，通过 ref 读取最新值
+  }, [shouldPoll])  // shouldPoll 变化时重建定时器
 
   useEffect(() => {
     setDrama(activeDrama)
@@ -786,6 +805,7 @@ export default function HighlightCreativeLibrary() {
                   <img
                     src={asset.ossUrl}
                     alt={asset.name}
+                    loading="lazy"
                     style={{ width: '100%', marginTop: 8, objectFit: 'contain', maxHeight: 120, background: '#f0f0f0' }}
                   />
                 ) : null
@@ -994,6 +1014,25 @@ export default function HighlightCreativeLibrary() {
               <span>{stageLabel}</span>
               {detailParts.length > 0 && <span>{detailParts.join(' · ')}</span>}
             </div>
+            {pg?.drama_progress && Object.keys(pg.drama_progress).length > 1 && (
+              <div style={{ marginTop: 10, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
+                {Object.entries(pg.drama_progress).map(([dramaName, dp]) => (
+                  <div key={dramaName} style={{ marginBottom: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#595959', marginBottom: 2 }}>
+                      <span style={{ fontWeight: 500 }}>{dramaName}</span>
+                      <span>{dp.stage_label} · {dp.progress_pct}%</span>
+                    </div>
+                    <Progress
+                      percent={dp.progress_pct}
+                      status={dp.progress_pct >= 100 ? 'success' : 'active'}
+                      strokeColor={{ from: '#108ee9', to: '#87d068' }}
+                      size="small"
+                      showInfo={false}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
             {pg?.failed_dramas != null && pg.failed_dramas.length > 0 && (
               <div style={{ marginTop: 12, padding: '10px 14px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, fontSize: 12 }}>
                 <div style={{ fontWeight: 600, color: '#cf1322', marginBottom: 6 }}>
