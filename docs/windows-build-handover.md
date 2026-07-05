@@ -1,3 +1,4 @@
+curl -x http://127.0.0.1:7890 https://httpbin.org/ip
 # FlowCut Windows 打包交接文档
 
 ## 概述

@@ -20,10 +20,40 @@ export async function createSession(tenantKey: string, title?: string): Promise<
 }
 
 export async function listSessions(tenantKey: string): Promise<SessionSummary[]> {
-  const res = await fetch(`${BASE_URL}/sessions?tenant_key=${encodeURIComponent(tenantKey)}`, {
+  const res = await fetch(`${getApiBase()}/sessions?tenant_key=${encodeURIComponent(tenantKey)}`, {
     credentials: 'include',
   })
   if (!res.ok) throw new Error(`Failed to list sessions: ${res.status}`)
+  return res.json()
+}
+
+export interface ChatMessage {
+  role: string
+  content: string | null
+  tool_calls?: Array<{
+    id: string
+    type: string
+    function: { name: string; arguments: string }
+  }>
+  tool_call_id?: string
+  name?: string
+}
+
+export interface SessionMessages {
+  session_key: string
+  messages: ChatMessage[]
+  last_consolidated: number
+}
+
+export async function getMessages(
+  tenantKey: string,
+  sessionKey: string,
+): Promise<SessionMessages> {
+  const res = await fetch(
+    `${getApiBase()}/sessions/${encodeURIComponent(sessionKey)}/messages?tenant_key=${encodeURIComponent(tenantKey)}`,
+    { credentials: 'include' },
+  )
+  if (!res.ok) throw new Error(`Failed to load messages: ${res.status}`)
   return res.json()
 }
 

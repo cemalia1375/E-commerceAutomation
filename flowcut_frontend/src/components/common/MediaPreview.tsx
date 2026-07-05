@@ -72,6 +72,7 @@ export default function MediaPreview({
       style={{ maxHeight: height }}
       src={url}
       alt={name ?? ''}
+      loading="lazy"
     />
   )
 }

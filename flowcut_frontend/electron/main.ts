@@ -9,6 +9,10 @@ import { dirname } from 'path'
 
 // CJS 输出时 __dirname 原生可用；ESM 输出时用此 polyfill
 // 注意：必须用 var 不能 const——CJS 中 __filename/__dirname 是函数参数，const 不可重声明
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+declare var __filename: any
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+declare var __dirname: any
 var __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url)
 var __dirname = typeof __dirname !== 'undefined' ? __dirname : dirname(__filename)
 
@@ -181,7 +185,7 @@ function startPython(cfg: AppConfig): void {
   })
 
   pythonProcess.on('exit', (code) => {
-    if (app.isQuitting) return
+    if ((app as any).isQuitting) return
     restartCount++
     if (restartCount <= MAX_RESTARTS) {
       setTimeout(() => startPython(cfg), 1500)

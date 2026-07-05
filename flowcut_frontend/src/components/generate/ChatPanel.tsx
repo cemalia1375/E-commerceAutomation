@@ -4,9 +4,11 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
   streamChat,
+  getMessages,
   type ToolResultPayload,
   type ToolResultContent,
   type NavigateDirective,
+  type ChatMessage,
 } from '../../api/chat'
 import { uploadReferenceVideo } from '../../api/referenceVideos'
 import { getTenantKey, useAuthStore } from '../../stores/authStore'
@@ -155,6 +157,41 @@ function asToolResultContent(value: unknown): ToolResultContent | null {
     : null
 }
 
+/** 将后端 OpenAI 格式消息转为前端 ChatMsg（用户/助手/工具气泡）。 */
+function openaiToChatMsg(msg: ChatMessage): ChatMsg {
+  if (msg.role === 'user') {
+    return { id: genId(), role: 'user', content: msg.content || '' }
+  }
+  if (msg.role === 'assistant') {
+    // 带 tool_calls 的 assistant 消息：content 通常为 null，
+    // 生成占位文本告知用户 Agent 正在调用工具
+    if (msg.tool_calls && msg.tool_calls.length > 0) {
+      const names = msg.tool_calls.map((tc) => tc.function?.name || 'unknown').join(', ')
+      return { id: genId(), role: 'agent', content: msg.content || `🔧 调用工具：${names}` }
+    }
+    return { id: genId(), role: 'agent', content: msg.content || '' }
+  }
+  if (msg.role === 'tool') {
+    return {
+      id: genId(),
+      role: 'tool',
+      content: '',
+      toolName: msg.name || msg.tool_call_id || '',
+      toolResult: { ok: true, data: msg.content },
+    }
+  }
+  return { id: genId(), role: 'agent', content: JSON.stringify(msg) }
+}
+
+/** 合并后端历史与本地消息：后端优先，按 id 前缀 + content 去重。 */
+function mergeBackendMessages(localMsgs: ChatMsg[], backendMsgs: ChatMessage[]): ChatMsg[] {
+  const converted = backendMsgs.map(openaiToChatMsg)
+  // 按 (role, content) 组合去重，比纯 content hash 更精确
+  const seen = new Set(converted.map((m) => `${m.role}::${m.content}`))
+  const uniqueLocal = localMsgs.filter((m) => !seen.has(`${m.role}::${m.content}`))
+  return [...converted, ...uniqueLocal]
+}
+
 export default function ChatPanel() {
   const navigate = useNavigate()
   const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
@@ -181,13 +218,46 @@ export default function ChatPanel() {
 
   // messages 持久化到 localStorage：跳转到 /workspace/:id 后再回 / 时仍可恢复。
   // 流式 token 触发的高频写入对小数组也只是几微秒，无需 debounce。
+  // 防护：永不写入空数组（防止异常情况覆盖已有历史）
   useEffect(() => {
     try {
-      localStorage.setItem(messagesStorageKey(sessionKey), JSON.stringify(messages))
+      if (messages.length > 0) {
+        localStorage.setItem(messagesStorageKey(sessionKey), JSON.stringify(messages))
+      }
     } catch {
       // quota / 隐私模式失败：放弃持久化但不影响功能
     }
   }, [messages, sessionKey])
+
+  // 启动时从后端拉取历史消息，合并到 localStorage 缓存之上。
+  // 即使后端不可用也不影响功能（仍使用 localStorage 作为本地缓存）。
+  // 关键防护：合并结果不允许比当前消息更少（防止后端空返回清除本地历史）。
+  useEffect(() => {
+    let cancelled = false
+    const sync = async () => {
+      try {
+        const { messages: backendMsgs } = await getMessages(TENANT_KEY, sessionKey)
+        if (cancelled || backendMsgs.length === 0) return
+        setMessages((prev) => {
+          const merged = mergeBackendMessages(prev, backendMsgs)
+          // 防护：合并后消息数不能少于之前（后端同步绝不能丢消息）
+          if (merged.length < prev.length) {
+            if (import.meta.env.DEV) {
+              console.warn('[ChatPanel] 后端合并后消息数减少，回退到本地缓存:', prev.length, '->', merged.length)
+            }
+            return prev
+          }
+          return merged
+        })
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[ChatPanel] 后端历史同步失败，使用本地缓存:', err instanceof Error ? err.message : err)
+        }
+      }
+    }
+    void sync()
+    return () => { cancelled = true }
+  }, [sessionKey, TENANT_KEY])
 
   useEffect(() => {
     return () => {

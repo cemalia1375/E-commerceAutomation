@@ -99,7 +99,7 @@ export default function SetupWizard() {
             </>
           )}
 
-          <Divider orientation="left" plain>MySQL</Divider>
+          <Divider plain>MySQL</Divider>
 
           <Form.Item label="Host" name="MYSQL_HOST" rules={[{ required: true, message: '必填' }]}>
             <Input placeholder="127.0.0.1" />
@@ -121,13 +121,13 @@ export default function SetupWizard() {
             <Input />
           </Form.Item>
 
-          <Divider orientation="left" plain>Qdrant（可选）</Divider>
+          <Divider plain>Qdrant（可选）</Divider>
 
           <Form.Item label="Qdrant URL" name="QDRANT_URL">
             <Input placeholder="留空使用默认云端实例" />
           </Form.Item>
 
-          <Divider orientation="left" plain>OSS 对象存储（可选，素材/成片云存储）</Divider>
+          <Divider plain>OSS 对象存储（可选，素材/成片云存储）</Divider>
 
           <Form.Item label="Endpoint" name="FLOWCUT_OSS_ENDPOINT">
             <Input placeholder="tos-cn-guangzhou.volces.com" />

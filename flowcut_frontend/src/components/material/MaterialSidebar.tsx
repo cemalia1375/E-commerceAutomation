@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Tree, Popconfirm, message } from 'antd'
 import type { TreeDataNode } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
@@ -53,6 +53,13 @@ export default function MaterialSidebar() {
   } = useProductTreeStore()
   const fetchMaterials = useMaterialStore((s) => s.fetchMaterials)
   const [deletingProduct, setDeletingProduct] = useState<string | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   const handleConfirmDelete = async (product: string) => {
     setDeletingProduct(product)
@@ -112,20 +119,34 @@ export default function MaterialSidebar() {
   }, [activeProduct, activeSceneRole])
 
   const handleSelect = (keys: React.Key[]) => {
+    // 立即更新选中状态以保证 UI 响应
     if (keys.length === 0) {
       selectNode(null, null)
-      fetchMaterials(TENANT_KEY)
-      return
-    }
-    const key = String(keys[0])
-    if (key.includes('\x1f')) {
-      const [product, sceneRole] = key.split('\x1f')
-      selectNode(product, sceneRole)
-      fetchMaterials(TENANT_KEY, { product, sceneRole })
     } else {
-      selectNode(key, null)
-      fetchMaterials(TENANT_KEY, { product: key })
+      const key = String(keys[0])
+      if (key.includes('\x1f')) {
+        const [product, sceneRole] = key.split('\x1f')
+        selectNode(product, sceneRole)
+      } else {
+        selectNode(key, null)
+      }
     }
+
+    // 150ms 防抖 fetchMaterials，避免快速切换树节点时重复请求
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      if (keys.length === 0) {
+        fetchMaterials(TENANT_KEY)
+      } else {
+        const key = String(keys[0])
+        if (key.includes('\x1f')) {
+          const [product, sceneRole] = key.split('\x1f')
+          fetchMaterials(TENANT_KEY, { product, sceneRole })
+        } else {
+          fetchMaterials(TENANT_KEY, { product: key })
+        }
+      }
+    }, 150)
   }
 
   return (

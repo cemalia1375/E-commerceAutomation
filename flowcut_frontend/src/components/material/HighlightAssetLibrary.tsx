@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Checkbox,
@@ -87,6 +87,15 @@ export default function HighlightAssetLibrary() {
   const [files, setFiles] = useState<File[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set())
   const [durations, setDurations] = useState<Record<number, number>>({})
+
+  // 同一 oss_key 锁定首个签名 URL，避免 refetch 导致 <video>/<img> 重载闪烁
+  const urlCacheRef = useRef<Record<string, string>>({})
+  const stableAssetUrl = (asset: HighlightAsset): string => {
+    if (!asset.ossUrl) return ''
+    const key = asset.ossKey || String(asset.id)
+    if (!urlCacheRef.current[key]) urlCacheRef.current[key] = asset.ossUrl
+    return urlCacheRef.current[key]
+  }
 
   const fetchAssets = async (assetType: HighlightAssetType = mode) => {
     setLoading(true)
@@ -241,13 +250,14 @@ export default function HighlightAssetLibrary() {
               {asset.assetType === 'preroll' ? (
                 <img
                   className={styles.thumb}
-                  src={asset.ossUrl}
+                  src={stableAssetUrl(asset)}
                   alt={asset.name}
+                  loading="lazy"
                 />
               ) : (
                 <video
                   className={styles.thumb}
-                  src={asset.ossUrl}
+                  src={stableAssetUrl(asset)}
                   controls
                   preload="metadata"
                   onLoadedMetadata={(e) => {
