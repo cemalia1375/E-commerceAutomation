@@ -83,13 +83,36 @@
 .inputBox textarea::placeholder { color: #94a3b8; }
 .sendBtn { width: 30px; height: 30px; background: #2563eb; border: none; border-radius: 7px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; transition: background 150ms; }
 .sendBtn:hover { background: #1d4ed8; }
-.sessionList { border-bottom: 1px solid #e2e8f0; padding: 6px 10px; max-height: 180px; overflow-y: auto; background: #fafbfc; }
-.sessionItem { padding: 7px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 120ms; }
+.sessionListContainer { border-bottom: 1px solid #e2e8f0; }
+.sessionListHeader { padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: background 120ms; }
+.sessionListHeader:hover { background: #f1f5f9; }
+.sessionListTitle { font-size: 13px; font-weight: 600; color: #334155; }
+.sessionCount { display: inline-block; background: #e2e8f0; color: #475569; font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+.sessionListActions { display: flex; align-items: center; gap: 6px; }
+.sessionNewMini { width: 20px; height: 20px; border: 1px solid #cbd5e1; background: #fff; border-radius: 5px; cursor: pointer; font-size: 14px; line-height: 1; color: #64748b; display: flex; align-items: center; justify-content: center; }
+.sessionNewMini:hover { background: #2563eb; color: #fff; border-color: #2563eb; }
+.sessionExpandIcon { font-size: 11px; color: #94a3b8; }
+.sessionList { padding: 4px 8px 8px 8px; max-height: 200px; overflow-y: auto; background: #fafbfc; }
+.sessionItem { padding: 7px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; transition: background 120ms; gap: 6px; }
 .sessionItem:hover { background: #eef2ff; }
 .sessionActive { background: #eff6ff; }
-.sessionTitle { font-size: 12px; font-weight: 500; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px; }
-.sessionTime { font-size: 11px; color: #94a3b8; flex-shrink: 0; }
+.sessionTitle { font-size: 12px; font-weight: 500; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.sessionMeta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.sessionMsgCount { font-size: 10px; color: #94a3b8; background: #f1f5f9; padding: 1px 5px; border-radius: 8px; }
+.sessionTime { font-size: 11px; color: #94a3b8; }
+.sessionDeleteBtn { width: 18px; height: 18px; border: none; background: transparent; cursor: pointer; font-size: 14px; color: #94a3b8; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0; transition: opacity 120ms, background 120ms; }
+.sessionItem:hover .sessionDeleteBtn { opacity: 1; }
+.sessionDeleteBtn:hover { background: #fee2e2; color: #ef4444; }
+.sessionDeleteConfirm { opacity: 1; background: #fef2f2; color: #ef4444; font-size: 10px; width: auto; padding: 0 6px; white-space: nowrap; }
 .sessionEmpty { padding: 14px; text-align: center; font-size: 12px; color: #94a3b8; }
+
+/* 后台同步提示条：本地已有消息，后端仍在拉取 */
+.syncBar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; margin: 0 4px;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 6px; font-size: 11px; color: #94a3b8;
+}
 
 /* Markdown 渲染 */
 .userText { white-space: pre-wrap; word-break: break-word; }

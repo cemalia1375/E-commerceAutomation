@@ -13,6 +13,8 @@ import {
 import { uploadReferenceVideo } from '../../api/referenceVideos'
 import { getTenantKey, useAuthStore } from '../../stores/authStore'
 import { useUIContextStore } from '../../stores/uiContextStore'
+import { useSessionRestore } from '../../hooks/useSessionRestore'
+import SessionList from './SessionList'
 import StatsBubble from './StatsBubble'
 import styles from './ChatPanel.module.css'
 
@@ -108,31 +110,6 @@ function TypingIndicator() {
   )
 }
 
-function getOrCreateSessionKey(): string {
-  let key = localStorage.getItem(sessionLsKey())
-  if (!key) {
-    key = safeUUID()
-    localStorage.setItem(sessionLsKey(), key)
-  }
-  return key
-}
-
-/** 生成 RFC 4122 v4 UUID，兼容 HTTP 非安全上下文（crypto.randomUUID() 仅在 HTTPS/localhost 可用）。 */
-function safeUUID(): string {
-  try {
-    return crypto.randomUUID()
-  } catch {
-    // fallback: crypto.getRandomValues 在不安全上下文仍然可用
-    const arr = new Uint8Array(16)
-    crypto.getRandomValues(arr)
-    arr[6] = (arr[6]! & 0x0f) | 0x40 // version 4
-    arr[8] = (arr[8]! & 0x3f) | 0x80 // variant 10
-    const hex = (n: number) => n.toString(16).padStart(2, '0')
-    const d = (i: number) => hex(arr[i]!)
-    return `${d(0)}${d(1)}${d(2)}${d(3)}-${d(4)}${d(5)}-${d(6)}${d(7)}-${d(8)}${d(9)}-${d(10)}${d(11)}${d(12)}${d(13)}${d(14)}${d(15)}`
-  }
-}
-
 function genId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
@@ -196,8 +173,21 @@ export default function ChatPanel() {
   const navigate = useNavigate()
   const TENANT_KEY = useAuthStore((s) => s.user?.tenantKey) ?? 'flowcut'
   const uiCtx = useUIContextStore((s) => s.ctx)
-  const [sessionKey] = useState<string>(() => getOrCreateSessionKey())
-  const [messages, setMessages] = useState<ChatMsg[]>(() => loadMessages(sessionKey))
+
+  // session 生命周期管理（含后端恢复）
+  const {
+    sessionKey,
+    sessions,
+    switchSession,
+    newSession,
+    removeSession,
+    isRestoring,
+  } = useSessionRestore(TENANT_KEY)
+
+  const [messages, setMessages] = useState<ChatMsg[]>(() =>
+    sessionKey ? loadMessages(sessionKey) : [],
+  )
+  const [loadingMessages, setLoadingMessages] = useState(false)
   const [input, setInput] = useState('')
   const [isAgentTyping, setIsAgentTyping] = useState(false)
   const [attachment, setAttachment] = useState<Attachment | null>(null)
@@ -229,34 +219,55 @@ export default function ChatPanel() {
     }
   }, [messages, sessionKey])
 
-  // 启动时从后端拉取历史消息，合并到 localStorage 缓存之上。
-  // 即使后端不可用也不影响功能（仍使用 localStorage 作为本地缓存）。
-  // 关键防护：合并结果不允许比当前消息更少（防止后端空返回清除本地历史）。
+  // 当 sessionKey 变更时（切换/恢复），从后端 + localStorage 恢复消息
   useEffect(() => {
+    if (!sessionKey) return
+
+    setLoadingMessages(true)
+
+    // 先从 localStorage 加载（瞬时，无闪烁）
+    const local = loadMessages(sessionKey)
+    setMessages(local)
+
+    // 再从后端同步（可合并更完整的历史），10s 超时防卡死
     let cancelled = false
+    const abort = new AbortController()
+
     const sync = async () => {
       try {
-        const { messages: backendMsgs } = await getMessages(TENANT_KEY, sessionKey)
-        if (cancelled || backendMsgs.length === 0) return
-        setMessages((prev) => {
-          const merged = mergeBackendMessages(prev, backendMsgs)
-          // 防护：合并后消息数不能少于之前（后端同步绝不能丢消息）
-          if (merged.length < prev.length) {
-            if (import.meta.env.DEV) {
-              console.warn('[ChatPanel] 后端合并后消息数减少，回退到本地缓存:', prev.length, '->', merged.length)
-            }
-            return prev
-          }
-          return merged
-        })
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('[ChatPanel] 后端历史同步失败，使用本地缓存:', err instanceof Error ? err.message : err)
+        const { messages: backendMsgs } = await getMessages(
+          TENANT_KEY, sessionKey, 0, undefined, abort.signal,
+        )
+        if (cancelled || abort.signal.aborted) return
+        if (backendMsgs.length > 0) {
+          setMessages((prev) => {
+            const merged = mergeBackendMessages(prev, backendMsgs)
+            if (merged.length < prev.length) return prev
+            return merged
+          })
         }
+      } catch (err) {
+        if (cancelled || abort.signal.aborted) return
+        if (import.meta.env.DEV) {
+          console.warn('[ChatPanel] 后端历史同步失败:', err instanceof Error ? err.message : err)
+        }
+      } finally {
+        if (!cancelled && !abort.signal.aborted) setLoadingMessages(false)
       }
     }
+
+    // 10 秒超时：后端不可用时不无限等待
+    const timeout = setTimeout(() => {
+      abort.abort()
+      if (!cancelled) setLoadingMessages(false)
+    }, 10_000)
+
     void sync()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      abort.abort()
+      clearTimeout(timeout)
+    }
   }, [sessionKey, TENANT_KEY])
 
   useEffect(() => {
@@ -474,13 +485,8 @@ export default function ChatPanel() {
   const handleNewTask = () => {
     cancelRef.current?.()
     cancelRef.current = null
-    // 先清掉旧 session 的持久化消息，避免遗留垃圾在 localStorage 里堆积。
-    // 必须在 reload 之前同步删，否则刷新后就找不到旧 sessionKey 了。
-    localStorage.removeItem(messagesStorageKey(sessionKey))
-    const fresh = safeUUID()
-    localStorage.setItem(sessionLsKey(), fresh)
-    // 通过 reload 触发 sessionKey 重新读取（保持组件简单）
-    window.location.reload()
+    // 不再删除旧 session 数据 — 旧会话保留在会话列表中可随时切换
+    void newSession()
   }
 
   if (collapsed) {
@@ -503,7 +509,12 @@ export default function ChatPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <span className={styles.title}>当前任务</span>
+        <span className={styles.title}>
+          当前任务
+          {sessions.length > 1 && (
+            <span className={styles.sessionCount}>{sessions.length}</span>
+          )}
+        </span>
         <div className={styles.headerActions}>
           <button className={styles.newBtn} onClick={handleNewTask}>＋ 新任务</button>
           <button
@@ -518,8 +529,30 @@ export default function ChatPanel() {
         </div>
       </div>
 
+      {/* 会话列表：始终显示，恢复中也能看到历史会话 */}
+      <SessionList
+        sessions={sessions}
+        activeKey={sessionKey}
+        onSwitch={switchSession}
+        onNew={handleNewTask}
+        onDelete={removeSession}
+      />
+
       <div className={styles.messages}>
-        {messages.map((msg) => {
+        {(() => {
+          // 恢复未完成且尚无任何本地缓存 → 显示加载态
+          if (!sessionKey && isRestoring) {
+            return <div className={styles.sessionEmpty}>加载消息中...</div>
+          }
+          // session 已确定但消息列表为空（本地 + 后端均无） → 显示空状态
+          if (messages.length === 0 && !loadingMessages) {
+            return <div className={styles.sessionEmpty}>开始新对话吧 👋</div>
+          }
+          // 本地已有消息但后端仍在同步 → 显示消息 + 顶部轻量同步条
+          if (messages.length === 0 && loadingMessages) {
+            return <div className={styles.sessionEmpty}>加载消息中...</div>
+          }
+          return messages.map((msg) => {
           if (msg.role === 'tool_call') {
             return (
               <div key={msg.id} className={`${styles.msg} ${styles.agent}`}>
@@ -555,7 +588,13 @@ export default function ChatPanel() {
               </div>
             </div>
           )
-        })}
+        })})()}
+        {loadingMessages && messages.length > 0 && (
+          <div className={styles.syncBar}>
+            <span className={styles.spinner} />
+            <span>同步最新消息...</span>
+          </div>
+        )}
         {isAgentTyping && (
           <div className={`${styles.msg} ${styles.agent}`}>
             <TypingIndicator />
