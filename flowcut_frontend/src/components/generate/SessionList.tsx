@@ -5,7 +5,6 @@
  *   - 显示租户下全部会话（按最近活跃排序）
  *   - 点击切换会话
  *   - 右击或悬停时显示删除按钮
- *   - 新建会话按钮
  *   - 有历史会话时自动展开
  */
 import { useState, useEffect } from 'react'
@@ -16,7 +15,6 @@ interface SessionListProps {
   sessions: SessionSummary[]
   activeKey: string
   onSwitch: (key: string) => void
-  onNew: () => void
   onDelete: (key: string) => void
 }
 
@@ -49,7 +47,6 @@ export default function SessionList({
   sessions,
   activeKey,
   onSwitch,
-  onNew,
   onDelete,
 }: SessionListProps) {
   const [expanded, setExpanded] = useState(false)
@@ -81,17 +78,7 @@ export default function SessionList({
             <span className={styles.sessionCount}>{sessions.length}</span>
           )}
         </span>
-        <div className={styles.sessionListActions}>
-          <button
-            type="button"
-            className={styles.sessionNewMini}
-            onClick={(e) => { e.stopPropagation(); void onNew() }}
-            title="新建会话"
-          >
-            +
-          </button>
-          <span className={styles.sessionExpandIcon}>{expanded ? '▾' : '▸'}</span>
-        </div>
+        <span className={styles.sessionExpandIcon}>{expanded ? '▾' : '▸'}</span>
       </div>
 
       {expanded && (

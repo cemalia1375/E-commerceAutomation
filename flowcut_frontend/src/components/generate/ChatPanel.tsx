@@ -179,7 +179,6 @@ export default function ChatPanel() {
     sessionKey,
     sessions,
     switchSession,
-    newSession,
     removeSession,
     isRestoring,
   } = useSessionRestore(TENANT_KEY)
@@ -482,13 +481,6 @@ export default function ChatPanel() {
     e.target.style.height = `${Math.min(e.target.scrollHeight, 72)}px`
   }
 
-  const handleNewTask = () => {
-    cancelRef.current?.()
-    cancelRef.current = null
-    // 不再删除旧 session 数据 — 旧会话保留在会话列表中可随时切换
-    void newSession()
-  }
-
   if (collapsed) {
     return (
       <div className={`${styles.panel} ${styles.panelCollapsed}`}>
@@ -516,7 +508,6 @@ export default function ChatPanel() {
           )}
         </span>
         <div className={styles.headerActions}>
-          <button className={styles.newBtn} onClick={handleNewTask}>＋ 新任务</button>
           <button
             type="button"
             className={styles.collapseBtn}
@@ -534,7 +525,6 @@ export default function ChatPanel() {
         sessions={sessions}
         activeKey={sessionKey}
         onSwitch={switchSession}
-        onNew={handleNewTask}
         onDelete={removeSession}
       />
 

@@ -9,6 +9,7 @@
  * 性能：
  *   - 验证消息时只取 1 条（limit=1），不等全量历史
  *   - 全局 5s 超时，后端不可用时快速降级到本地模式
+ *   - createSession 单独 3s 超时，防止后端不响应时永久卡住
  *
  * 始终在挂载时调用一次，返回 { sessionKey, sessions, switchSession, isRestoring }。
  */
@@ -24,6 +25,7 @@ import {
 import { getTenantKey } from '../stores/authStore'
 
 const RESTORE_TIMEOUT_MS = 5000
+const CREATE_SESSION_TIMEOUT_MS = 3000
 
 const sessionLsKey = () => `${getTenantKey()}.chat.session`
 
@@ -77,83 +79,93 @@ export function useSessionRestore(
     let cancelled = false
 
     async function restore() {
-      const cached = (() => {
-        try { return localStorage.getItem(sessionLsKey()) } catch { return null }
-      })()
-
-      let resolved = false
-
-      // 并行拉取：验证缓存 + 拉会话列表，5s 超时（带 AbortController 真正取消请求）
-      const restoreAbort = new AbortController()
-      const { signal } = restoreAbort
-
-      const verifyCached = cached
-        ? getMessages(tenantKey, cached, 0, 1, signal).then(
-            (r) => ({ ok: true as const, messages: r.messages }),
-            () => ({ ok: false as const }),
-          )
-        : Promise.resolve({ ok: false as const })
-
-      const fetchSessions = listSessions(tenantKey, 50, 0, signal).then(
-        (list) => ({ ok: true as const, list }),
-        () => ({ ok: false as const }),
-      )
-
       try {
-        await withTimeout(
-          Promise.all([verifyCached, fetchSessions]),
-          RESTORE_TIMEOUT_MS,
+        const cached = (() => {
+          try { return localStorage.getItem(sessionLsKey()) } catch { return null }
+        })()
+
+        let resolved = false
+
+        // 并行拉取：验证缓存 + 拉会话列表，5s 超时（带 AbortController 真正取消请求）
+        const restoreAbort = new AbortController()
+        const { signal } = restoreAbort
+
+        const verifyCached = cached
+          ? getMessages(tenantKey, cached, 0, 1, signal).then(
+              (r) => ({ ok: true as const, messages: r.messages }),
+              () => ({ ok: false as const }),
+            )
+          : Promise.resolve({ ok: false as const })
+
+        const fetchSessions = listSessions(tenantKey, 50, 0, signal).then(
+          (list) => ({ ok: true as const, list }),
+          () => ({ ok: false as const }),
         )
-      } catch {
-        // 超时 → 取消底层 fetch，Promise.allSettled 立即返回
-        restoreAbort.abort()
-      }
 
-      if (cancelled) return
-
-      const [cachedResult, sessionsResult] = await Promise.allSettled([
-        verifyCached, fetchSessions,
-      ])
-
-      const remoteSessions: SessionSummary[] =
-        sessionsResult.status === 'fulfilled' && sessionsResult.value.ok
-          ? sessionsResult.value.list : []
-      if (!cancelled) setSessions(remoteSessions)
-
-      // 1) 缓存有效 → 直接使用
-      if (
-        cachedResult.status === 'fulfilled' &&
-        cachedResult.value.ok &&
-        cachedResult.value.messages.length > 0
-      ) {
-        if (!cancelled) {
-          setSessionKey(cached!)
-          localStorage.setItem(sessionLsKey(), cached!)
-          setIsRestoring(false)
+        try {
+          await withTimeout(
+            Promise.all([verifyCached, fetchSessions]),
+            RESTORE_TIMEOUT_MS,
+          )
+        } catch {
+          // 超时 → 取消底层 fetch，Promise.allSettled 立即返回
+          restoreAbort.abort()
         }
-        resolved = true
-      }
 
-      // 2) 后端列表恢复
-      if (!resolved && remoteSessions.length > 0) {
-        const lastSession = remoteSessions[0]
-        if (!cancelled) {
-          setSessionKey(lastSession.session_key)
-          localStorage.setItem(sessionLsKey(), lastSession.session_key)
-          setIsRestoring(false)
-        }
-        resolved = true
-      }
+        if (cancelled) return
 
-      // 3) 全新用户 — 创建新会话同步到后端
-      if (!resolved) {
-        const newKey = safeUUID()
-        try { await createSession(newKey) } catch { /* 不阻塞 */ }
-        if (!cancelled) {
-          setSessionKey(newKey)
-          localStorage.setItem(sessionLsKey(), newKey)
-          setIsRestoring(false)
+        const [cachedResult, sessionsResult] = await Promise.allSettled([
+          verifyCached, fetchSessions,
+        ])
+
+        const remoteSessions: SessionSummary[] =
+          sessionsResult.status === 'fulfilled' && sessionsResult.value.ok
+            ? sessionsResult.value.list : []
+        if (!cancelled) setSessions(remoteSessions)
+
+        // 1) 缓存有效 → 直接使用
+        if (
+          cachedResult.status === 'fulfilled' &&
+          cachedResult.value.ok &&
+          cachedResult.value.messages.length > 0
+        ) {
+          if (!cancelled) {
+            setSessionKey(cached!)
+            localStorage.setItem(sessionLsKey(), cached!)
+          }
+          resolved = true
         }
+
+        // 2) 后端列表恢复 — 优先选有消息的会话
+        if (!resolved && remoteSessions.length > 0) {
+          // 优先选择有消息的历史会话，避免卡在空 session 上
+          const withMessages = remoteSessions.filter(
+            (s) => (s.message_count ?? 0) > 0,
+          )
+          const lastSession = withMessages.length > 0 ? withMessages[0] : remoteSessions[0]
+          if (!cancelled) {
+            setSessionKey(lastSession.session_key)
+            localStorage.setItem(sessionLsKey(), lastSession.session_key)
+          }
+          resolved = true
+        }
+
+        // 3) 全新用户 — 创建新会话同步到后端（带超时，防止后端不响应时永久卡住）
+        if (!resolved) {
+          const newKey = safeUUID()
+          try {
+            await withTimeout(createSession(newKey), CREATE_SESSION_TIMEOUT_MS)
+          } catch {
+            // 后端不可用 → 本地模式，不影响 UI
+          }
+          if (!cancelled) {
+            setSessionKey(newKey)
+            localStorage.setItem(sessionLsKey(), newKey)
+          }
+        }
+      } finally {
+        // 安全网：无论恢复过程中发生什么异常，确保 isRestoring 最终被清除
+        if (!cancelled) setIsRestoring(false)
       }
     }
 
