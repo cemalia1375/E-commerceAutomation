@@ -26,6 +26,8 @@ import { getTenantKey } from '../stores/authStore'
 
 const RESTORE_TIMEOUT_MS = 5000
 const CREATE_SESSION_TIMEOUT_MS = 3000
+const SESSION_RETRY_DELAY_MS = 2000
+const SESSION_RETRY_MAX = 3
 
 const sessionLsKey = () => `${getTenantKey()}.chat.session`
 
@@ -78,11 +80,29 @@ export function useSessionRestore(
 
     let cancelled = false
 
+    async function fetchSessionsWithRetry(): Promise<SessionSummary[]> {
+      // 首次已在 restore 中并行发出；此处用于失败后的重试
+      for (let attempt = 0; attempt < SESSION_RETRY_MAX; attempt++) {
+        try {
+          const list = await listSessions(tenantKey, 50, 0)
+          if (list.length > 0) return list
+        } catch { /* 单次失败继续重试 */ }
+        if (attempt < SESSION_RETRY_MAX - 1) {
+          await new Promise((r) => setTimeout(r, SESSION_RETRY_DELAY_MS))
+        }
+      }
+      return []
+    }
+
     async function restore() {
+      const log = (...args: unknown[]) => {
+        if (import.meta.env.DEV) console.log('[useSessionRestore]', ...args)
+      }
       try {
         const cached = (() => {
           try { return localStorage.getItem(sessionLsKey()) } catch { return null }
         })()
+        log('restore 开始 cached=', cached, 'tenant=', tenantKey)
 
         let resolved = false
 
@@ -107,8 +127,10 @@ export function useSessionRestore(
             Promise.all([verifyCached, fetchSessions]),
             RESTORE_TIMEOUT_MS,
           )
+          log('首次拉取完成（无超时）')
         } catch {
           // 超时 → 取消底层 fetch，Promise.allSettled 立即返回
+          log('首次拉取超时，触发 abort')
           restoreAbort.abort()
         }
 
@@ -118,10 +140,10 @@ export function useSessionRestore(
           verifyCached, fetchSessions,
         ])
 
-        const remoteSessions: SessionSummary[] =
+        let remoteSessions: SessionSummary[] =
           sessionsResult.status === 'fulfilled' && sessionsResult.value.ok
             ? sessionsResult.value.list : []
-        if (!cancelled) setSessions(remoteSessions)
+        log('sessionsResult=', sessionsResult.status, 'remoteSessions.length=', remoteSessions.length)
 
         // 1) 缓存有效 → 直接使用
         if (
@@ -129,11 +151,30 @@ export function useSessionRestore(
           cachedResult.value.ok &&
           cachedResult.value.messages.length > 0
         ) {
+          log('→ 步骤1: 缓存有效 sessionKey=', cached)
           if (!cancelled) {
             setSessionKey(cached!)
             localStorage.setItem(sessionLsKey(), cached!)
           }
           resolved = true
+        }
+
+        // 如果首次拉取会话列表失败且无有效缓存 → 自动重试（后端可能正在启动）
+        if (!resolved && remoteSessions.length === 0) {
+          log('→ 首次无结果且缓存无效，开始重试 fetchSessionsWithRetry')
+          remoteSessions = await fetchSessionsWithRetry()
+          log('重试完成 remoteSessions.length=', remoteSessions.length)
+          if (!cancelled) setSessions(remoteSessions)
+        } else if (!cancelled) {
+          // 首次就拿到了列表，或者缓存有效但列表需要后台补充
+          if (remoteSessions.length === 0) {
+            log('→ 缓存有效但列表为空，后台静默重试')
+            // 缓存有效但列表首次拉取失败 → 后台静默重试，不阻塞 sessionKey 恢复
+            fetchSessionsWithRetry().then((retried) => {
+              if (!cancelled && retried.length > 0) setSessions(retried)
+            })
+          }
+          setSessions(remoteSessions)
         }
 
         // 2) 后端列表恢复 — 优先选有消息的会话
@@ -142,6 +183,7 @@ export function useSessionRestore(
           const withMessages = remoteSessions.filter(
             (s) => (s.message_count ?? 0) > 0,
           )
+          log('→ 步骤2: remoteSessions=', remoteSessions.length, 'withMessages=', withMessages.length)
           const lastSession = withMessages.length > 0 ? withMessages[0] : remoteSessions[0]
           if (!cancelled) {
             setSessionKey(lastSession.session_key)
@@ -153,10 +195,12 @@ export function useSessionRestore(
         // 3) 全新用户 — 创建新会话同步到后端（带超时，防止后端不响应时永久卡住）
         if (!resolved) {
           const newKey = safeUUID()
+          log('→ 步骤3: 创建新会话 newKey=', newKey)
           try {
             await withTimeout(createSession(newKey), CREATE_SESSION_TIMEOUT_MS)
           } catch {
             // 后端不可用 → 本地模式，不影响 UI
+            log('createSession 失败（后端不可用），本地模式继续')
           }
           if (!cancelled) {
             setSessionKey(newKey)
@@ -165,12 +209,23 @@ export function useSessionRestore(
         }
       } finally {
         // 安全网：无论恢复过程中发生什么异常，确保 isRestoring 最终被清除
-        if (!cancelled) setIsRestoring(false)
+        if (!cancelled) {
+          log('restore 完成 isRestoring→false')
+          setIsRestoring(false)
+        } else {
+          log('restore 被取消（cancelled=true），跳过 isRestoring 清除')
+        }
       }
     }
 
     void restore()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      // Strict Mode 下 React 会双重挂载 effect：第一次的 cleanup 将 cancelled
+      // 置为 true，第二次调用被 restoredRef 挡住 → restore 永远不执行。
+      // 重置 ref 让第二次调用有机会重新跑 restore。
+      restoredRef.current = false
+    }
   }, [tenantKey])
 
   // 会话变更后静默刷新列表

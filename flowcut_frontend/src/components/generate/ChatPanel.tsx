@@ -221,12 +221,17 @@ export default function ChatPanel() {
   // 当 sessionKey 变更时（切换/恢复），从后端 + localStorage 恢复消息
   useEffect(() => {
     if (!sessionKey) return
+    const devLog = (...args: unknown[]) => {
+      if (import.meta.env.DEV) console.log('[ChatPanel:loadMsg]', ...args)
+    }
+    devLog('sessionKey 变更，开始加载 sessionKey=', sessionKey)
 
     setLoadingMessages(true)
 
     // 先从 localStorage 加载（瞬时，无闪烁）
     const local = loadMessages(sessionKey)
     setMessages(local)
+    devLog('localStorage 加载完成 local.length=', local.length)
 
     // 再从后端同步（可合并更完整的历史），10s 超时防卡死
     let cancelled = false
@@ -237,7 +242,8 @@ export default function ChatPanel() {
         const { messages: backendMsgs } = await getMessages(
           TENANT_KEY, sessionKey, 0, undefined, abort.signal,
         )
-        if (cancelled || abort.signal.aborted) return
+        if (cancelled) return
+        devLog('后端同步完成 backendMsgs.length=', backendMsgs.length)
         if (backendMsgs.length > 0) {
           setMessages((prev) => {
             const merged = mergeBackendMessages(prev, backendMsgs)
@@ -246,12 +252,16 @@ export default function ChatPanel() {
           })
         }
       } catch (err) {
-        if (cancelled || abort.signal.aborted) return
+        if (cancelled) return
         if (import.meta.env.DEV) {
           console.warn('[ChatPanel] 后端历史同步失败:', err instanceof Error ? err.message : err)
         }
       } finally {
-        if (!cancelled && !abort.signal.aborted) setLoadingMessages(false)
+        // cancelled → 组件已卸载或 sessionKey 已切换，新 effect 实例负责 loading 状态
+        if (!cancelled) {
+          devLog('loadingMessages→false')
+          setLoadingMessages(false)
+        }
       }
     }
 
