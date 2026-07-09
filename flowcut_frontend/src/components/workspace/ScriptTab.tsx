@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Input, Space, Spin, Tag, message } from 'antd'
+import { Alert, Button, Card, Input, Space, Tag, message } from 'antd'
 import { CopyOutlined } from '@ant-design/icons'
 import { useScriptStore } from '../../stores/scriptStore'
 import { scriptApi } from '../../api/script'
 import type { ScriptSegment } from '../../types/script'
+import CenteredLoader from '../common/CenteredLoader'
 
 const SAVE_DEBOUNCE_MS = 600
 
@@ -37,21 +38,13 @@ export default function ScriptTab() {
   }, [])
 
   if (!currentScript) {
-    return (
-      <div style={{ padding: 24 }}>
-        <Spin /> <span style={{ marginLeft: 8 }}>加载脚本…</span>
-      </div>
-    )
+    return <CenteredLoader label="正在加载脚本" />
   }
 
   const { status, segments, id: scriptId } = currentScript
 
   if (status === 'PROCESSING') {
-    return (
-      <div style={{ padding: 24, color: '#666' }}>
-        <Spin /> <span style={{ marginLeft: 8 }}>拆镜中，请稍候…</span>
-      </div>
-    )
+    return <CenteredLoader label="拆镜中，请稍候" />
   }
 
   if (status === 'FAILED') {

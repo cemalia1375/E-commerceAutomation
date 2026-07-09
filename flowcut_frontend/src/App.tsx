@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Spin } from 'antd'
 import AppRouter from './router'
 import { useAuthStore } from './stores/authStore'
 import { updateApiPort } from './api/client'
 import SplashScreen from './components/setup/SplashScreen'
+import CenteredLoader from './components/common/CenteredLoader'
 
 const isSetupRoute = () => window.location.hash === '#/setup' || window.location.pathname === '/setup'
 
@@ -53,18 +53,7 @@ export default function App() {
   }
 
   if (status === 'loading') {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Spin size="large" />
-      </div>
-    )
+    return <CenteredLoader fullscreen label="正在加载账户信息" />
   }
 
   return <AppRouter />

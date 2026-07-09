@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Spin, Tooltip, message } from 'antd'
+import { Button, Tooltip, message } from 'antd'
 import { SyncOutlined } from '@ant-design/icons'
 import { useCreativeStore } from '../../stores/creativeStore'
 import { useDetailDrawerStore } from '../../stores/detailDrawerStore'
@@ -8,6 +8,7 @@ import type { CreativeStatusLabel } from '../../types'
 import FilterChips from '../common/FilterChips'
 import DateGroup from '../common/DateGroup'
 import CreativeCard from './CreativeCard'
+import CenteredLoader from '../common/CenteredLoader'
 import styles from './CreativeLibrary.module.css'
 import type { Creative } from '../../types'
 import {
@@ -145,7 +146,7 @@ export default function CreativeVideoLibrary() {
   if (loading && creatives.length === 0) {
     return (
       <div className={styles.layout}>
-        <Spin size="large" style={{ display: 'block', marginTop: 80 }} />
+        <CenteredLoader label="正在加载成片视频" />
       </div>
     )
   }

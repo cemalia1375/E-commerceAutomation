@@ -1,6 +1,6 @@
 import { useCreativeStore } from '../../stores/creativeStore'
-import { Spin } from 'antd'
 import DateGroup from '../common/DateGroup'
+import CenteredLoader from '../common/CenteredLoader'
 import SrtCard from './SrtCard'
 import styles from './CreativeLibrary.module.css'
 import type { Creative } from '../../types'
@@ -25,7 +25,7 @@ export default function SrtLibrary() {
   if (loading && creatives.length === 0) {
     return (
       <div className={styles.layout}>
-        <Spin size="large" style={{ display: 'block', marginTop: 80 }} />
+        <CenteredLoader label="正在加载字幕文件" />
       </div>
     )
   }

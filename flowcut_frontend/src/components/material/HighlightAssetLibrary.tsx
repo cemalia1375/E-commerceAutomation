@@ -23,6 +23,7 @@ import { useAuthStore } from '../../stores/authStore'
 import type { HighlightAsset, HighlightAssetType } from '../../types'
 import { useUIContextStore } from '../../stores/uiContextStore'
 import styles from './HighlightAssetLibrary.module.css'
+import CenteredLoader from '../common/CenteredLoader'
 
 type ViewMode = 'episode_source' | 'digital_human_connector' | 'preroll'
 
@@ -400,6 +401,7 @@ export default function HighlightAssetLibrary() {
       </div>
 
       <div className={styles.content}>
+        {loading && <CenteredLoader label="正在加载高光资产" />}
         {!loading && grouped.length === 0 && (
           <div className={styles.empty}>暂无资产，先上传原片或数字人视频。</div>
         )}
