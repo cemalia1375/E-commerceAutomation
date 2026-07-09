@@ -178,62 +178,64 @@ export default function WorkspaceLayout() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #eee',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <span style={{ fontWeight: 600 }}>脚本 #{scriptId}</span>
-        {script && <Tag color={statusColor(status)}>{status}</Tag>}
-        {status === 'PROCESSING' && (
-          <span style={{ color: '#888', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Spin size="small" /> 拆镜中…
-          </span>
-        )}
-      </div>
-
-      {status === 'FAILED' && (
-        <Alert
-          type="error"
-          showIcon
-          message="拆镜失败"
-          description={
-            <span>
-              该脚本拆镜失败，请返回 <Link to="/">入口页</Link> 重试。
+      {/* 固定菜单区：标题栏 + 错误提示 + TabBar，滚动内容时始终可见 */}
+      <div style={{ flexShrink: 0, background: '#fff', zIndex: 5, boxShadow: '0 2px 6px rgba(0,0,0,.08)' }}>
+        <div
+          style={{
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>脚本 #{scriptId}</span>
+          {script && <Tag color={statusColor(status)}>{status}</Tag>}
+          {status === 'PROCESSING' && (
+            <span style={{ color: '#888', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Spin size="small" /> 拆镜中…
             </span>
-          }
-          style={{ margin: 16 }}
-        />
-      )}
+          )}
+        </div>
 
-      {loadError && status !== 'FAILED' && (
-        <Alert
-          type="warning"
-          showIcon
-          message={`加载失败：${loadError}`}
-          style={{ margin: 16 }}
-        />
-      )}
+        {status === 'FAILED' && (
+          <Alert
+            type="error"
+            showIcon
+            message="拆镜失败"
+            description={
+              <span>
+                该脚本拆镜失败，请返回 <Link to="/">入口页</Link> 重试。
+              </span>
+            }
+            style={{ margin: '0 12px 8px' }}
+          />
+        )}
 
-      {idInvalid && (
-        <Alert
-          type="error"
-          showIcon
-          message="无效的 scriptId"
-          style={{ margin: 16 }}
-        />
-      )}
+        {loadError && status !== 'FAILED' && (
+          <Alert
+            type="warning"
+            showIcon
+            message={`加载失败：${loadError}`}
+            style={{ margin: '0 12px 8px' }}
+          />
+        )}
 
-      <WorkspaceTabBar
-        current={currentTab}
-        status={status}
-        mode={workflowMode}
-        onChange={handleTabChange}
-      />
+        {idInvalid && (
+          <Alert
+            type="error"
+            showIcon
+            message="无效的 scriptId"
+            style={{ margin: '0 12px 8px' }}
+          />
+        )}
+
+        <WorkspaceTabBar
+          current={currentTab}
+          status={status}
+          mode={workflowMode}
+          onChange={handleTabChange}
+        />
+      </div>
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {idInvalid ? (
