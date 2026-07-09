@@ -15,6 +15,7 @@ interface SessionListProps {
   sessions: SessionSummary[]
   activeKey: string
   onSwitch: (key: string) => void
+  onNew: () => void
   onDelete: (key: string) => void
 }
 
@@ -47,6 +48,7 @@ export default function SessionList({
   sessions,
   activeKey,
   onSwitch,
+  onNew,
   onDelete,
 }: SessionListProps) {
   const [expanded, setExpanded] = useState(false)
@@ -78,7 +80,17 @@ export default function SessionList({
             <span className={styles.sessionCount}>{sessions.length}</span>
           )}
         </span>
-        <span className={styles.sessionExpandIcon}>{expanded ? '▾' : '▸'}</span>
+        <div className={styles.sessionListActions}>
+          <button
+            type="button"
+            className={styles.sessionNewMini}
+            onClick={(e) => { e.stopPropagation(); void onNew() }}
+            title="新建对话"
+          >
+            +
+          </button>
+          <span className={styles.sessionExpandIcon}>{expanded ? '▾' : '▸'}</span>
+        </div>
       </div>
 
       {expanded && (
