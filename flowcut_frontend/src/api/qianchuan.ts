@@ -196,6 +196,8 @@ export interface HighlightPlanTask {
   dramaName: string | null
   numCandidates: number | null
   batchId: string | null
+  progress: TaskProgress | null
+  optimistic?: boolean
 }
 
 export async function listHighlightPlanTasks(
@@ -205,13 +207,28 @@ export async function listHighlightPlanTasks(
     ok: boolean
     data: Array<Record<string, unknown>>
   }>('/creatives/highlight-plan-tasks', { params: { tenant_key: tenantKey } })
-  return (data.data ?? []).map((t) => ({
-    taskId: typeof t.task_id === 'string' ? t.task_id : '',
-    status: typeof t.status === 'string' ? t.status : '',
-    dramaName: typeof t.drama_name === 'string' ? t.drama_name : null,
-    numCandidates: typeof t.num_candidates === 'number' ? t.num_candidates : null,
-    batchId: typeof t.batch_id === 'string' ? t.batch_id : null,
-  }))
+  return (data.data ?? []).map((t) => {
+    const progress = (
+      t.progress && typeof t.progress === 'object'
+        ? t.progress as Record<string, unknown>
+        : null
+    )
+    return {
+      taskId: typeof t.task_id === 'string' ? t.task_id : '',
+      status: typeof t.status === 'string' ? t.status : '',
+      dramaName: typeof t.drama_name === 'string' ? t.drama_name : null,
+      numCandidates: typeof t.num_candidates === 'number' ? t.num_candidates : null,
+      batchId: typeof t.batch_id === 'string' ? t.batch_id : null,
+      progress: progress ? {
+        stage: typeof progress.stage === 'string' ? progress.stage : '',
+        stage_label: typeof progress.stage_label === 'string' ? progress.stage_label : '',
+        progress_pct: typeof progress.progress_pct === 'number' ? progress.progress_pct : 0,
+        drama: typeof progress.drama === 'string' ? progress.drama : undefined,
+        candidate_count: typeof progress.candidate_count === 'number' ? progress.candidate_count : undefined,
+        created_count: typeof progress.created_count === 'number' ? progress.created_count : undefined,
+      } : null,
+    }
+  })
 }
 
 export async function getHighlightCreativeByScript(

@@ -17,10 +17,44 @@ import { useCreativeStore } from '../../stores/creativeStore'
 import { getTenantKey } from '../../stores/authStore'
 import { useUIContextStore } from '../../stores/uiContextStore'
 import { getApiBase } from '../../api/client'
+import CenteredLoader from '../common/CenteredLoader'
 import type { Creative, HighlightAsset } from '../../types'
 import styles from './HighlightCreativeLibrary.module.css'
 const POLL_INTERVAL_MS = 2500
 const POLL_TIMEOUT_MS = 180000
+const highlightPendingKey = () => `${getTenantKey()}.highlight.pending-task`
+
+function loadPendingHighlightTask(): HighlightPlanTask[] {
+  try {
+    const raw = sessionStorage.getItem(highlightPendingKey())
+    if (!raw) return []
+    const value = JSON.parse(raw) as Record<string, unknown>
+    const createdAtMs = typeof value.createdAtMs === 'number' ? value.createdAtMs : 0
+    if (!createdAtMs || Date.now() - createdAtMs > 2 * 60 * 1000) {
+      sessionStorage.removeItem(highlightPendingKey())
+      return []
+    }
+    const taskId = typeof value.taskId === 'string' ? value.taskId : ''
+    if (!taskId) return []
+    const dramaName = typeof value.dramaName === 'string' ? value.dramaName : null
+    return [{
+      taskId,
+      status: 'running',
+      dramaName,
+      numCandidates: typeof value.numCandidates === 'number' ? value.numCandidates : null,
+      batchId: typeof value.batchId === 'string' ? value.batchId : null,
+      progress: {
+        stage: 'starting',
+        stage_label: '任务已提交，正在准备原片',
+        progress_pct: 5,
+        drama: dramaName ?? undefined,
+      },
+      optimistic: true,
+    }]
+  } catch {
+    return []
+  }
+}
 
 function isHighlightCreative(creative: Creative) {
   return (
@@ -160,6 +194,15 @@ function formatCardTime(isoStr: string | undefined): string {
   return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+function progressSoftCeiling(actual: number): number {
+  if (actual >= 100) return 100
+  if (actual >= 95) return 99
+  if (actual >= 70) return 89
+  if (actual >= 55) return 64
+  if (actual >= 30) return 49
+  return 24
+}
+
 function AssetPreview({
   title,
   name,
@@ -195,8 +238,9 @@ export default function HighlightCreativeLibrary() {
   const [exportingId, setExportingId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [batchExporting, setBatchExporting] = useState(false)
-  const [activeTasks, setActiveTasks] = useState<HighlightPlanTask[]>([])
+  const [activeTasks, setActiveTasks] = useState<HighlightPlanTask[]>(loadPendingHighlightTask)
   const [taskProgress, setTaskProgress] = useState<Record<string, TaskProgress>>({})
+  const [displayProgress, setDisplayProgress] = useState<Record<string, number>>({})
   // 已完成任务的 id 集合：卡片在完成后保留 30s 以便用户看到错误/结果
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const [digitalHumans, setDigitalHumans] = useState<HighlightAsset[]>([])
@@ -207,7 +251,19 @@ export default function HighlightCreativeLibrary() {
 
   const refetchTasks = useCallback(async () => {
     try {
-      setActiveTasks(await listHighlightPlanTasks(getTenantKey()))
+      const tasks = await listHighlightPlanTasks(getTenantKey())
+      const pending = loadPendingHighlightTask()
+      const unresolved = pending.filter(
+        (item) => !tasks.some(
+          (task) => task.taskId === item.taskId || (
+            task.batchId != null && task.batchId === item.batchId
+          ),
+        ),
+      )
+      setActiveTasks([...unresolved, ...tasks])
+      if (pending.length > 0 && unresolved.length === 0) {
+        sessionStorage.removeItem(highlightPendingKey())
+      }
     } catch {
       // 后端不可用时保持现状，不打断 UI
     }
@@ -324,6 +380,32 @@ export default function HighlightCreativeLibrary() {
   // 统一轮询：refetch + progress 合并为单一定时器（3s），消除双间隔竞态
   const activeTasksRef = useRef(activeTasks)
   activeTasksRef.current = activeTasks
+  const taskProgressRef = useRef(taskProgress)
+  taskProgressRef.current = taskProgress
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setDisplayProgress((previous) => {
+        const next = { ...previous }
+        let changed = false
+        for (const task of activeTasksRef.current) {
+          const progress = taskProgressRef.current[task.taskId] ?? task.progress
+          const actual = progress?.progress_pct ?? 0
+          const current = Math.max(next[task.taskId] ?? actual, actual)
+          const ceiling = progressSoftCeiling(actual)
+          const advanced = actual >= 100
+            ? 100
+            : Math.min(ceiling, current + 0.4)
+          if (advanced !== next[task.taskId]) {
+            next[task.taskId] = advanced
+            changed = true
+          }
+        }
+        return changed ? next : previous
+      })
+    }, 1600)
+    return () => window.clearInterval(timer)
+  }, [])
   // 客户端累积每剧进度：后端每次 poll 只返回单剧最新进度，
   // 此处跨 poll 累积，使 renderPlanningCard 可展示各剧独立进度条
   const dramaProgressRef = useRef<Record<string, Record<string, { stage: string; stage_label: string; progress_pct: number }>>>({})
@@ -424,6 +506,7 @@ export default function HighlightCreativeLibrary() {
         dramaName: taskProgress[tid]?.drama ?? null,
         numCandidates: 0,
         batchId: null,
+        progress: taskProgress[tid] ?? null,
       }))
   }, [completedIds, taskProgress, activeDrama, drilledTasks])
 
@@ -970,8 +1053,9 @@ export default function HighlightCreativeLibrary() {
   }
 
   const renderPlanningCard = (task: HighlightPlanTask) => {
-    const pg = taskProgress[task.taskId]
-    const pct = pg?.progress_pct ?? 0
+    const pg = taskProgress[task.taskId] ?? task.progress
+    const actualPct = pg?.progress_pct ?? 0
+    const pct = Math.max(displayProgress[task.taskId] ?? actualPct, actualPct)
     const stageLabel = pg?.stage_label ?? '准备中'
     const drama = pg?.drama ?? task.dramaName
     const detailParts: string[] = []
@@ -992,7 +1076,7 @@ export default function HighlightCreativeLibrary() {
             <div className={styles.titleLine}>
               <span className={styles.cardTitle}>{drama || '跨集高光'}</span>
               <span className={styles.statusPill}>
-                {pct >= 100 ? '已完成' : pct > 0 ? `生成中 ${pct}%` : '生成中'}
+                {pct >= 100 ? '已完成' : pct > 0 ? `生成中 ${Math.floor(pct)}%` : '生成中'}
               </span>
             </div>
             <div className={styles.subtitle}>
@@ -1006,6 +1090,7 @@ export default function HighlightCreativeLibrary() {
           <div style={{ width: '100%' }}>
             <Progress
               percent={pct}
+              format={() => `${Math.floor(pct)}%`}
               status={pct >= 100 ? 'success' : 'active'}
               strokeColor={{ from: '#108ee9', to: '#87d068' }}
               size="small"
@@ -1047,7 +1132,7 @@ export default function HighlightCreativeLibrary() {
                   </div>
                 ))}
                 <div style={{ marginTop: 8, color: '#8c8c8c' }}>
-                  请稍后重新触发跨集高光（Gemini 瞬态过载已自动重试，若仍失败请等待几分钟再试）
+                  请根据上方错误检查原片、集数范围或外部模型状态；修复后可重新触发跨集高光。
                 </div>
               </div>
             )}
@@ -1061,7 +1146,7 @@ export default function HighlightCreativeLibrary() {
   if (loading && creatives.length === 0) {
     return (
       <div className={styles.layout}>
-        <Spin size="large" style={{ display: 'block', marginTop: 80 }} />
+        <CenteredLoader label="正在加载高光成片" />
       </div>
     )
   }

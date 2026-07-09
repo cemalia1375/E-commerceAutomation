@@ -12,6 +12,7 @@ import {
 } from '../../api/chat'
 import { uploadReferenceVideo } from '../../api/referenceVideos'
 import { getTenantKey, useAuthStore } from '../../stores/authStore'
+import { useCreativeStore } from '../../stores/creativeStore'
 import { useUIContextStore } from '../../stores/uiContextStore'
 import { useSessionRestore } from '../../hooks/useSessionRestore'
 import SessionList from './SessionList'
@@ -21,9 +22,9 @@ import styles from './ChatPanel.module.css'
 // 会话 / 消息的 localStorage key 按 tenant 命名空间隔离，避免同一浏览器多账号串数据。
 // 每个 session 一份独立的 messages 存储 key，避免会话之间相互污染。
 // 拆镜成功后 ChatPanel 会被 navigate 卸载，没有持久化历史就会丢光。
-const sessionLsKey = () => `${getTenantKey()}.chat.session`
 const messagesLsKey = (sessionKey: string) => `${getTenantKey()}.chat.messages.${sessionKey}`
 const COLLAPSED_LS_KEY = 'flowcut.chat.collapsed'
+const highlightPendingKey = () => `${getTenantKey()}.highlight.pending-task`
 
 // 工具结果可以请求跳转的白名单路由（防 agent 幻觉路径）
 const ALLOWED_ROUTE_PATTERNS = [
@@ -129,9 +130,66 @@ function isAllowedRoute(route: string): boolean {
 }
 
 function asToolResultContent(value: unknown): ToolResultContent | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as ToolResultContent)
-    : null
+  if (value == null) return null
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return value as ToolResultContent
+  }
+  return {
+    ok: true,
+    data: value,
+    ui_hint: { render_as: 'none' },
+  }
+}
+
+function persistPendingHighlight(content: ToolResultContent): void {
+  const raw = content as ToolResultContent & {
+    task_id?: unknown
+    batch_ids?: unknown
+  }
+  const data = (
+    content.data && typeof content.data === 'object'
+      ? content.data as Record<string, unknown>
+      : {}
+  )
+  const batchIds = Array.isArray(raw.batch_ids)
+    ? raw.batch_ids
+    : Array.isArray(data.batch_ids)
+      ? data.batch_ids
+      : []
+  const batchId = typeof batchIds[0] === 'string' ? batchIds[0] : null
+  const taskId = typeof raw.task_id === 'string'
+    ? raw.task_id
+    : batchId
+      ? `batch:${batchId}`
+      : null
+  const dramaNames = Array.isArray(data.drama_names) ? data.drama_names : []
+  const dramaName = typeof dramaNames[0] === 'string' ? dramaNames[0] : null
+  if (!taskId) return
+  try {
+    sessionStorage.setItem(highlightPendingKey(), JSON.stringify({
+      taskId,
+      batchId,
+      dramaName,
+      numCandidates: typeof data.num_candidates === 'number' ? data.num_candidates : null,
+      createdAtMs: Date.now(),
+    }))
+  } catch {
+    // Storage is only an optimistic handoff; server polling remains authoritative.
+  }
+}
+
+function persistLaunchingHighlight(dramaName: string | null): void {
+  try {
+    sessionStorage.setItem(highlightPendingKey(), JSON.stringify({
+      taskId: `launch:${Date.now()}`,
+      batchId: null,
+      dramaName,
+      numCandidates: null,
+      createdAtMs: Date.now(),
+    }))
+  } catch {
+    // The server task list will replace this best-effort placeholder.
+  }
 }
 
 /** 将后端 OpenAI 格式消息转为前端 ChatMsg（用户/助手/工具气泡）。 */
@@ -179,8 +237,8 @@ export default function ChatPanel() {
     sessionKey,
     sessions,
     switchSession,
+    newSession,
     removeSession,
-    isRestoring,
   } = useSessionRestore(TENANT_KEY)
 
   const [messages, setMessages] = useState<ChatMsg[]>(() =>
@@ -306,9 +364,19 @@ export default function ChatPanel() {
 
   const handleToolResult = useCallback(
     (payload: ToolResultPayload) => {
-      if (payload.ok === false) return
+      if (payload.ok === false) {
+        console.warn('[chat] tool_result ok=false, 跳过', payload.tool_name)
+        return
+      }
       const content = asToolResultContent(payload.content)
-      if (!content || content.ok === false) return
+      if (!content) {
+        return
+      }
+      if (content.ok === false) {
+        console.warn('[chat] tool_result content.ok=false',
+          { tool_name: payload.tool_name, content_type: typeof payload.content, content })
+        return
+      }
 
       // 降级工具感知：后端无「工具开始」事件，收到 tool_result 时补一条提示
       setMessages((prev) => [
@@ -333,13 +401,27 @@ export default function ChatPanel() {
         ])
       }
 
-      const directive: NavigateDirective | undefined = content.navigate
-      if (!directive?.route) return
-      const target = applyRouteParams(directive.route, directive.params)
-      if (!isAllowedRoute(target)) {
-        console.warn('[chat] 拒绝非白名单跳转', target)
+      const isHighlightLaunch = payload.tool_name === 'create_cross_episode_highlights'
+      if (isHighlightLaunch) {
+        useCreativeStore.getState().setSubTab('highlight')
+        persistPendingHighlight(content)
+      }
+
+      const directive: NavigateDirective | undefined = content.navigate ?? (
+        isHighlightLaunch
+          ? { route: '/creative?tab=highlight', mode: 'push' }
+          : undefined
+      )
+      if (!directive?.route) {
+        console.log('[chat] tool_result 无 navigate 指令', payload.tool_name)
         return
       }
+      const target = applyRouteParams(directive.route, directive.params)
+      if (!isAllowedRoute(target)) {
+        console.warn('[chat] 拒绝非白名单跳转', { tool_name: payload.tool_name, target, directive })
+        return
+      }
+      console.log('[chat] tool_result 触发导航', { tool_name: payload.tool_name, target, directive })
       navigate(target, { replace: directive.mode === 'replace' })
     },
     [navigate],
@@ -479,6 +561,23 @@ export default function ChatPanel() {
       },
       onToolResult: handleToolResult,
     })
+
+    const highlightIntent = /(?:生成|制作|创建|触发).{0,12}跨集高光|跨集高光.{0,12}(?:生成|制作|创建|任务)/.test(text)
+    if (highlightIntent) {
+      const quotedDrama = text.match(/[《「“"]([^》」”"]+)[》」”"]/u)?.[1] ?? null
+      useCreativeStore.getState().setSubTab('highlight')
+      persistLaunchingHighlight(quotedDrama)
+      navigate('/creative?tab=highlight')
+    }
+  }
+
+  const handleNewTask = () => {
+    cancelRef.current?.()
+    cancelRef.current = null
+    // 立即清空消息 + 显示加载态，避免 newSession() 异步期间残留旧会话内容
+    setMessages([])
+    setLoadingMessages(true)
+    void newSession()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -518,6 +617,7 @@ export default function ChatPanel() {
           )}
         </span>
         <div className={styles.headerActions}>
+          <button className={styles.newBtn} onClick={handleNewTask}>＋ 新任务</button>
           <button
             type="button"
             className={styles.collapseBtn}
@@ -535,22 +635,27 @@ export default function ChatPanel() {
         sessions={sessions}
         activeKey={sessionKey}
         onSwitch={switchSession}
+        onNew={handleNewTask}
         onDelete={removeSession}
       />
 
       <div className={styles.messages}>
         {(() => {
-          // 恢复未完成且尚无任何本地缓存 → 显示加载态
-          if (!sessionKey && isRestoring) {
+          // 加载中（恢复未完成 或 正在拉取后端消息）
+          if (!sessionKey || loadingMessages) {
             return <div className={styles.sessionEmpty}>加载消息中...</div>
           }
-          // session 已确定但消息列表为空（本地 + 后端均无） → 显示空状态
-          if (messages.length === 0 && !loadingMessages) {
-            return <div className={styles.sessionEmpty}>开始新对话吧 👋</div>
-          }
-          // 本地已有消息但后端仍在同步 → 显示消息 + 顶部轻量同步条
-          if (messages.length === 0 && loadingMessages) {
-            return <div className={styles.sessionEmpty}>加载消息中...</div>
+          // 消息为空 → 显示空状态引导
+          if (messages.length === 0) {
+            return (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>💬</div>
+                <div className={styles.emptyTitle}>开始新对话</div>
+                <div className={styles.emptyHint}>
+                  输入指令，例如"帮我分析这个产品的素材策略"
+                </div>
+              </div>
+            )
           }
           return messages.map((msg) => {
           if (msg.role === 'tool_call') {
