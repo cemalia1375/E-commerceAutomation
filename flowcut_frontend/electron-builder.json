@@ -1,7 +1,7 @@
 {
   "appId": "com.flowcut.app",
   "productName": "FlowCut",
-  "copyright": "Copyright © 2025 FlowCut",
+  "copyright": "Copyright (c) 2026 FlowCut",
   "directories": {
     "output": "../release",
     "buildResources": "build"

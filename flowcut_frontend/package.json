@@ -1,5 +1,7 @@
 {
   "name": "flowcut",
+  "description": "FlowCut short-video production desktop client",
+  "author": "FlowCut",
   "private": true,
   "version": "1.0.0",
   "type": "module",

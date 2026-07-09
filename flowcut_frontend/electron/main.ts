@@ -111,6 +111,62 @@ function findFreePort(startPort = 8001): Promise<number> {
   })
 }
 
+function isFlowcutBackendHealthy(
+  port: number,
+  expectedConfig?: AppConfig,
+  timeoutMs = 800,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (healthy: boolean) => {
+      if (settled) return
+      settled = true
+      resolve(healthy)
+    }
+    const req = http.get(`http://127.0.0.1:${port}/health`, (res) => {
+      let body = ''
+      res.setEncoding('utf8')
+      res.on('data', (chunk: string) => { body += chunk })
+      res.on('end', () => {
+        try {
+          const payload = JSON.parse(body) as {
+            service?: string
+            runtime_config?: {
+              llm_provider?: string
+              gemini_transport?: string
+              gemini_base_host?: string
+            }
+          }
+          let compatible = res.statusCode === 200 && payload.service === 'flowcut'
+          if (compatible && expectedConfig) {
+            const expectedBase = expectedConfig.GEMINI_BASE_URL?.trim()
+            const expectedTransport = expectedBase
+              ? 'base_url'
+              : expectedConfig.GEMINI_PROXY?.trim()
+                ? 'proxy'
+                : 'direct'
+            const expectedHost = expectedBase ? new URL(expectedBase).host.toLowerCase() : ''
+            const runtime = payload.runtime_config
+            compatible = Boolean(
+              runtime &&
+              runtime.gemini_transport === expectedTransport &&
+              runtime.gemini_base_host === expectedHost
+            )
+          }
+          finish(compatible)
+        } catch {
+          finish(false)
+        }
+      })
+    })
+    req.setTimeout(timeoutMs, () => {
+      req.destroy()
+      finish(false)
+    })
+    req.on('error', () => finish(false))
+  })
+}
+
 // ── Python 子进程管理（坑C/F/J）──────────────────────────────────────────────
 
 let pythonProcess: ChildProcess | null = null
@@ -223,6 +279,19 @@ function startPython(cfg: AppConfig): void {
 
 // ── /health 轮询（坑C）───────────────────────────────────────────────────────
 
+async function prepareBackend(cfg: AppConfig): Promise<void> {
+  if (!app.isPackaged && await isFlowcutBackendHealthy(8001, cfg)) {
+    apiPort = 8001
+    backendIsReady = true
+    console.log('[py] reusing healthy FlowCut backend on http://127.0.0.1:8001')
+    return
+  }
+
+  apiPort = await findFreePort(8001)
+  backendIsReady = false
+  startPython(cfg)
+}
+
 function pollHealth(win: BrowserWindow): void {
   const check = () => {
     http.get(`http://127.0.0.1:${apiPort}/health`, (res) => {
@@ -245,9 +314,8 @@ ipcMain.handle('get-api-port', () => apiPort)
 ipcMain.handle('save-config', async (_event, cfg: AppConfig) => {
   saveConfig(cfg)
   const setupWin = BrowserWindow.getFocusedWindow()
-  apiPort = await findFreePort(8001)
+  await prepareBackend(cfg)
   mainWindow = createMainWindow()
-  startPython(cfg)
   pollHealth(mainWindow)
   setupWin?.close()
 })
@@ -346,9 +414,8 @@ app.whenReady().then(async () => {
     return
   }
 
-  apiPort = await findFreePort(8001)
+  await prepareBackend(cfg ?? ({} as AppConfig))
   mainWindow = createMainWindow()
-  startPython(cfg ?? ({} as AppConfig))
   pollHealth(mainWindow)
 })
 

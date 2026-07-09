@@ -16,6 +16,7 @@ dev/
 
 # 临时调试文件
 tmp_chat_body.json
+.test-tmp/
 backend-dist/
 
 # AI 工具指导文件（由各自工具自动生成）
