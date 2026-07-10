@@ -25,6 +25,7 @@ import styles from './ChatPanel.module.css'
 const messagesLsKey = (sessionKey: string) => `${getTenantKey()}.chat.messages.${sessionKey}`
 const COLLAPSED_LS_KEY = 'flowcut.chat.collapsed'
 const highlightPendingKey = () => `${getTenantKey()}.highlight.pending-task`
+const HIGHLIGHT_PENDING_EVENT = 'flowcut:highlight-pending-task'
 
 // 工具结果可以请求跳转的白名单路由（防 agent 幻觉路径）
 const ALLOWED_ROUTE_PATTERNS = [
@@ -131,6 +132,17 @@ function isAllowedRoute(route: string): boolean {
 
 function asToolResultContent(value: unknown): ToolResultContent | null {
   if (value == null) return null
+  if (typeof value === 'string') {
+    try {
+      return asToolResultContent(JSON.parse(value))
+    } catch {
+      return {
+        ok: true,
+        data: value,
+        ui_hint: { render_as: 'none' },
+      }
+    }
+  }
   if (typeof value === 'object' && !Array.isArray(value)) {
     return value as ToolResultContent
   }
@@ -144,7 +156,10 @@ function asToolResultContent(value: unknown): ToolResultContent | null {
 function persistPendingHighlight(content: ToolResultContent): void {
   const raw = content as ToolResultContent & {
     task_id?: unknown
+    batch_id?: unknown
     batch_ids?: unknown
+    drama_names?: unknown
+    num_candidates?: unknown
   }
   const data = (
     content.data && typeof content.data === 'object'
@@ -156,13 +171,25 @@ function persistPendingHighlight(content: ToolResultContent): void {
     : Array.isArray(data.batch_ids)
       ? data.batch_ids
       : []
-  const batchId = typeof batchIds[0] === 'string' ? batchIds[0] : null
+  const batchId = typeof raw.batch_id === 'string'
+    ? raw.batch_id
+    : typeof data.batch_id === 'string'
+      ? data.batch_id
+      : typeof batchIds[0] === 'string'
+        ? batchIds[0]
+        : null
   const taskId = typeof raw.task_id === 'string'
     ? raw.task_id
+    : typeof data.task_id === 'string'
+      ? data.task_id
     : batchId
       ? `batch:${batchId}`
       : null
-  const dramaNames = Array.isArray(data.drama_names) ? data.drama_names : []
+  const dramaNames = Array.isArray(data.drama_names)
+    ? data.drama_names
+    : Array.isArray(raw.drama_names)
+      ? raw.drama_names
+      : []
   const dramaName = typeof dramaNames[0] === 'string' ? dramaNames[0] : null
   if (!taskId) return
   try {
@@ -170,9 +197,14 @@ function persistPendingHighlight(content: ToolResultContent): void {
       taskId,
       batchId,
       dramaName,
-      numCandidates: typeof data.num_candidates === 'number' ? data.num_candidates : null,
+      numCandidates: typeof data.num_candidates === 'number'
+        ? data.num_candidates
+        : typeof raw.num_candidates === 'number'
+          ? raw.num_candidates
+          : null,
       createdAtMs: Date.now(),
     }))
+    window.dispatchEvent(new Event(HIGHLIGHT_PENDING_EVENT))
   } catch {
     // Storage is only an optimistic handoff; server polling remains authoritative.
   }
@@ -187,6 +219,7 @@ function persistLaunchingHighlight(dramaName: string | null): void {
       numCandidates: null,
       createdAtMs: Date.now(),
     }))
+    window.dispatchEvent(new Event(HIGHLIGHT_PENDING_EVENT))
   } catch {
     // The server task list will replace this best-effort placeholder.
   }
@@ -563,7 +596,11 @@ export default function ChatPanel() {
     })
 
     const highlightIntent = /(?:生成|制作|创建|触发).{0,12}跨集高光|跨集高光.{0,12}(?:生成|制作|创建|任务)/.test(text)
-    if (highlightIntent) {
+    const highlightIntentByKeyword = (
+      /(?:跨集高光|高光)/u.test(text) &&
+      /(?:生成|制作|创建|触发|跑|抽|切片)/u.test(text)
+    )
+    if (highlightIntent || highlightIntentByKeyword) {
       const quotedDrama = text.match(/[《「“"]([^》」”"]+)[》」”"]/u)?.[1] ?? null
       useCreativeStore.getState().setSubTab('highlight')
       persistLaunchingHighlight(quotedDrama)
