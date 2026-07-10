@@ -1,0 +1,78 @@
+# ──────────────────────────────────────────────────────────────
+# Stage 1: 构建前端静态资源（node:20-slim）
+# ──────────────────────────────────────────────────────────────
+FROM --platform=linux/amd64 node:20-slim AS frontend-build
+
+ARG HTTP_PROXY=
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+
+# 前端通过同源 /api 访问后端（由 nginx 反代到 localhost:8001），免跨域
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
+WORKDIR /app
+COPY flowcut_frontend/package.json flowcut_frontend/package-lock.json ./
+RUN npm config set registry https://registry.npmmirror.com && npm install
+
+COPY flowcut_frontend/ .
+RUN npm run build
+
+# ──────────────────────────────────────────────────────────────
+# Stage 2: 合并运行时（python + nginx + supervisord）
+# ──────────────────────────────────────────────────────────────
+FROM --platform=linux/amd64 python:3.11-slim
+
+ARG HTTP_PROXY=
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+ARG NO_PROXY=*
+ARG no_proxy=*
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' \
+        /etc/apt/sources.list.d/debian.sources 2>/dev/null || true \
+    && env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+        apt-get update \
+    && env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+        apt-get install -y --no-install-recommends \
+            curl ca-certificates \
+            nginx supervisor \
+            ffmpeg \
+            libglib2.0-0 libgl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 依赖
+COPY SimpleClaw/requirements.txt ./
+RUN pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+
+# Python 源码（Flowcut 不依赖 Mojing）
+COPY SimpleClaw/simpleclaw ./simpleclaw
+COPY SimpleClaw/Flowcut ./Flowcut
+
+# .env 环境变量打入镜像
+COPY SimpleClaw/.env ./.env
+
+# 前端静态资源
+COPY --from=frontend-build /app/dist /usr/share/nginx/html
+
+# nginx 配置（/api → 127.0.0.1:8001，SPA 回退，SSE 关缓冲）
+COPY flowcut_frontend/nginx.conf /etc/nginx/sites-available/default
+
+# supervisord 配置（同时管理 nginx + uvicorn）
+COPY supervisord.flowcut.conf /etc/supervisor/conf.d/flowcut.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://127.0.0.1/api/health || exit 1
+
+CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
