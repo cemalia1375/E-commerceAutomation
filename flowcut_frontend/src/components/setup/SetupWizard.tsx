@@ -6,6 +6,7 @@ const { Title, Text } = Typography
 
 interface ConfigValues {
   GOOGLE_API_KEY: string
+  GOOGLE_API_KEY_DIRECT: string
   GOOGLE_MODEL: string
   FLOWCUT_LLM_PROVIDER: string
   VOLCENGINE_API_KEY: string
@@ -76,6 +77,9 @@ export default function SetupWizard() {
             <>
               <Form.Item label="Google API Key" name="GOOGLE_API_KEY" rules={[{ required: true, message: '必填' }]}>
                 <Input.Password placeholder="AIza...（Google AI Studio 获取）" />
+              </Form.Item>
+              <Form.Item label="Google Direct API Key（可选）" name="GOOGLE_API_KEY_DIRECT" extra="仅在绕过中转、直连 Google Gemini 时使用。">
+                <Input.Password placeholder="AIza..." />
               </Form.Item>
               <Form.Item label="Model" name="GOOGLE_MODEL">
                 <Input placeholder="gemini-2.5-flash" />

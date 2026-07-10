@@ -61,6 +61,7 @@ let frontendOrigin = ''  // http://localhost:<port>，前后端同 host，SameSi
 
 interface AppConfig {
   GOOGLE_API_KEY: string
+  GOOGLE_API_KEY_DIRECT?: string
   MYSQL_HOST: string
   MYSQL_USER: string
   MYSQL_PASSWORD: string
@@ -225,6 +226,7 @@ function buildEnv(_cfg?: AppConfig): NodeJS.ProcessEnv {
   // ── config.json 全部字段透传 ──
   if (_cfg) {
     if (_cfg.GOOGLE_API_KEY)           env.GOOGLE_API_KEY = _cfg.GOOGLE_API_KEY
+    if (_cfg.GOOGLE_API_KEY_DIRECT)    env.GOOGLE_API_KEY_DIRECT = _cfg.GOOGLE_API_KEY_DIRECT
     if (_cfg.GOOGLE_MODEL)             env.GOOGLE_MODEL = _cfg.GOOGLE_MODEL
     if (_cfg.FLOWCUT_LLM_PROVIDER)     env.FLOWCUT_LLM_PROVIDER = _cfg.FLOWCUT_LLM_PROVIDER
     if (_cfg.VOLCENGINE_API_KEY)       env.VOLCENGINE_API_KEY = _cfg.VOLCENGINE_API_KEY
