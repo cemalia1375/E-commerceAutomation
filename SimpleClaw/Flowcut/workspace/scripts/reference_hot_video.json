@@ -1,0 +1,20 @@
+{
+  "title": "私处洗液爆款视频脚本",
+  "description": "参考视频的逐秒分镜脚本,用于指导个性化脚本生成时的节奏与结构",
+  "duration_total": 39,
+  "advantages": ["消耗百万", "ROI较高"],
+  "segments": [
+    {"start": 0, "end": 1, "category": "真人口播", "visual": "棕色洗液倒入透明冲洗器", "copy": "不要兑水"},
+    {"start": 1, "end": 5, "category": "真人口播", "visual": "", "copy": "用它洗过的小花园清清爽爽,还带有一丝丝的凉感,真的很舒服。"},
+    {"start": 6, "end": 8, "category": "产品展示", "visual": "突出包装", "copy": "他是我见过为数不多的敢把这几个字印在包装上的产品。"},
+    {"start": 8, "end": 12, "category": "产品展示", "visual": "", "copy": "为什么用这个洗液一定不要兑水呢,不然就等于白买了。"},
+    {"start": 12, "end": 15, "category": "产品展示", "visual": "", "copy": "不兑水用,底下真的干净的太快了"},
+    {"start": 15, "end": 18, "category": "产品展示", "visual": "倒入产品+真人起床", "copy": "不兑水用,第二天起床清清爽爽还香香的"},
+    {"start": 18, "end": 22, "category": "产品展示", "visual": "展示2瓶", "copy": "你说不兑水用太快了,那再送你两瓶。"},
+    {"start": 22, "end": 25, "category": "产品展示", "visual": "展示多瓶", "copy": "你说使用不方便,那再送你两个冲洗器"},
+    {"start": 25, "end": 30, "category": "产品展示", "visual": "展示SKU", "copy": "你说价格太贵,加量不加价,一瓶价格到手十件"},
+    {"start": 30, "end": 34, "category": "产品展示", "visual": "倒入垃圾桶", "copy": "私处洗液这种消耗品,一定要趁有活动的时候多囤一些"},
+    {"start": 34, "end": 37, "category": "场景展示", "visual": "场景展示", "copy": "建议女生们每天睡前洗一洗"},
+    {"start": 37, "end": 39, "category": "真人口播", "visual": "", "copy": "点我头像,不好用你来评论区"}
+  ]
+}

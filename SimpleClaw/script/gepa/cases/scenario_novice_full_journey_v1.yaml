@@ -1,0 +1,327 @@
+id: scenario_novice_full_journey_v1
+name: scenario_novice_full_journey_v1_multi_turn
+objective: |
+  用一条 20 轮左右的新手期完整旅程，测试主 Agent 是否能从情绪陪伴自然走到护肤照顾，
+  再到产品咨询、海边计划、饮食偏好和低压自拍邀请。
+
+  这不是把 6 个短场景机械拼接，而是同一个新用户的一段连续体验：
+  用户先被老板骂、心情差，拒绝拍照；Agent 应先陪伴，不催拍。
+  用户随后开始洗脸、提到下巴痘和熬夜；Agent 应主动低压邀请用户在方便时拍当前状态，
+  同时主动询问手边有哪些护肤品，允许用户说名字或发产品图。
+  用户心情缓和后聊明天去海边和晚上吃火锅；Agent 应把防晒、修护、饮食折中和后续拍照观察自然串起来。
+background: |
+  本 case 用现有 6 个新手期场景重编成一条自然长链路：
+  - 场景1：功能探索
+  - 场景2：情绪陪伴与自我照顾
+  - 场景3：产品图/护肤品咨询
+  - 场景4：下巴痘、熬夜、产品区域化调整
+  - 场景5：火锅/饮食偏好与皮肤关系
+  - 场景6：海边计划、防晒和晒后修护
+
+  当前优化主回复相关组件：
+  1. main_agent：全局对话策略、长程上下文、主动引导边界。
+  2. tool_rules：工具触发边界，避免产品图误走自拍分析，避免工具神圣化。
+  3. novice_journey：新手期低压自拍邀请、拒绝后继续陪聊、未画像状态下的建议分寸。
+  4. soul_style：语气、亲密度、气泡感与长期人格。
+
+  注意：本 case 第一版不让用户真的上传自拍，只测试 Agent 是否在第 8-10 轮和情绪缓和后自然引导自拍。
+  产品图可以作为护肤品咨询上下文，但不应触发自拍图片分析链路。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.92
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局对话策略、长程上下文、主动引导边界。
+  - id: tool_rules
+    path: Mojing/workspace/TOOL.md
+    role: 工具触发边界、产品图/自拍边界、避免工具神圣化。
+  - id: novice_journey
+    path: "Mojing/workspace/ journey/novice.md"
+    role: 新手期低压自拍邀请、拒绝后继续陪聊、未画像建议分寸。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 语气、亲密度、气泡感与长期人格。
+
+contract_sources:
+  - ../contracts/scenario_novice_full_journey_contracts.yaml
+
+examples:
+  - id: bad_day_to_selfie_readiness
+    split: dfeedback
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: |
+      用户从“被老板骂、心情差、拒绝拍照”开始，逐步进入洗脸、下巴痘、熬夜和护肤品咨询。
+      Agent 应先陪伴情绪，在用户拒绝拍照时尊重拒绝；
+      当用户开始聊脸油、下巴痘、熬夜和“不知道怎么护肤”时，主动低压邀请自拍观察当前状态，
+      并主动引导用户提供手边护肤品，可以说名字或拍产品图。
+      用户心情变好后，Agent 可以再次自然邀请看当前状态，但不能催拍或工具化。
+    rubric:
+      - 情绪阶段先陪伴，不把拍照当流程。
+      - 用户拒绝拍照时，尊重拒绝，继续陪聊。
+      - 第 8-10 轮聊下巴痘/熬夜/不知道怎么护肤时，主动低压邀请自拍。
+      - 第 10 轮主动引导用户提供护肤品信息或产品图。
+      - 产品图场景不误触自拍分析，不神圣化护肤柜。
+      - 产品调整结合 B5、小棕瓶、厚重面霜，给区域化建议。
+      - 海边和火锅场景给具体但不扫兴的建议。
+      - 用户心情好多了以后，可以再次自然邀请看当前状态。
+    turns:
+      - id: capability_opening
+        user_query: "你都能帮我做什么？"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: capability_overview_low_pressure_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: boss_scolded
+        user_query: "今天上班被老板骂了，心情特别不好"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: boss_scold_emotion_support_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: feels_withered
+        user_query: "我真的有点烦，感觉整个人都蔫了"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: boss_scold_emotion_support_v1
+          - ref: self_care_without_pressure_v1
+
+      - id: no_energy
+        user_query: "那我现在应该干嘛，完全不想动"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: self_care_without_pressure_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: refuses_selfie
+        user_query: "拍照？算了吧，我现在状态很差，不想拍"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: no_force_photo_when_user_refuses_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: dont_keep_pushing
+        user_query: "嗯……你别一直催我拍照就行"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: no_force_photo_when_user_refuses_v1
+
+      - id: wash_face_oily
+        user_query: "那我先洗个脸吧，感觉脸也油油的"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: self_care_without_pressure_v1
+
+      - id: chin_acne
+        user_query: "我最近下巴还冒了好多痘痘"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+          - ref: no_deep_report_or_skin_diary_handoff_v1
+        behavior_checks:
+          - ref: acne_after_photo_refusal_no_reinvite_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: late_sleep
+        user_query: "是啊，最近加班比较多，经常熬夜到12点以后"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+          - ref: no_deep_report_or_skin_diary_handoff_v1
+        behavior_checks:
+          - ref: active_soft_selfie_invite_for_acne_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: asks_after_wash_routine
+        user_query: "那我现在洗完脸之后应该怎么护肤？我也不知道该用什么"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+          - ref: no_deep_report_or_skin_diary_handoff_v1
+        behavior_checks:
+          - ref: active_soft_selfie_invite_for_acne_v1
+          - ref: active_product_info_request_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: sends_product_image
+        user_query: "那我拍给你看吧"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172504.png"
+        hard_assertions:
+          - ref: product_image_no_selfie_analysis_v1
+        behavior_checks:
+          - ref: product_image_ack_boundary_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: adds_more_products
+        user_query: "我还有一个B5和一个面霜，面霜有时候觉得有点厚"
+        phase: setup
+        measure: false
+
+      - id: asks_product_routine
+        user_query: "那我今晚应该怎么用？下巴长痘的地方要不要避开？"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+          - ref: no_deep_report_or_skin_diary_handoff_v1
+        behavior_checks:
+          - ref: product_routine_area_guidance_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: goes_to_self_care
+        user_query: "好，那我先按你说的洗脸护肤一下"
+        phase: setup
+        measure: false
+
+      - id: mood_better
+        user_query: "洗完脸之后，现在心情好了一点了"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: mood_better_invites_selfie_again_v1
+
+      - id: beach_plan
+        user_query: "明天准备去海边，朋友约我出去散散心"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: beach_plan_skincare_v1
+
+      - id: beach_preparation
+        user_query: "去海边的话需要准备什么呢"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: beach_plan_skincare_v1
+
+      - id: spicy_hotpot
+        user_query: "晚上可能还会去吃火锅，最近真的很想吃点辣的"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: spicy_food_skin_balance_v1
+
+      - id: mood_recovered
+        user_query: "哈哈哈，说着说着心情好多了。"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: mood_better_invites_selfie_again_v1
+
+      - id: thanks_closure
+        user_query: "谢谢你，小镜"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: gratitude_closure_no_tool_push_v1
+
+  - id: overtime_to_product_and_beach_variant
+    split: dpareto
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: |
+      这是同一条新手期长旅程的轻量变体：用户先被领导说、拒绝拍照，随后洗脸、聊下巴痘和护肤品，
+      再聊周末外出和饮食。Agent 应先陪伴情绪，拒绝时不催拍；在用户开始聊痘痘/护肤时主动低压邀请自拍；
+      在用户不知道用什么时主动问手边产品；产品图不要误判成自拍；海边和火锅建议要具体但不扫兴。
+    rubric:
+      - 情绪和拒绝拍照阶段不能催拍。
+      - 痘痘/熬夜/洗脸后不知道怎么护肤时，应主动低压邀请自拍。
+      - 护肤品信息应由 Agent 主动引导用户提供。
+      - 产品图不误触自拍分析。
+      - 海边和火锅建议具体、低压。
+    turns:
+      - id: workplace_reason
+        user_query: "今天加班到很晚，还被领导说了一顿，真的有点丧"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: boss_scold_emotion_support_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: reject_photo
+        user_query: "你别让我现在拍照，我今天状态太差了"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: no_force_photo_when_user_refuses_v1
+
+      - id: wash_face
+        user_query: "那我先洗个脸吧，脸上油油的也不舒服"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: self_care_without_pressure_v1
+
+      - id: chin_acne_late_sleep
+        user_query: "而且我下巴最近又冒痘，可能也是这几天熬夜太多了"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: active_soft_selfie_invite_for_acne_v1
+          - ref: no_tool_sacralization_full_journey_v1
+
+      - id: asks_routine_unknown_products
+        user_query: "洗完脸之后我该怎么护肤啊，我也不知道该拿哪瓶"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+          - ref: no_deep_report_or_skin_diary_handoff_v1
+        behavior_checks:
+          - ref: active_soft_selfie_invite_for_acne_v1
+          - ref: active_product_info_request_v1
+
+      - id: sends_product_image
+        user_query: "那我把其中一瓶拍给你看"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172504.png"
+        hard_assertions:
+          - ref: product_image_no_selfie_analysis_v1
+        behavior_checks:
+          - ref: product_image_ack_boundary_v1
+
+      - id: adds_b5_cream
+        user_query: "旁边还有B5和一个高保湿面霜，那个面霜我觉得有点厚"
+        phase: setup
+        measure: false
+
+      - id: asks_area_use
+        user_query: "那下巴长痘的位置今晚是不是要避开这些厚的？"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: product_routine_area_guidance_v1
+
+      - id: mood_better
+        user_query: "洗完脸舒服多了，心情也没刚才那么差了"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: mood_better_invites_selfie_again_v1
+
+      - id: beach_tomorrow
+        user_query: "明天朋友约我去海边透透气，我要准备点什么？"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: beach_plan_skincare_v1
+
+      - id: wants_spicy
+        user_query: "晚上可能还想吃火锅，最近就是很想吃点辣的"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: spicy_food_skin_balance_v1
+
+      - id: thanks
+        user_query: "谢谢你，跟你聊完舒服多了"
+        hard_assertions:
+          - ref: main_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: gratitude_closure_no_tool_push_v1

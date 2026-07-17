@@ -1,0 +1,220 @@
+hard_assertion_library:
+  food_chat_text_reply_no_specialist_task_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - no_runtime_task_created: image_analysis
+    - no_runtime_task_created: skin_diary_generation
+    - no_runtime_task_created: deep_research
+    - no_runtime_task_created: subagent_dispatch
+
+  food_chat_no_skill_or_diary_handoff_v1:
+    - not_tool_called: load_skill
+    - not_tool_called: notify_skin_diary_chat
+
+check_library:
+  casual_food_opening_keeps_chatty_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["吃", "晚饭", "饿", "饭点", "想吃", "口味", "今天"]
+    none_of: ["必须", "一定不能", "不许", "生成肌肤日记", "深度报告", "上传照片"]
+    guidance: >
+      用户只是说饿、纠结晚饭时，回复应先像朋友一样接住日常闲聊，
+      可以轻问想吃什么或口味偏好，不要立刻变成严肃护肤流程或饮食管教。
+    prompt_fix_hint: >
+      饮食闲聊入口先保持聊天感：接住“饿/晚饭纠结”，再轻问口味；
+      不要一上来强推工具、报告、拍照或严格饮食规则。
+    positive_example: "到饭点真的容易纠结。你今天是想吃热乎的，还是想吃点清爽的？"
+    negative_example: "你现在应该先生成肌肤日记，然后严格控制饮食。"
+    weight: 1.2
+
+  remembers_food_preference_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["火锅", "麻辣烫", "辣", "无辣不欢", "重口", "奶茶", "果茶", "甜饮", "甜", "口味", "下班快乐", "过瘾"]
+    guidance: >
+      用户说喜欢火锅、辣、奶茶或甜食后，回复需要承接这个具体饮食偏好，
+      不要像没听见一样只给通用健康建议。
+    prompt_fix_hint: >
+      先承接用户的饮食偏好，再给建议；例如“你是爱辣口/火锅党”，不要直接跳成泛泛饮食科普。
+    positive_example: "我记住了，你是火锅和辣口这一派。我们不用完全戒，可以把辣度和油度稍微降一点。"
+    negative_example: "建议你多吃蔬菜水果。"
+    weight: 1.2
+
+  links_diet_to_skin_cautiously_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["下巴", "痘", "闭口", "出油", "泛红", "皮肤状态", "皮肤更稳", "皮肤添负担", "给皮肤添负担", "皮肤太大负担", "皮肤影响", "影响会小", "油脂分泌", "友好", "可能", "容易", "加重"]
+    none_of: ["一定是", "必然", "主要原因", "吃辣就会烂脸", "奶茶毁脸"]
+    guidance: >
+      用户偏爱辛辣、油腻或高糖饮食时，可以结合新手期刚刚/近期看到的下巴痘、闭口、偏油等轻量线索，
+      谨慎说明这些饮食可能让出油、炎症或痘痘更不稳定。
+      不要把饮食说成唯一确定原因，也不要制造羞耻感。
+    prompt_fix_hint: >
+      用“可能/容易/这几天先观察”表达饮食和皮肤的关系；
+      不要说“一定是吃辣导致”或用恐吓式词汇。
+    positive_example: "你下巴本来就容易冒痘，这几天如果又吃很辣很油，确实可能更容易红肿或出油。"
+    negative_example: "你下巴长痘一定就是火锅和奶茶导致的。"
+    weight: 1.3
+
+  no_extreme_diet_restriction_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["你要完全戒掉", "需要完全戒掉", "必须完全戒掉", "以后完全戒掉", "从今天开始完全戒掉", "一点都不能吃", "绝对不能吃", "不许吃", "必须戒掉", "再也不要喝", "以后都不能"]
+    guidance: >
+      饮食建议要低压、可持续。不要要求用户完全戒掉喜欢的食物，
+      除非用户自己表达医疗禁忌或过敏。
+    prompt_fix_hint: >
+      把“不能吃/必须戒”改成“降低频率、换微辣、少糖、小份、观察反应”。
+    weight: 1.2
+
+  spicy_food_compromise_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["微辣", "少麻", "少辣", "少麻少辣", "鸳鸯锅", "清汤", "番茄锅", "番茄底", "骨汤", "少油", "少蘸料", "蔬菜", "绿叶菜", "青菜", "菌菇", "菇类", "豆制品", "豆腐", "瘦肉", "加工丸子", "少选丸子", "少喝冰甜", "频率", "温和"]
+    guidance: >
+      用户爱吃火锅或辣，但担心不吃辣没味道时，回复应给折中方案：
+      例如微辣/鸳鸯锅、少油少蘸料、多蔬菜和蛋白、降低频率或观察皮肤反应。
+    prompt_fix_hint: >
+      不要只说“少吃辣”；给出能让用户继续享受口味的具体替代方案。
+    positive_example: "今天可以选鸳鸯锅或微辣，蘸料少油一点，多夹青菜、豆腐和瘦肉，先别叠冰奶茶。"
+    negative_example: "那你就别吃辣了。"
+    weight: 1.3
+
+  milk_tea_step_down_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["奶茶", "果茶", "甜饮", "少糖", "半糖", "三分糖", "无糖", "少甜", "甜度", "小杯", "小份", "频率", "隔天", "两天一杯", "高糖"]
+    none_of: ["头号杀手", "毁脸", "马上衰老", "一定长痘", "必须戒奶茶"]
+    guidance: >
+      用户说每天想喝奶茶时，回复应说明高糖饮品可能影响出油、痘痘或暗沉，
+      但要给可执行的降级方案，例如半糖/无糖、小杯、降低频率，而不是恐吓或强迫戒掉。
+    prompt_fix_hint: >
+      奶茶建议用“阶梯式减少”：先半糖/小杯/隔天，不要把高糖说成灾难。
+    positive_example: "每天一杯对下巴痘和出油可能不太友好，可以先从半糖小杯、隔天一杯开始。"
+    negative_example: "奶茶是皮肤头号杀手，必须马上戒掉。"
+    weight: 1.3
+
+  skin_friendly_food_advice_balanced_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["维生素C", "水果", "果蔬", "小番茄", "猕猴桃", "蔬菜", "蛋白", "鱼", "鸡蛋", "豆制品", "豆腐", "豆浆", "全谷", "粗粮", "燕麦", "膳食纤维", "坚果", "南瓜", "菠菜", "胡萝卜", "喝水", "温水"]
+    none_of: ["马上变好", "保证不长痘", "炎症消得快一点", "lean meat", "吃猪蹄补胶原", "胶原蛋白一定", "8杯水"]
+    guidance: >
+      用户问吃什么对皮肤好时，应给均衡、可执行的饮食建议：
+      蔬果、优质蛋白、全谷物、坚果、充足饮水等。
+      不要承诺食物能立刻改善皮肤，也不要输出不严谨的胶原蛋白神话或固定“8杯水”口号。
+    prompt_fix_hint: >
+      食物建议要平衡具体，不做神奇食物承诺；更像“下次点餐怎么选”。
+    positive_example: "可以优先选蔬菜、鸡蛋/鱼/豆腐这类蛋白，再搭配水果和足量喝水，少一点高糖饮料。"
+    negative_example: "多吃猪蹄补胶原，皮肤马上变好。"
+    weight: 1.2
+
+  respects_user_food_enjoyment_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["不用完全", "不用太有负担", "不会太有负担", "没那么有负担", "不用有负担", "不用太担心", "别委屈自己", "偶尔", "想吃可以", "可以吃", "想吃就吃", "吃得开心", "完全没问题", "完全懂", "我懂", "爽", "不用特意逼自己", "保留快乐", "折中", "慢慢", "先从", "解馋", "吃爽", "吃的爽", "超爽", "满足", "快乐", "回血"]
+    guidance: >
+      饮食偏好场景要尊重用户享受食物的需求，不要把建议写成教训。
+      应给可持续的折中方案，让用户感觉“还能吃，只是更聪明地吃”。
+    prompt_fix_hint: >
+      把饮食建议从管教改成陪用户做折中：保留快乐，降低刺激/高糖/高油频率。
+    positive_example: "不用一下子戒掉，先把辣度和奶茶频率降一点，既能解馋也更照顾下巴痘。"
+    negative_example: "你自控力太差了，想皮肤好就别吃这些。"
+    weight: 1.2
+
+  no_over_relaxed_diet_reassurance_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["放开吃", "只要吃完之后多补点水", "只要吃完多补点水", "喝完多走两步消消食", "偶尔喝完全没关系", "多喝水就好", "小痘痘不会随便冒出来", "痘痘不会随便冒出来", "痘痘也不会随便闹脾气", "痘痘也不会太捣乱"]
+    guidance: >
+      尊重用户想吃东西的快乐，但不要把建议降级成“随便吃，喝点水就行”。
+      如果用户担心痘痘、出油或泛红，需要给具体折中方案，而不是过度保证没影响。
+    prompt_fix_hint: >
+      把“放开吃/多喝水就好”改成“可以吃，但辣度、油度、糖度和频率稍微降一点，并观察下巴痘和出油变化”。
+    weight: 1.2
+
+  no_tool_promotion_in_food_chat_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["生成肌肤日记", "肌肤日记助手", "深度报告", "深度分析报告", "上传照片", "护肤柜"]
+    guidance: >
+      本场景是饮食闲聊和轻量护肤建议，不应把每轮都导向肌肤日记、深度报告、拍照或护肤柜。
+    prompt_fix_hint: >
+      饮食闲聊优先直接回答；不要默认收尾推工具。
+    weight: 1.2
+
+behavior_contracts:
+  food_opening_chat_v1:
+    description: 用户饭点闲聊、不知道吃什么时的入口回复。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      先保持聊天感，接住“饿/纠结晚饭”，可以轻问口味偏好。
+      不要立刻强行切护肤流程、拍照、肌肤日记或深度报告。
+    hard_assertions:
+      - ref: food_chat_text_reply_no_specialist_task_v1
+      - ref: food_chat_no_skill_or_diary_handoff_v1
+    checks:
+      - ref: casual_food_opening_keeps_chatty_v1
+      - ref: no_tool_promotion_in_food_chat_v1
+
+  spicy_preference_skin_link_v1:
+    description: 用户说自己爱火锅、爱辣后的皮肤关联策略。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      承接用户喜欢火锅和辣的具体偏好，结合刚刚/近期看到的偏油、下巴痘或闭口线索，
+      谨慎说明辛辣重油可能让出油或痘痘更不稳定；不恐吓，不要求完全戒掉。
+    hard_assertions:
+      - ref: food_chat_text_reply_no_specialist_task_v1
+      - ref: food_chat_no_skill_or_diary_handoff_v1
+    checks:
+      - ref: remembers_food_preference_v1
+      - ref: links_diet_to_skin_cautiously_v1
+      - ref: no_extreme_diet_restriction_v1
+      - ref: respects_user_food_enjoyment_v1
+      - ref: no_over_relaxed_diet_reassurance_v1
+      - ref: no_tool_promotion_in_food_chat_v1
+
+  spicy_compromise_answer_v1:
+    description: 用户觉得不吃辣没味道时的折中建议。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      先理解用户的口味快乐，再给可执行折中：微辣/鸳鸯锅、少油少蘸料、
+      多蔬菜和蛋白、降低频率、观察下巴痘和出油变化。
+    hard_assertions:
+      - ref: food_chat_text_reply_no_specialist_task_v1
+      - ref: food_chat_no_skill_or_diary_handoff_v1
+    checks:
+      - ref: spicy_food_compromise_v1
+      - ref: no_extreme_diet_restriction_v1
+      - ref: respects_user_food_enjoyment_v1
+      - ref: no_over_relaxed_diet_reassurance_v1
+
+  milk_tea_stepdown_answer_v1:
+    description: 用户说每天想喝奶茶时的建议。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      承接用户喜欢奶茶，说明高糖饮品可能影响出油、痘痘或暗沉，
+      给半糖/无糖、小杯、降低频率等阶梯式方案，不恐吓也不强制戒掉。
+    hard_assertions:
+      - ref: food_chat_text_reply_no_specialist_task_v1
+      - ref: food_chat_no_skill_or_diary_handoff_v1
+    checks:
+      - ref: remembers_food_preference_v1
+      - ref: milk_tea_step_down_v1
+      - ref: links_diet_to_skin_cautiously_v1
+      - ref: no_extreme_diet_restriction_v1
+      - ref: no_over_relaxed_diet_reassurance_v1
+
+  skin_friendly_food_recommendation_v1:
+    description: 用户问吃什么对皮肤好时的推荐。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      给出均衡、具体、可持续的饮食建议，最好能落到点餐选择；
+      不承诺食物能马上改善皮肤，不输出不严谨的胶原蛋白神话。
+    hard_assertions:
+      - ref: food_chat_text_reply_no_specialist_task_v1
+      - ref: food_chat_no_skill_or_diary_handoff_v1
+    checks:
+      - ref: skin_friendly_food_advice_balanced_v1
+      - ref: respects_user_food_enjoyment_v1
+      - ref: no_tool_promotion_in_food_chat_v1

@@ -1,0 +1,97 @@
+id: mirror_device_long_dialogues_v1
+name: mirror_device_long_dialogues_v1
+objective: |
+  验证硬件魔镜端在较长新手期对话里能保持聊天欲望，不机械推功能，并正确分流拍脸和护肤柜。
+background: |
+  这个 case 关注体验连续性：硬件端更主动，但不能抢拍、不能每轮推护肤柜、不能把产品瓶身邀请当作绕过拍照节流的软推销。
+agent: main
+initial_stage: novice
+prompt_surface: device
+device_code: mirror-regression-1
+wait_side_effects_s: 0
+target_score: 0.86
+score_weights:
+  hard: 0.5
+  behavior: 0.5
+
+prompt_candidates:
+  - id: device_agent
+    path: Mojing/workspace/device/Agent.md
+    role: 硬件主 Agent 行为、同意边界、拍照两阶段。
+  - id: device_soul
+    path: Mojing/workspace/device/SOUL.md
+    role: 硬件镜前语感。
+  - id: device_tool
+    path: Mojing/workspace/device/TOOL.md
+    role: 硬件工具调用边界。
+  - id: device_novice
+    path: Mojing/workspace/device/journey/novice.md
+    role: 硬件新手期主线。
+  - id: device_first_token
+    path: Mojing/workspace/device/first_token.md
+    role: 硬件第一气泡弱接话，不能抢答系统回图事实。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      硬件魔镜端新用户，愿意聊天但对拍照和产品识别都需要低压引导。
+
+contract_sources:
+  - ../contracts/mirror_device_dialogue_contracts.yaml
+
+examples:
+  - id: long_photo_success_then_contextual_aftercare
+    split: dfeedback
+    expected_behavior: |
+      长对话中先聊天，再拍脸，系统回图后按泛红话题续护理建议；不要固定推护肤柜。
+    turns:
+      - id: hello
+        user_query: "魔镜魔镜"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_app_surface_words_v1
+      - id: concern
+        user_query: "最近脸颊有点红，洗完脸更明显"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: invite_declarative_waits_consent_v1
+      - id: consent
+        user_query: "嗯好，拍吧"
+        hard_assertions:
+          - ref: device_capture_dispatched_v1
+        behavior_checks:
+          - ref: capture_ritual_only_v1
+      - id: system_photo_event
+        user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：两侧脸颊轻微泛红，鼻翼附近有一点出油。"
+        hard_assertions:
+          - ref: device_photo_event_reply_v1
+        behavior_checks:
+          - ref: quick_analysis_value_v1
+      - id: followup_advice
+        user_query: "那我今晚还能用美白精华吗？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+
+  - id: product_topic_routes_to_cabinet_only_when_relevant
+    split: dpareto
+    expected_behavior: |
+      用户主动聊产品后，才自然引导产品瓶身；不要在无产品话题时固定推护肤柜。
+    turns:
+      - id: redness_advice
+        user_query: "我泛红的时候是不是先别折腾？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: product_context
+        user_query: "我手边有个精华，用了会有点刺，不知道是不是它的问题"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: product_invite_only_when_relevant_v1
+          - ref: no_app_surface_words_v1

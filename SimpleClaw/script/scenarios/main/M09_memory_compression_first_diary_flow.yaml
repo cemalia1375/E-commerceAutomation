@@ -1,0 +1,581 @@
+id: M09_memory_compression_first_diary_flow
+name: main_memory_compression_first_diary_flow
+description: 从 GEPA scenario_novice_emotion_to_first_diary_v1 改写的主 runner 长轮次场景。前置覆盖用户从不会连接魔镜、连接失败到成功接入后的连续求助，再衔接强情绪陪伴、低压自拍、首次图片分析与肌肤日记、护肤品入柜、探索期护理方案跟进、第二天复拍，并通过长对话积压触发 context compression 和 memory_extract，观察 compression_memory.md 如何整理 dropped messages。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+session:
+  reuse: false
+  subscriptions:
+    - "main:{tenant_key}"
+    - "skin_diary:{tenant_key}"
+
+turns:
+  - user: "我刚把镜子拿出来，但我完全不会连，之前好像还跳过了联网，现在入口在哪里啊？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+    soft_checks:
+      - reply_contains: "设备管理"
+
+  - user: "我找到添加设备了，但是扫码的时候提示没有摄像头权限，我有点懵。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+    soft_checks:
+      - reply_contains: "摄像头"
+
+  - user: "权限开了，可是二维码扫了半天没反应，是不是我操作错了？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+    soft_checks:
+      - reply_contains: "二维码"
+
+  - user: "现在扫到了，但手机让我连魔镜的 WiFi 热点，我列表里没看到这个名字。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+    soft_checks:
+      - reply_contains: "WiFi"
+
+  - user: "我重启了一下镜子，现在热点出来了，但是一直显示正在连接，等了好久。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+    soft_checks:
+      - reply_contains: "密码"
+
+  - user: "好了好了，终于连上了。刚才折腾半天我都有点烦了，但现在应该可以跟镜子正常聊了吧？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+    soft_checks:
+      - reply_contains: "可以"
+
+  - user: "本来就很烦，今天什么破事都让我赶上了！"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+
+  - user: "今天项目出了个bug，明明是同事写的代码，老板非要说是我的问题，我跟他解释他还说我推卸责任，气死我了！"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+
+  - user: "是啊，我今天一下午都在改那个不是我写的bug，加班到现在才回家，饭都没来得及吃。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - user: "没胃口，气都气饱了。一想到明天还要面对那个老板和同事，我就不想去上班了。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - user: "那我现在能做点什么？别太麻烦的，我现在真的只想用最省力的办法把自己拉回来一点。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - user: "洗个脸真的有用吗？感觉都是安慰人的话，我现在连动一下都觉得烦。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - user: "那我希望明天老板不要找我麻烦，那个同事能主动承认错误，但我也知道这事可能没那么顺。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - user: "那我现在先洗个脸吧，别太复杂就行，我不想搞一堆步骤。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 2
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "步骤"
+
+  - user: "你刚刚说心情和皮肤状态可以做个小记录，那是什么？别搞得像打卡任务一样，我今天已经够烦了。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "怎么记录呀？还要拍照片吗？我现在脸色肯定很差。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - no_runtime_task_created: image_analysis
+
+  - user: "可是我今天又累又气，脸色肯定特别难看，不想拍照。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - no_runtime_task_created: image_analysis
+
+  - user: "好吧，那我拍一张。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 2
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - no_runtime_task_created: image_analysis
+    soft_checks:
+      - doc_contains:
+          doc: SOUL.md
+          text: "夸张"
+
+  - user: "我拍好了，你看看吧。"
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 300
+    wait_until_timeout_s: 300
+    wait_until_interval_s: 2
+    wait_until:
+      - image_job_status:
+          status: succeeded
+      - user_md_contains: "## Learned Skin Profile"
+      - runtime_task_created: skin_diary_generation
+      - skin_diary_result_created: true
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - runtime_task_created: image_analysis
+      - image_job_created: true
+      - image_job_status:
+          status: succeeded
+      - user_md_contains: "## Learned Skin Profile"
+      - runtime_task_created: skin_diary_generation
+      - skin_diary_result_created: true
+
+  - user: "[scenario_action] wait for main session image-analysis activation"
+    phase: setup
+    measure: false
+    scenario_action:
+      name: wait_for_session_events
+      session_key: "main:{tenant_key}"
+      use_existing_listener: true
+      timeout_s: 60
+      max_events: 64
+      source: system_activation
+      activation_kind: image_analysis_completion
+    soft_checks:
+      - session_event_contains: "image_analysis_completion"
+
+  - user: "[scenario_action] wait for main session skin-diary completion activation"
+    phase: setup
+    measure: false
+    scenario_action:
+      name: wait_for_session_events
+      session_key: "main:{tenant_key}"
+      use_existing_listener: true
+      timeout_s: 120
+      max_events: 64
+      source: system_activation
+      activation_kind: skin_diary_completion
+    soft_checks:
+      - session_event_contains: "skin_diary_completion"
+
+  - user: "真的吗？我还以为我今天脸黄得像个蜡人呢。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - user: "肌肤日记是什么？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "那我现在就去护肤。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - user: "我现在有这个。"
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172434.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: load_skill
+      - not_tool_called: analyze_image
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: skin_diary_generation
+      - no_runtime_task_created: deep_research
+
+  - user: "对，就是这个，已经开封在用了。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: lookup_skincare_cabinet_product_status
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - not_tool_called: confirm_skincare_cabinet_record
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: skin_diary_generation
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: deep_research
+
+  - user: "可以帮我查一下资料呀，调研完直接帮我入柜吧。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: research_skincare_product
+      - runtime_task_created: cabinet_product_research
+      - not_tool_called: analyze_image
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - not_tool_called: confirm_skincare_cabinet_record
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: skin_diary_generation
+      - no_runtime_task_created: deep_research
+
+  - user: "[scenario_action] wait for cabinet product record"
+    phase: setup
+    measure: false
+    scenario_action:
+      name: wait_for_side_effects
+    wait_side_effects_s: 1
+    wait_until_timeout_s: 300
+    wait_until_interval_s: 2
+    wait_until:
+      - runtime_task_created: cabinet_product_record
+      - runtime_task_succeeded: cabinet_product_record
+    hard_assertions:
+      - reply_non_empty: true
+      - runtime_task_created: cabinet_product_record
+      - runtime_task_succeeded: cabinet_product_record
+
+  - user: "额头上还有痘痘呢。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 2
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "额头"
+
+  - user: "还有黑眼圈，我今天真的最在意这个，痘痘烦归烦，但黑眼圈让我看起来特别没精神。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 2
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "黑眼圈"
+
+  - user: "我最近也总是加班，基本十二点才睡，早上又赶着出门，晨间护肤最好三步以内。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 2
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "三步"
+
+  - user: "饮食我也说实话，我爱吃火锅，越辣越好，奶茶和啤酒也喜欢。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 2
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "火锅"
+
+  - user: "我不想完全戒辣，但可以先少喝一点奶茶，啤酒尽量周末再喝。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 2
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "奶茶"
+
+  - user: "不错不错"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 3
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+
+  - scenario_action:
+      name: age_latest_image_job
+      days: 1
+    phase: setup
+    measure: false
+    hard_assertions:
+      - reply_non_empty: true
+
+  - user: "第二天了，给我来一份今日的护肤日记吧。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: subagent_dispatch
+      - no_runtime_task_created: skin_diary_generation
+      - reply_not_contains: "提交生成请求"
+      - reply_not_contains: "查看生成进度"
+    soft_checks:
+      - reply_contains: "照片"
+      - reply_contains: "自拍"
+
+  - user: "我拍好了。"
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 300
+    wait_until_timeout_s: 300
+    wait_until_interval_s: 2
+    wait_until:
+      - image_job_status:
+          status: succeeded
+          source: created
+      - user_md_contains: "## Learned Skin Profile"
+      - runtime_task_created: skin_diary_generation
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - runtime_task_created: image_analysis
+      - image_job_created: true
+      - image_job_status:
+          status: succeeded
+          source: created
+      - runtime_task_created: skin_diary_generation
+
+  - user: "你还记得我昨天说要怎么处理额头痘痘吗？我想知道今天要不要继续那个办法。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 4
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - runtime_task_created: memory_extract
+
+  - user: "晨间护肤教我一下呢"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 3
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - runtime_task_created: memory_extract
+
+  - user: "如何判断我们现在的做法关于痘痘是有效的呢？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 5
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - runtime_task_created: memory_extract
+
+  - user: "最后你帮我总结一下：我今天这张图片和昨天比有什么区别？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 8
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - runtime_task_created: memory_extract

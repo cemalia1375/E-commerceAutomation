@@ -1,0 +1,339 @@
+id: mirror_device_novice_recommendation_10x20_v1
+name: mirror_device_novice_recommendation_10x20_v1
+objective: |
+  构建 10 次、每次 20 轮的硬件魔镜新手期长对话测试，验证本轮 PRD 的续聊、拍照、产品推荐触点、
+  系统完成事件和肌肤日记边界是否在长上下文里仍然稳定。
+background: |
+  这是 GEPA/runner 真实 Agent 回归 case。它运行在 prompt_surface=device，device_command 由 runner 按真实
+  DeviceCommandTool 返回契约 mock，默认模拟 15s 回图窗口内 photo_ready；不需要真实硬件。每个 example 都是
+  同一 tenant/session 内连续 20 轮，覆盖拒绝许愿、闲聊回收、能力询问、明确拍照同意、拍照仪式、系统回图、
+  五类产品推荐触点、主动只读查护肤柜、系统完成事件和肌肤日记边界。
+agent: main
+initial_stage: novice
+prompt_surface: device
+device_code: mirror-novice-recommendation-10x20
+wait_side_effects_s: 0
+target_score: 0.9
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: device_agent
+    path: Mojing/workspace/device/Agent.md
+    role: 硬件主 Agent 行为、同意边界、推荐触点和肌肤日记边界。
+  - id: device_soul
+    path: Mojing/workspace/device/SOUL.md
+    role: 硬件镜前语感、推荐语气和低压陪伴。
+  - id: device_tool
+    path: Mojing/workspace/device/TOOL.md
+    role: 硬件工具调用边界、只读查柜、拍照和状态查询。
+  - id: device_novice
+    path: Mojing/workspace/device/journey/novice.md
+    role: 硬件新手期主线、续聊和产品推荐触点。
+  - id: device_first_token
+    path: Mojing/workspace/device/first_token.md
+    role: 硬件第一气泡弱接话，不能抢答系统回图事实。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      硬件魔镜端新用户，还没有完成首次拍脸、基础图片分析和首次肌肤日记。
+      用户愿意聊天，但对拍照、产品识别、护肤柜和照片保存都有一点顾虑。
+  skincare_cabinet_products:
+    - brand: 日用
+      product_name: 舒缓保湿乳
+      category: 乳液
+      core_efficacy: [保湿, 修护]
+      core_ingredients: [泛醇, 神经酰胺]
+      risk_ingredients: []
+    - brand: 清爽
+      product_name: 防晒乳
+      category: 防晒
+      core_efficacy: [防晒]
+      core_ingredients: [物理防晒剂]
+      risk_ingredients: []
+    - brand: 修护
+      product_name: 泛醇面霜
+      category: 面霜
+      core_efficacy: [舒缓, 修护]
+      core_ingredients: [泛醇, 积雪草]
+      risk_ingredients: []
+
+contract_sources:
+  - ../contracts/mirror_device_dialogue_contracts.yaml
+
+x_assertions:
+  no_capture: &no_capture
+    - ref: device_text_no_capture_v1
+  capture: &capture
+    - ref: device_capture_photo_ready_v1
+  photo_event: &photo_event
+    - ref: device_photo_event_reply_v1
+  cabinet_lookup: &cabinet_lookup
+    - ref: device_readonly_cabinet_lookup_v1
+  diary_status: &diary_status
+    - ref: device_skin_diary_status_check_v1
+
+examples:
+  - id: run01_wish_refusal_redness_cabinet_diary
+    split: regression
+    expected_behavior: |
+      用户拒绝许愿和闲聊后，Agent 应低压回到看今天肤况的同意路径；同意后拍照，系统回图后继续追问；
+      后续泛红、美白、护肤柜、成分和肌肤日记问题都要保持边界。
+    turns:
+      - {id: t01_no_wish, user_query: "没有心愿", hard_assertions: *no_capture, behavior_checks: [{ref: wish_refusal_recovery_v1}, {ref: no_app_surface_words_v1}]}
+      - {id: t02_dont_want, user_query: "不想说，随便吧", hard_assertions: *no_capture, behavior_checks: [{ref: wish_refusal_recovery_v1}]}
+      - {id: t03_capability, user_query: "那你能干什么", hard_assertions: *no_capture, behavior_checks: [{ref: capability_intro_starts_with_status_v1}, {ref: no_app_surface_words_v1}]}
+      - {id: t04_late_night, user_query: "我昨晚熬夜，今天感觉脸很垮", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}, {ref: intent_recovery_not_fixed_turns_v1}]}
+      - {id: t05_redness, user_query: "主要是脸颊泛红，洗完脸更明显", hard_assertions: *no_capture, behavior_checks: [{ref: invite_declarative_waits_consent_v1}]}
+      - {id: t06_consent, user_query: "好，可以拍一下", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}, {ref: no_internal_chain_words_v1}]}
+      - {id: t07_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：脸颊轻微泛红，T区轻微出油。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t08_stinging, user_query: "脸颊有时会刺痛，这严重吗", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t09_whitening, user_query: "那我今晚还能用美白精华吗", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}, {ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t10_existing_products, user_query: "按我手边现有产品，有没有能用来修护的", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t11_no_match_direction, user_query: "如果没有合适的，我该买什么方向", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t12_aircon, user_query: "我最近一直在空调房，脸也干", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t13_retinol_acid, user_query: "A醇能不能和酸一起用", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}, {ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t14_product_stings, user_query: "我有一瓶精华一上脸就刺，是不是它的问题", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t15_no_bottle, user_query: "瓶子不在手边，你先讲原则", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t16_diary_status, user_query: "肌肤日记好了没", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t17_diary_value, user_query: "那每天拍到底有什么用", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}, {ref: no_app_surface_words_v1}]}
+      - {id: t18_thanks, user_query: "好，听起来没那么焦虑了", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}]}
+      - {id: t19_morning_steps, user_query: "明早我要怎么护肤", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t20_summary, user_query: "总结一下今晚三步", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}, {ref: no_brand_sku_or_negative_labels_v1}]}
+
+  - id: run02_idle_chat_travel_dryness_function_event
+    split: regression
+    expected_behavior: |
+      用户从闲聊、旅行、空调房干燥进入护肤需求；Agent 不按固定轮数拉回，系统完成事件只基于真实事实继续。
+    turns:
+      - {id: t01_idle, user_query: "魔镜魔镜，你今天在吗", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}, {ref: intent_recovery_not_fixed_turns_v1}]}
+      - {id: t02_chat, user_query: "我今天有点累，先陪我聊两句", hard_assertions: *no_capture, behavior_checks: [{ref: intent_recovery_not_fixed_turns_v1}]}
+      - {id: t03_travel, user_query: "明天要短途出差，酒店空调估计很干", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t04_dry, user_query: "我脸一干就起皮，妆也卡", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}, {ref: invite_declarative_waits_consent_v1}]}
+      - {id: t05_ambiguous, user_query: "嗯……我先想想", hard_assertions: *no_capture, behavior_checks: [{ref: no_internal_chain_words_v1}]}
+      - {id: t06_ask_what, user_query: "你除了拍脸还能帮我什么", hard_assertions: *no_capture, behavior_checks: [{ref: capability_intro_starts_with_status_v1}]}
+      - {id: t07_consent, user_query: "行，先拍看一下干不干", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t08_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：脸颊偏干，鼻翼轻微起皮，T区油光不明显。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t09_trip_routine, user_query: "那我出差包里要带哪些方向", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}, {ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t10_existing_products, user_query: "我手边现有的有没有能带走的", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t11_sunscreen, user_query: "出差白天防晒要不要补", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t12_checkin_event, user_query: "[设备/系统事件] 今日护肤打卡已完成；用户记录今晚用了舒缓保湿乳。", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t13_after_event, user_query: "那明早还要不要继续用这类修护", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t14_ingredient, user_query: "泛醇和神经酰胺大概是干什么的", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t15_no_brand, user_query: "你别给我推牌子，说方向就行", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t16_diary, user_query: "这次会生成肌肤日记吗", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t17_status, user_query: "现在日记进度怎么样", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t18_makeup, user_query: "明天上妆前怎么不卡粉", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t19_stop, user_query: "今天先这样，别再安排太多", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}]}
+      - {id: t20_summary, user_query: "用一句话提醒我明天重点", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+
+  - id: run03_acne_makeup_ingredient_boundaries
+    split: regression
+    expected_behavior: |
+      用户围绕爆痘、明日见客户、妆前和祛痘产品连续追问；Agent 先答急救，再在同意后拍照，并避免品牌/SKU 和羞辱性产品表达。
+    turns:
+      - {id: t01_acne, user_query: "下巴突然冒痘，明天还要见客户", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t02_no_photo, user_query: "先别拍，你先说急救", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t03_patch, user_query: "我可以贴痘痘贴吗", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t04_consent, user_query: "好，你拍一下看看红不红", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t05_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：下巴有两处红色痘点，T区轻微出油，脸颊泛红不明显。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t06_mark, user_query: "会不会留痘印", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t07_makeup, user_query: "明天能化妆遮一下吗", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t08_foundation, user_query: "粉底会不会闷痘", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t09_acne_gel, user_query: "我有个祛痘凝胶，要不要今晚用", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}, {ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t10_no_bottle, user_query: "瓶子不在手边，先说原则", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t11_acid, user_query: "水杨酸这种能不能全脸涂", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t12_existing_products, user_query: "按我柜里现有产品，今晚能搭什么", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t13_morning_worse, user_query: "明早如果更红怎么办", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t14_pop, user_query: "那我现在是不是该挤掉它", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t15_diary, user_query: "这个痘每天拍有用吗", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t16_status, user_query: "分析和日记现在好了没", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t17_privacy, user_query: "刚才照片会不会被别人看到", hard_assertions: *no_capture, behavior_checks: [{ref: no_internal_chain_words_v1}]}
+      - {id: t18_no_label, user_query: "你别说我买错东西啊，我会有压力", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t19_plan, user_query: "今晚和明早各三步怎么做", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t20_close, user_query: "好，我按这个来", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}]}
+
+  - id: run04_product_stinging_and_cabinet_save_boundary
+    split: regression
+    expected_behavior: |
+      产品刺痛和成分适配问题中，Agent 不能羞辱产品，也不能在用户同意或真实流程前声称已保存、分析或持续监控。
+    turns:
+      - {id: t01_product_stings, user_query: "我有个精华用了刺痛，是不是它不适合我", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t02_bought_wrong, user_query: "是不是我买错了", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t03_ask_ingredients, user_query: "成分里有烟酰胺和酸，会冲突吗", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}, {ref: product_ingredient_fit_v1}]}
+      - {id: t04_bottle_invite, user_query: "要不要看瓶身才能判断", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t05_no_bottle, user_query: "我现在不想拿瓶子", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t06_current_skin, user_query: "那你先看看我现在是不是泛红", hard_assertions: *no_capture, behavior_checks: [{ref: invite_declarative_waits_consent_v1}]}
+      - {id: t07_consent, user_query: "可以，拍一下", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t08_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：脸颊有轻微泛红，口周略干，T区出油不明显。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t09_stop_product, user_query: "那这个精华先停吗", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t10_existing, user_query: "柜里有没有更温和的东西能先用", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t11_no_monitor_claim, user_query: "你会自动监控它以后会不会冲突吗", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t12_save_boundary, user_query: "那你现在已经把它加入护肤柜了吗", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t13_retinol, user_query: "A醇以后还能不能用", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t14_vitc, user_query: "维C和酸呢", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t15_diary_status, user_query: "今天这次会同步到肌肤日记吗", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t16_diary_check, user_query: "现在完成了吗", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t17_reassure, user_query: "我怕越护越糟", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t18_simple_plan, user_query: "给我一个今晚最保守方案", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t19_no_sku, user_query: "不说品牌，告诉我下次买什么标准", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t20_summary, user_query: "总结：这个精华现在怎么处理", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}, {ref: no_brand_sku_or_negative_labels_v1}]}
+
+  - id: run05_oily_skin_period_lifestyle_and_wish_refusal
+    split: regression
+    expected_behavior: |
+      用户先拒绝心愿，再聊生理期、出油和爆痘；Agent 不编造周期事实，只基于用户提供的信息给调整并保持拍照同意边界。
+    turns:
+      - {id: t01_no_wish, user_query: "我没什么心愿，别问了", hard_assertions: *no_capture, behavior_checks: [{ref: wish_refusal_recovery_v1}]}
+      - {id: t02_period, user_query: "这两天生理期前，脸特别油", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t03_acne, user_query: "下巴还冒小痘", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}, {ref: invite_declarative_waits_consent_v1}]}
+      - {id: t04_refuse, user_query: "先不拍，直接说怎么做", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t05_cleanser, user_query: "洁面要不要洗两遍", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t06_existing, user_query: "我柜里有什么适合控油又不刺激的", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t07_no_brand, user_query: "如果没有，就讲成分方向", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t08_consent, user_query: "那现在拍一下看看范围吧", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t09_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：T区出油明显，下巴有少量红色痘点，脸颊泛红不明显。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t10_makeup, user_query: "那这几天能不能上妆", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t11_acid, user_query: "酸类是不是能控油", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t12_niacinamide, user_query: "烟酰胺呢，会不会刺激", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t13_diary, user_query: "这个阶段记录到肌肤日记会有什么用", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t14_status, user_query: "今天的日记出来了吗", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t15_checkin_event, user_query: "[设备/系统事件] 今日护肤打卡已完成；用户记录今晚只做温和清洁和保湿。", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t16_after_event, user_query: "明早如果还是油怎么办", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t17_food, user_query: "我今晚还想吃辣，会不会影响", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t18_no_shame, user_query: "你别吓我，我会焦虑", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t19_plan, user_query: "给我一个生理期前的简化版", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t20_close, user_query: "好，明天再看", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}]}
+
+  - id: run06_sunburn_peeling_expiry_event
+    split: regression
+    expected_behavior: |
+      晒后、脱皮和产品过期提醒场景中，Agent 应先稳定不适，系统过期提醒只基于事件事实继续，不编造日期和奖励。
+    turns:
+      - {id: t01_sunburn, user_query: "今天晒到了，脸有点烫", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t02_peeling, user_query: "鼻翼还有点脱皮", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t03_invite, user_query: "要不要先看一下晒红范围", hard_assertions: *no_capture, behavior_checks: [{ref: invite_declarative_waits_consent_v1}]}
+      - {id: t04_consent, user_query: "好，看一下", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t05_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：两侧脸颊轻微泛红，鼻翼干燥起皮，T区出油不明显。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t06_after_sun, user_query: "今晚还能用清洁面膜吗", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t07_cabinet, user_query: "柜里有没有晒后能先用的", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t08_no_match, user_query: "如果没有，就告诉我该买什么类型", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t09_event_expiry, user_query: "[设备/系统事件] 产品过期提醒：用户护肤柜中一件产品需要复查保质状态；系统未提供具体过期日期。", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t10_expiry_followup, user_query: "那它是不是已经过期了", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t11_bottle, user_query: "需要看瓶身吗", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t12_refuse_bottle, user_query: "现在不想拿，先说晒后护理", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t13_vitc, user_query: "晒后还能用维C吗", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t14_diary_future, user_query: "这次晒后会记录下来吗", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t15_status, user_query: "日记现在完成了吗", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t16_pain, user_query: "如果明天还疼怎么办", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t17_sunscreen, user_query: "明天还要不要涂防晒", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t18_no_alarm, user_query: "别说得太吓人", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t19_plan, user_query: "今晚只做两步怎么做", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t20_summary, user_query: "总结一下晒后禁忌", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+
+  - id: run07_makeup_pilling_product_photo_boundary
+    split: regression
+    expected_behavior: |
+      妆前搓泥和产品搭配场景中，Agent 应区分质地、用量、顺序和搭配，瓶身识别保持低压并等待同意。
+    turns:
+      - {id: t01_pilling, user_query: "我最近妆前总搓泥", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t02_weather, user_query: "空调房里更明显", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t03_current, user_query: "你要不要看看我现在脸上状态", hard_assertions: *no_capture, behavior_checks: [{ref: invite_declarative_waits_consent_v1}]}
+      - {id: t04_consent, user_query: "可以拍", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t05_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：鼻翼轻微起皮，脸颊略干，T区轻微出油。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t06_product_order, user_query: "妆前乳和防晒哪个先", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t07_existing, user_query: "看我柜里现有产品能不能搭", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t08_bottle, user_query: "如果要看瓶身，你会直接保存吗", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t09_no_consent, user_query: "我还没同意保存，只是问问", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t10_ingredient, user_query: "硅感重的会更容易搓泥吗", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t11_no_brand, user_query: "别推荐具体牌子", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t12_diary, user_query: "这个妆前问题肌肤日记能帮我记吗", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t13_status, user_query: "今天日记好了没", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t14_sunscreen, user_query: "防晒会不会和粉底打架", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t15_morning, user_query: "明早上妆前怎么排", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t16_refuse_more, user_query: "先别再让我拍东西", hard_assertions: *no_capture, behavior_checks: [{ref: no_internal_chain_words_v1}]}
+      - {id: t17_follow, user_query: "那只按文字说一个少搓泥方案", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t18_event, user_query: "[设备/系统事件] 护肤步骤查看完成；系统未提供新的产品或日记完成事实。", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t19_after_event, user_query: "那这个完成事件说明步骤已经更新了吗", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t20_summary, user_query: "最后给我妆前三步", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+
+  - id: run08_sports_sweat_oiliness_reminder_boundary
+    split: regression
+    expected_behavior: |
+      运动出汗和出油场景中，Agent 应连接生活场景和护理调整；提醒或日记更新不能在无同意/无完成事实时声称完成。
+    turns:
+      - {id: t01_sport, user_query: "我最近运动完脸特别油", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t02_clean, user_query: "运动后要马上洗脸吗", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t03_capability, user_query: "你能帮我记这种运动后的变化吗", hard_assertions: *no_capture, behavior_checks: [{ref: capability_intro_starts_with_status_v1}]}
+      - {id: t04_status_photo, user_query: "那先看看今天出油区域", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t05_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：T区出油明显，脸颊状态稳定，下巴有少量闭口。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t06_oil_followup, user_query: "那我现在是不是重点控油", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t07_existing, user_query: "柜里有没有运动后能用的清爽修护", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t08_no_match, user_query: "如果没有，要买什么标准", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t09_niacinamide, user_query: "烟酰胺能控油吗", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t10_acid, user_query: "运动后能不能刷酸", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t11_reminder, user_query: "你能提醒我运动后补水吗", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t12_no_claim, user_query: "现在提醒已经设置好了吗", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t13_diary, user_query: "这会进肌肤日记吗", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t14_status, user_query: "那进度查一下", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t15_food, user_query: "运动后吃辣会不会更容易爆痘", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t16_no_anxiety, user_query: "别让我太焦虑，简单点", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t17_night, user_query: "今晚洗完脸后怎么做", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t18_morning, user_query: "明早还油怎么办", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t19_summary, user_query: "运动日给我一个固定节奏", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t20_close, user_query: "收到，先按这个试", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}]}
+
+  - id: run09_privacy_refusal_slow_recovery_to_photo
+    split: regression
+    expected_behavior: |
+      用户多次表达隐私和拍照顾虑时，Agent 应尊重暂缓，不绕着劝；后续明确同意才拍照，并保持回图追问和日记边界。
+    turns:
+      - {id: t01_hello, user_query: "我有点想看皮肤，但不太想拍照", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}]}
+      - {id: t02_privacy, user_query: "我担心照片保存", hard_assertions: *no_capture, behavior_checks: [{ref: no_internal_chain_words_v1}]}
+      - {id: t03_no_photo, user_query: "先不拍，你直接聊护理", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t04_wish_refuse, user_query: "心愿也不想说", hard_assertions: *no_capture, behavior_checks: [{ref: wish_refusal_recovery_v1}]}
+      - {id: t05_dry, user_query: "最近就是干和红", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}, {ref: invite_declarative_waits_consent_v1}]}
+      - {id: t06_wait, user_query: "我再想想", hard_assertions: *no_capture, behavior_checks: [{ref: no_internal_chain_words_v1}]}
+      - {id: t07_more_info, user_query: "不拍的话，你能先怎么判断", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t08_consent, user_query: "好吧，现在可以拍", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}]}
+      - {id: t09_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：脸颊轻微泛红，口周偏干，T区轻微出油。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t10_current_products, user_query: "按我现有产品能不能更省事", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t11_product, user_query: "我有个乳液用了有点闷", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t12_bottle_refuse, user_query: "不想拍瓶身", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t13_ingredient, user_query: "积雪草是不是更适合我", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t14_no_brand, user_query: "别给我推荐牌子", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t15_event, user_query: "[设备/系统事件] 今日基础分析已完成；系统未提供肌肤日记完成事实。", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}, {ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t16_diary_question, user_query: "所以专属护理方案已经生成了吗", hard_assertions: *no_capture, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t17_status, user_query: "你查下日记状态", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t18_tonight, user_query: "今晚就不折腾了吧", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t19_tomorrow, user_query: "明天如果红退了能加回功效吗", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t20_close, user_query: "好，今天先这样", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}]}
+
+  - id: run10_mixed_long_session_all_touchpoints
+    split: regression
+    expected_behavior: |
+      综合长会话覆盖拒绝许愿、能力询问、首次拍照、回图续聊、生活场景、在用产品、成分、功能完成事件和肌肤日记边界。
+    turns:
+      - {id: t01_wish_refuse, user_query: "随便吧，我没想许什么愿", hard_assertions: *no_capture, behavior_checks: [{ref: wish_refusal_recovery_v1}]}
+      - {id: t02_capability, user_query: "你能不能先说你会什么", hard_assertions: *no_capture, behavior_checks: [{ref: capability_intro_starts_with_status_v1}]}
+      - {id: t03_weather_chat, user_query: "今天外面风很大，我脸也干", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t04_concern, user_query: "嘴角也有点起皮，你看得出来吗", hard_assertions: *no_capture, behavior_checks: [{ref: invite_declarative_waits_consent_v1}]}
+      - {id: t05_consent, user_query: "可以，你拍", hard_assertions: *capture, behavior_checks: [{ref: capture_ritual_only_v1}, {ref: no_internal_chain_words_v1}]}
+      - {id: t06_photo_return, user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：口周偏干，鼻翼轻微起皮，脸颊泛红不明显。", hard_assertions: *photo_event, behavior_checks: [{ref: quick_analysis_value_v1}, {ref: returned_photo_followup_v1}]}
+      - {id: t07_existing, user_query: "柜里有没有口周干能先用的", hard_assertions: *cabinet_lookup, behavior_checks: [{ref: readonly_cabinet_surprise_v1}]}
+      - {id: t08_no_match, user_query: "如果柜里没有，就告诉我买什么标准", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t09_product_oily, user_query: "我有个面霜太油，会不会闷闭口", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t10_no_shame, user_query: "但别说我买错了，我已经买了", hard_assertions: *no_capture, behavior_checks: [{ref: no_brand_sku_or_negative_labels_v1}]}
+      - {id: t11_panthenol, user_query: "泛醇和积雪草哪个更适合修护", hard_assertions: *no_capture, behavior_checks: [{ref: product_ingredient_fit_v1}]}
+      - {id: t12_retinol, user_query: "那A醇这周是不是先别碰", hard_assertions: *no_capture, behavior_checks: [{ref: ingredient_conflict_boundary_v1}]}
+      - {id: t13_event, user_query: "[设备/系统事件] 护肤打卡已完成；用户记录今晚用了舒缓保湿乳。", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}]}
+      - {id: t14_after_event, user_query: "所以你已经帮我更新护理步骤了吗", hard_assertions: *no_capture, behavior_checks: [{ref: system_completion_fact_only_v1}, {ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t15_diary_status, user_query: "肌肤日记现在完成了吗", hard_assertions: *diary_status, behavior_checks: [{ref: skin_diary_future_or_progressive_v1}]}
+      - {id: t16_makeup, user_query: "明天还要化妆，怎么不搓泥", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t17_no_more_photo, user_query: "今天别再拍了，我有点累", hard_assertions: *no_capture, behavior_checks: [{ref: no_internal_chain_words_v1}]}
+      - {id: t18_simple, user_query: "那给我省事版晚间护理", hard_assertions: *no_capture, behavior_checks: [{ref: answer_advice_before_inviting_v1}]}
+      - {id: t19_followup, user_query: "明早起来如果不干了呢", hard_assertions: *no_capture, behavior_checks: [{ref: skin_lifestyle_touchpoint_v1}]}
+      - {id: t20_summary, user_query: "最后用三句话总结", hard_assertions: *no_capture, behavior_checks: [{ref: no_app_surface_words_v1}, {ref: no_brand_sku_or_negative_labels_v1}]}

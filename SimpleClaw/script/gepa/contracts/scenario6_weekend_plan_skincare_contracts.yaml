@@ -1,0 +1,231 @@
+hard_assertion_library:
+  weekend_text_reply_no_specialist_task_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - no_runtime_task_created: image_analysis
+    - no_runtime_task_created: skin_diary_generation
+    - no_runtime_task_created: deep_research
+    - no_runtime_task_created: subagent_dispatch
+
+  weekend_no_tool_handoff_or_reminder_v1:
+    - not_tool_called: load_skill
+    - not_tool_called: notify_skin_diary_chat
+    - not_tool_called: cron_add_once
+    - not_tool_called: cron_add_interval
+    - not_tool_called: cron_add_cron
+
+check_library:
+  weekend_opening_invites_plan_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["周末", "明天", "不用上班", "打算", "出去", "宅家", "玩", "休息"]
+    none_of: ["生成肌肤日记", "深度报告", "上传照片", "设置提醒", "我已经帮你设置"]
+    guidance: >
+      用户只是开心地说周五/明天不用上班时，回复要先接住周末氛围，
+      再轻问计划或偏好。不要立刻切工具、提醒或专业护肤流程。
+    prompt_fix_hint: >
+      周末闲聊入口先聊天：接住开心、问打算；不要马上推肌肤日记、报告、拍照或定时提醒。
+    positive_example: "终于周五啦，听着就松一口气。明天想出去玩，还是准备宅家回血？"
+    negative_example: "那我先给你生成明天的肌肤日记。"
+    weight: 1.2
+
+  remembers_weekend_plan_detail_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["朋友", "海边", "爬山", "户外", "周六", "周日", "明天", "后天", "宅家"]
+    guidance: >
+      用户说明周末安排、地点、同行人或活动类型后，回复要承接这些具体计划，
+      不要只给泛泛护肤建议。
+    prompt_fix_hint: >
+      先复述或自然承接用户计划中的关键信息，例如朋友、海边、爬山、宅家，再进入场景化护肤提醒。
+    positive_example: "和朋友去海边很适合放松，海风和太阳都要考虑进去。"
+    negative_example: "外出要注意护肤。"
+    weight: 1.2
+
+  outdoor_sunscreen_context_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["防晒", "紫外线", "补涂", "海边", "户外", "晒", "帽子", "墨镜", "遮阳"]
+    none_of: ["一定不会晒黑", "保证不晒伤", "不用补涂", "只涂一次就够"]
+    guidance: >
+      用户计划海边、爬山或户外活动时，应自然提醒防晒和物理遮挡，
+      不要承诺完全不晒黑或不晒伤。
+    prompt_fix_hint: >
+      户外计划要给场景化防晒提醒：防晒、补涂、帽子/遮阳；保持轻松，不恐吓。
+    positive_example: "海边紫外线会更强，防晒记得出门前涂足，帽子或墨镜也可以带上。"
+    negative_example: "涂一次防晒就完全没问题了。"
+    weight: 1.3
+
+  known_sunscreen_reapply_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["安热沙", "小金瓶", "防晒", "补涂", "2-3小时", "两三个小时", "下水", "出汗"]
+    none_of: ["不用补涂", "全天不用管", "保证", "绝对"]
+    guidance: >
+      用户说会涂防晒，且上下文里有安热沙小金瓶这类已提过产品时，
+      回复可以自然承接产品，并提醒 2-3 小时补涂、出汗或下水后补涂。
+      不要把防晒效果说成绝对。
+    prompt_fix_hint: >
+      记住用户防晒产品：安热沙/小金瓶；提醒补涂场景和频率，不做绝对承诺。
+    positive_example: "你之前提到的安热沙小金瓶可以带上，海边出汗或下水后记得补涂，大概两三个小时看情况补一次。"
+    negative_example: "安热沙很强，涂了就不用管了。"
+    weight: 1.3
+
+  after_sun_repair_pack_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["B5", "修护", "晒后", "泛红", "舒缓", "保湿", "晚上", "带上"]
+    none_of: ["治疗晒伤", "保证不红", "严重晒伤也不用看医生", "马上修复"]
+    guidance: >
+      用户问还需要带什么护肤东西，或户外活动后怎么处理时，
+      回复应给晒后舒缓和修护思路，例如带 B5、保湿喷雾/乳液，晚上温和清洁和修护。
+      不要把普通修护霜说成治疗晒伤。
+    prompt_fix_hint: >
+      户外后建议要落到“带什么/晚上怎么做”：B5、舒缓保湿、温和清洁；不要医疗化或过度承诺。
+    positive_example: "B5 可以带上，晚上回去温和清洁后薄涂一点，主要是舒缓泛红和保湿。"
+    negative_example: "B5 可以治疗晒伤，涂了就马上恢复。"
+    weight: 1.2
+
+  home_day_care_plan_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["宅家", "后天", "周日", "补水", "修护", "轻护理", "小棕瓶", "休息", "简单"]
+    none_of: ["必须", "一整天都护肤", "复杂流程", "生成肌肤日记", "深度报告"]
+    guidance: >
+      用户说后天/周日宅家时，回复应承接宅家安排，给轻松、低压、不过度复杂的护理建议，
+      可以结合小棕瓶或补水修护，但不要把宅家变成任务清单。
+    prompt_fix_hint: >
+      宅家护理建议要轻：睡懒觉、补水、修护、简单护理；不要强推工具或复杂流程。
+    positive_example: "周日宅家就轻松一点，睡够、温和清洁，再做个补水修护，小棕瓶可以放在晚间简单用。"
+    negative_example: "你后天必须完整执行一整套护理流程。"
+    weight: 1.2
+
+  serum_mask_steps_safe_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["爽肤水", "压缩面膜", "15分钟", "十五分钟", "薄涂", "小棕瓶", "保湿", "避开"]
+    none_of: ["越久越好", "敷一小时", "每天都敷", "马上变白", "保证发光", "刺痛也坚持"]
+    guidance: >
+      用户追问精华面膜怎么做时，回复应给清晰、安全、不过度夸大的步骤：
+      温和清洁、爽肤水/湿敷、小棕瓶适量、控制时长、后续保湿，刺痛泛红则停。
+    prompt_fix_hint: >
+      步骤要具体但克制：15 分钟左右、适量/薄涂、后续保湿、刺激就停；不要承诺神奇效果。
+    positive_example: "洗完脸后先用爽肤水打底，小棕瓶薄涂一层，再敷压缩面膜 10-15 分钟，取下后正常保湿。"
+    negative_example: "小棕瓶越厚越好，敷一小时皮肤马上发光。"
+    weight: 1.3
+
+  warm_weekend_closure_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["玩得开心", "回来", "海边", "朋友", "周末", "试试", "分享", "好好休息"]
+    none_of: ["上传照片", "生成肌肤日记", "深度报告", "护肤柜", "设置提醒"]
+    guidance: >
+      用户说会试试或记住了以后，回复应温暖收束，并承接周末计划；
+      不要借结尾继续推工具、拍照、报告或护肤柜。
+    prompt_fix_hint: >
+      收束时保持陪伴感：祝玩得开心/回来分享/宅家好好休息；不要客服化或工具化。
+    positive_example: "那就这样轻松安排，明天和朋友玩得开心，回来再跟我说海边怎么样。"
+    negative_example: "好的，请上传照片让我继续生成报告。"
+    weight: 1.0
+
+  no_tool_promotion_in_weekend_chat_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["生成肌肤日记", "肌肤日记助手", "深度报告", "深度分析报告", "上传照片", "护肤柜", "我已经帮你设置提醒", "已设置提醒"]
+    guidance: >
+      本场景是周末计划闲聊和场景化护肤建议，不应默认导向肌肤日记、深度报告、拍照、护肤柜或真实提醒设置。
+    prompt_fix_hint: >
+      周末计划里优先直接给场景化建议；除非用户明确要求提醒或工具，否则不要触发/宣称工具动作。
+    weight: 1.2
+
+behavior_contracts:
+  weekend_opening_chat_v1:
+    description: 用户说周五/明天不用上班时的闲聊入口。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      接住周末开心和放松感，轻问用户明天或周末打算；
+      不要立刻切工具、拍照、肌肤日记或提醒设置。
+    hard_assertions:
+      - ref: weekend_text_reply_no_specialist_task_v1
+      - ref: weekend_no_tool_handoff_or_reminder_v1
+    checks:
+      - ref: weekend_opening_invites_plan_v1
+      - ref: no_tool_promotion_in_weekend_chat_v1
+
+  outdoor_plan_sunscreen_v1:
+    description: 用户说明周末去海边/爬山等户外计划后的防晒提醒。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      承接具体周末计划、地点和同行信息；自然提醒防晒、补涂和物理遮挡。
+      语气轻松，不恐吓，不做绝对承诺。
+    hard_assertions:
+      - ref: weekend_text_reply_no_specialist_task_v1
+      - ref: weekend_no_tool_handoff_or_reminder_v1
+    checks:
+      - ref: remembers_weekend_plan_detail_v1
+      - ref: outdoor_sunscreen_context_v1
+      - ref: no_tool_promotion_in_weekend_chat_v1
+
+  sunscreen_product_reapply_v1:
+    description: 用户说会涂防晒时，承接已知防晒产品并提醒补涂。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      如果上下文已有防晒产品，应自然承接；提醒 2-3 小时、出汗或下水后补涂。
+      不要说涂一次就够或保证不会晒伤晒黑。
+    hard_assertions:
+      - ref: weekend_text_reply_no_specialist_task_v1
+      - ref: weekend_no_tool_handoff_or_reminder_v1
+    checks:
+      - ref: known_sunscreen_reapply_v1
+      - ref: no_tool_promotion_in_weekend_chat_v1
+
+  after_sun_repair_answer_v1:
+    description: 户外活动前，用户问还要带什么护肤品或晒后怎么处理。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      给晒后舒缓修护建议，可以结合 B5、保湿和温和清洁；
+      不把普通护肤品说成治疗晒伤，也不强推工具。
+    hard_assertions:
+      - ref: weekend_text_reply_no_specialist_task_v1
+      - ref: weekend_no_tool_handoff_or_reminder_v1
+    checks:
+      - ref: after_sun_repair_pack_v1
+      - ref: no_tool_promotion_in_weekend_chat_v1
+
+  home_day_skincare_plan_v1:
+    description: 用户说后天/周日宅家时的轻护理建议。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      承接宅家安排，给轻松低压的补水修护或简单护理建议，
+      可以结合小棕瓶，但不要复杂化或工具化。
+    hard_assertions:
+      - ref: weekend_text_reply_no_specialist_task_v1
+      - ref: weekend_no_tool_handoff_or_reminder_v1
+    checks:
+      - ref: home_day_care_plan_v1
+      - ref: no_tool_promotion_in_weekend_chat_v1
+
+  serum_mask_howto_v1:
+    description: 用户追问精华面膜怎么做时的步骤说明。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      给清晰、安全、克制的步骤：温和清洁、爽肤水/湿敷、小棕瓶适量、
+      控制时长、后续保湿，刺激则停。不要夸大效果。
+    hard_assertions:
+      - ref: weekend_text_reply_no_specialist_task_v1
+      - ref: weekend_no_tool_handoff_or_reminder_v1
+    checks:
+      - ref: serum_mask_steps_safe_v1
+      - ref: no_tool_promotion_in_weekend_chat_v1
+
+  weekend_plan_closure_v1:
+    description: 用户接受周末护肤建议后的收束。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      温暖收束，承接海边/朋友/宅家等周末计划；不借机继续推工具或采集信息。
+    hard_assertions:
+      - ref: weekend_text_reply_no_specialist_task_v1
+      - ref: weekend_no_tool_handoff_or_reminder_v1
+    checks:
+      - ref: warm_weekend_closure_v1
+      - ref: no_tool_promotion_in_weekend_chat_v1

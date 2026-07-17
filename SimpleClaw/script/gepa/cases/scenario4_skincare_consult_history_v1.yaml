@@ -1,0 +1,219 @@
+id: scenario4_skincare_consult_history_v1
+name: scenario4_skincare_consult_history_v1_multi_turn
+objective: |
+  用“新手期护肤问题咨询→诱因排查→产品使用调整→低压检测邀请”这一条小型多轮流，
+  测试主 Agent 在没有历史检测画像时，是否能基于当前对话信息给出具体、克制的护肤建议。
+
+  这不是验证图片分析或肌肤日记真实链路，而是看文本层是否做到：
+  用户问近期爆痘时，能先接住问题并排查作息、饮食、压力等诱因；
+  用户补充熬夜后，能谨慎解释作息和爆痘的可能关系；
+  用户问怎么调整和某个产品能不能用时，能结合前文主动补充的产品给区域化建议；
+  用户问何时再检测时，低压邀请拍照/同步状态，不强迫、不神圣化工具。
+background: |
+  本 case 来源于 MD/成功标准.md 的“场景四：护肤问题咨询→个性化方案调整”。
+  它是 trajectory eval：同一个 example 下的 turns 会在同一 tenant/session 顺序执行。
+
+  当前优化主回复相关组件：
+  1. main_agent：全局对话策略、当前上下文使用、工具/建议边界。
+  2. tool_rules：工具触发边界，避免普通咨询被工具/报告神圣化。
+  3. novice_journey：新手期护肤咨询、低压拍照邀请和方案调整分寸。
+  4. soul_style：语气、亲密度、气泡感。
+
+  注意：本 case 暂不要求真实触发肌肤日记、图片分析或深度报告，只评估咨询回复质量。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.94
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局对话策略、当前上下文使用、工具边界。
+  - id: tool_rules
+    path: Mojing/workspace/TOOL.md
+    role: 工具触发边界、专项助手派发分寸、避免工具神圣化。
+  - id: novice_journey
+    path: "Mojing/workspace/ journey/novice.md"
+    role: 新手期护肤咨询、低压自拍邀请、普通建议边界。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 语气、亲密度、气泡感与长期人格。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      用户处于新手期，尚未完成首次自拍、基础图片分析和首次肌肤日记。
+      当前没有历史检测画像；只能使用本轮和前文用户主动补充的信息。
+
+      ## User Provided Context
+      - 夜间护肤可能会用小棕瓶。
+      - 泛红干燥时可能会用 B5。
+      - 科颜氏高保湿面霜有时觉得偏厚。
+
+      ## Lifestyle Notes
+      - 最近工作忙，偶尔加班。
+      - 用户担心下巴痘和作息、饮食有关。
+
+contract_sources:
+  - ../contracts/scenario4_skincare_consult_history_contracts.yaml
+
+examples:
+  - id: chin_acne_routine_adjustment
+    split: dfeedback
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: |
+      用户先提过自己在用小棕瓶、B5 和偏厚重面霜；随后咨询最近下巴长痘，确认近期加班熬夜，
+      再追问如何调整、小棕瓶能不能用、什么时候复查。
+      Agent 应基于当前对话信息，谨慎解释作息和下巴爆痘的可能关系；
+      调整建议要结合小棕瓶、B5、厚重面霜等已有产品，给出区域化使用边界；
+      复查建议要低压，可以邀请拍照/同步状态，但不强迫每日检测。
+    rubric:
+      - 第一轮接住下巴长痘，并追问近期作息饮食压力，不假装有历史检测。
+      - 第二轮谨慎解释熬夜和下巴痘/出油/炎症的可能关系。
+      - 第三轮结合已有产品给具体调整，不把普通护肤品说成治疗痘痘。
+      - 第四轮回答小棕瓶能不能继续用，并说明使用区域和避开位置。
+      - 第五轮给合理复查节奏，可低压邀请拍照/同步状态，不强迫每天检测。
+      - 如果前面已经低压邀请过照片，第二到第四轮不要反复邀图；先按文本信息继续推进建议。
+    turns:
+      - id: product_context_setup
+        phase: setup
+        measure: false
+        user_query: "先补充一下背景：我晚上护肤一般会用小棕瓶，泛红干的时候会用B5，科颜氏高保湿面霜有时候觉得有点厚。"
+
+      - id: acne_consult
+        user_query: "我最近下巴长了好多痘痘"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: use_current_user_context_v1
+          - ref: no_fake_history_claim_v1
+          - ref: asks_lifestyle_trigger_v1
+          - ref: no_medical_overclaim_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+      - id: confirms_late_sleep
+        user_query: "是啊，最近加班比较多，经常熬夜到12点以后"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: explain_sleep_acne_link_cautiously_v1
+          - ref: no_medical_overclaim_v1
+          - ref: no_repeated_photo_invite_in_short_consult_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+      - id: asks_adjustment
+        user_query: "那我应该怎么调整？我现在还在用小棕瓶和B5"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+          - ref: direct_consult_no_skin_diary_handoff_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: product_adjustment_mentions_known_products_v1
+          - ref: gives_practical_adjustment_v1
+          - ref: does_not_claim_products_treat_acne_v1
+          - ref: no_medical_overclaim_v1
+          - ref: no_repeated_photo_invite_in_short_consult_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+          - ref: no_skin_diary_handoff_as_direct_consult_answer_v1
+
+      - id: product_followup
+        user_query: "那我之前的小棕瓶还能用吗？"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+          - ref: direct_consult_no_skin_diary_handoff_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: product_adjustment_mentions_known_products_v1
+          - ref: product_use_area_guidance_v1
+          - ref: does_not_claim_products_treat_acne_v1
+          - ref: no_repeated_photo_invite_in_short_consult_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+          - ref: no_skin_diary_handoff_as_direct_consult_answer_v1
+
+      - id: detection_timing
+        user_query: "好的，我知道了。那我什么时候再做一次皮肤检测比较好？"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: followup_detection_timing_v1
+          - ref: no_force_daily_detection_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+  - id: closed_comedone_product_variant
+    split: dpareto
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: |
+      用户先提过自己有高保湿面霜和 B5；随后咨询下巴闭口和出油，说明最近晚睡、甜食多，
+      再询问厚重面霜和 B5 如何调整。
+      Agent 应基于当前对话和前文产品信息，给出低压、具体、不过度医疗化的调整建议。
+    rubric:
+      - 第一轮接住下巴闭口和出油，并排查作息饮食，不假装有历史检测。
+      - 第二轮解释晚睡和高糖饮食可能让出油、闭口更不稳定。
+      - 第三轮结合厚重面霜/B5给具体取舍。
+      - 第四轮给复查/追踪节奏，可低压邀请拍照或同步状态，不强制每天拍。
+      - 如果前面已经低压邀请过照片，中间解释和产品调整轮不要重复邀图。
+    turns:
+      - id: product_context_setup
+        phase: setup
+        measure: false
+        user_query: "我柜子里现在主要有B5修护霜和科颜氏高保湿面霜，面霜有时候会觉得有点厚。"
+
+      - id: acne_consult
+        user_query: "我下巴闭口怎么又多了，最近还更容易出油"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: use_current_user_context_v1
+          - ref: no_fake_history_claim_v1
+          - ref: asks_lifestyle_trigger_v1
+          - ref: no_medical_overclaim_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+      - id: confirms_lifestyle_trigger
+        user_query: "最近睡得晚，还吃了好几次甜食"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: explain_sleep_acne_link_cautiously_v1
+          - ref: no_medical_overclaim_v1
+          - ref: no_repeated_photo_invite_in_short_consult_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+      - id: asks_product_adjustment
+        user_query: "那我是不是要先停掉高保湿面霜？B5还能不能用？"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+          - ref: direct_text_consult_no_skill_load_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: product_adjustment_mentions_known_products_v1
+          - ref: gives_practical_adjustment_v1
+          - ref: does_not_claim_products_treat_acne_v1
+          - ref: no_repeated_photo_invite_in_short_consult_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+      - id: detection_timing
+        user_query: "那我过多久再看有没有变好？"
+        hard_assertions:
+          - ref: text_reply_no_image_or_deep_task_v1
+        behavior_checks:
+          - ref: no_ack_only_reply_v1
+          - ref: followup_detection_timing_v1
+          - ref: no_force_daily_detection_v1
+          - ref: no_unprompted_deep_report_promotion_without_current_photo_v1

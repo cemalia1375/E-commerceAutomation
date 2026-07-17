@@ -1,0 +1,185 @@
+id: S03_skin_diary_mention_loop
+name: stress_skin_diary_mention_loop
+description: 肌肤日记鲁棒性压测：连续提到肌肤日记、长期方案、是否能做等概念问题时，主 Agent 不应每轮都转交/对接；只有用户明确要求更新或刷新时才 notify_skin_diary_chat。
+agent: main
+initial_stage: explore
+wait_side_effects_s: 1
+session:
+  reuse: false
+  subscriptions:
+    - "main:{tenant_key}"
+    - "skin_diary:{tenant_key}"
+seed:
+  docs:
+    USER.md: |
+      ## identity
+
+      （无内容）
+
+      ## style
+
+      用户不喜欢被来回转交，希望先直接说清楚结论。
+
+      ## skin
+
+      用户关注毛孔粗大、额头痘痘、黑眼圈。偏好低负担长期护理。
+
+      ## lifestyle
+
+      经常加班，睡得晚，早晨时间紧张。
+
+      ## goals
+
+      想知道毛孔和黑眼圈长期怎么稳住，不想每次都被要求更新方案。
+    SOUL.md: |
+      - 不喜欢被频繁转交给肌肤日记助手；能直接解释时先直接解释。
+  skin_profile:
+    image_url: "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    overall_state: "整体稳定，重点关注毛孔、额头痘痘和黑眼圈。"
+    signals:
+      - name: "毛孔粗大"
+        code: "visible_pores"
+        severity: "轻度"
+        regions: ["鼻翼", "面颊"]
+        careSuggestions: ["温和清洁", "控油保湿", "防晒"]
+      - name: "额头痘痘"
+        code: "forehead_acne"
+        severity: "轻度"
+        regions: ["额头"]
+        careSuggestions: ["减少厚重功效叠加", "温和保湿"]
+      - name: "黑眼圈"
+        code: "dark_circles"
+        severity: "轻度"
+        regions: ["眼周"]
+        careSuggestions: ["规律作息", "眼周防晒", "减少摩擦"]
+  skin_diary_result:
+    state: "stable"
+    summary: "今日肤况整体稳定，重点关注毛孔、额头痘痘和黑眼圈。"
+    chips:
+      - label: "毛孔"
+        tone: "neutral"
+      - label: "黑眼圈"
+        tone: "neutral"
+    morning_steps:
+      - title: "温和清洁"
+        detail: "早上简单洗脸，不叠太多步骤。"
+      - title: "轻薄保湿"
+        detail: "用清爽保湿，避免厚重闷痘。"
+      - title: "防晒"
+        detail: "出门做好防晒。"
+    evening_steps:
+      - title: "清洁"
+        detail: "晚上认真卸掉防晒和油脂。"
+      - title: "保湿修护"
+        detail: "额头痘痘处避开厚涂。"
+
+turns:
+  - user: "肌肤日记说我毛孔粗大，我想看看这个问题长期应该怎么改。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: subagent_dispatch
+      - reply_not_contains: "转交"
+      - reply_not_contains: "对接"
+      - reply_not_contains: "去【肌肤日记】页面"
+    soft_checks:
+      - reply_contains: "毛孔"
+
+  - user: "肌肤日记还能做这个？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: subagent_dispatch
+      - reply_not_contains: "转交"
+      - reply_not_contains: "对接"
+    soft_checks:
+      - reply_contains: "记录"
+
+  - user: "长期护理方案它也会跟我说吗？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: subagent_dispatch
+      - reply_not_contains: "转交"
+      - reply_not_contains: "对接"
+    soft_checks:
+      - reply_contains: "长期"
+
+  - user: "那你先直接告诉我，毛孔这件事我未来两周怎么做。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: subagent_dispatch
+      - reply_not_contains: "去【肌肤日记】页面"
+    soft_checks:
+      - reply_contains: "两周"
+
+  - user: "如果我想更新成今天最新状态呢？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: subagent_dispatch
+    soft_checks:
+      - reply_contains: "照片"
+
+  - user: "嗯，那就帮我更新一版今天的肌肤日记吧。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: notify_skin_diary_chat
+      - runtime_task_created: subagent_dispatch
+      - not_tool_called: analyze_image
+    soft_checks:
+      - reply_contains: "肌肤日记"
+
+  - user: "刚刚不是已经说更新了吗，别重复转来转去了，告诉我现在要等什么就行。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: subagent_dispatch
+      - reply_not_contains: "再帮你转交"
+      - reply_not_contains: "重新对接"
+    soft_checks:
+      - reply_contains: "等"

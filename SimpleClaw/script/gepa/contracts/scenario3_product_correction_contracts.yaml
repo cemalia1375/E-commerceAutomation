@@ -1,0 +1,244 @@
+hard_assertion_library:
+  text_reply_no_skin_runtime_task_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - no_runtime_task_created: image_analysis
+    - no_runtime_task_created: skin_diary_generation
+    - no_runtime_task_created: deep_research
+    - no_runtime_task_created: subagent_dispatch
+  product_consult_no_async_research_without_consent_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - no_runtime_task_created: image_analysis
+    - no_runtime_task_created: skin_diary_generation
+    - no_runtime_task_created: deep_research
+    - no_runtime_task_created: subagent_dispatch
+    - no_runtime_task_created: cabinet_product_research
+
+check_library:
+  blurry_product_requests_clearer_image_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["看不清", "有点糊", "模糊", "不够清楚", "清晰", "正面", "标签", "成分", "看起来像", "是不是", "我先确认", "不太确定"]
+    guidance: >
+      用户上传模糊产品图时，回复应诚实处理不确定性。
+      如果关键信息看不清，应低压请用户补一张更清晰的正面、标签或成分图；
+      如果能看出候选产品，也可以用“看起来像/是不是/我先确认一下”来求确认。
+      不要责备用户，也不要把候选猜测说成确定事实。
+    prompt_fix_hint: >
+      模糊产品图先做输入修复或候选确认：看不清就请用户补清晰正面/标签/成分图；
+      能猜到候选也要用不确定语气向用户确认，不要直接下产品结论。
+    positive_example: "这张有点糊，我还看不清关键标签；有点像某款眼霜，我先跟你确认一下是不是它？"
+    negative_example: "这款看起来很适合你，可以放心用。"
+    weight: 1.3
+
+  no_product_conclusion_when_image_blurry_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["很适合你", "非常适合", "不适合你", "可以直接用", "放心用", "成分很好", "我已经看清楚", "就是这款", "肯定是"]
+    guidance: >
+      产品图模糊或关键信息不足时，不能直接判断适不适合、好不好、能不能放心用，
+      也不要硬猜产品名称或成分。
+    prompt_fix_hint: >
+      当图片糊或产品信息不足时，不输出确定适配结论；先请求清晰图或补充信息。
+    weight: 1.3
+
+  clear_product_acknowledges_new_image_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["清楚", "这张", "看到了", "能看到", "标签", "包装", "产品"]
+    guidance: >
+      用户重新上传清晰产品图后，回复要承接“换了一张/清楚多了”这个上下文，
+      不要像没收到新图一样继续要求用户重拍。
+    prompt_fix_hint: >
+      第二张清晰图要先承接：这张清楚些/我能看到包装或标签了；
+      然后再基于可见信息谨慎回答。
+    positive_example: "这张比刚才清楚多了，我能看到一些包装信息了。"
+    negative_example: "你再拍一张正面标签吧。"
+    weight: 1.1
+
+  product_reply_keeps_visible_info_boundary_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["看起来", "如果", "目前能看到", "不确定", "成分表", "需要再确认", "大概"]
+    none_of: ["我确定", "百分百", "肯定适合", "肯定不适合", "完整成分", "完全没问题"]
+    guidance: >
+      清晰产品图后，回复可以基于图片可见信息做谨慎承接，
+      但不要把没看清的成分、功效或品牌编成确定事实。
+      如果仍缺成分表，应保留不确定性。
+    prompt_fix_hint: >
+      产品图可见信息有限时，要用“目前能看到/看起来/如果成分是...”这类边界表达；
+      不要硬编完整成分或确定适配结论。
+    positive_example: "目前能看到它是护肤品包装，但具体成分还要看成分表；我可以先按可见信息帮你粗看。"
+    negative_example: "我确定这款成分完整安全，肯定适合你。"
+    weight: 1.2
+
+  no_product_research_without_explicit_consent_v1:
+    field: main_reply
+    type: semantic
+    none_of: ["开始调研", "发起资料调研", "帮你整理这款", "正在整理这款产品", "查详细成分", "整理详细资料"]
+    guidance: >
+      用户只是补清晰产品图、说“再看看/好不好/大概能不能用”时，
+      不等于同意发起产品资料调研。回复可以基于可见信息粗看，也可以询问是否需要进一步查资料，
+      但不能直接说已经开始调研或整理资料。
+    prompt_fix_hint: >
+      把“重新拍清楚了/再看看”理解成继续看图，不是调研授权。
+      如果需要更完整资料，应先问“要不要我再帮你查详细成分/资料”，等用户明确同意再调工具。
+    positive_example: "这张清楚多了，我先按可见信息粗看一下；如果你想更细，我再帮你查详细成分。"
+    negative_example: "确认是这款，我现在帮你发起资料调研。"
+    weight: 1.3
+
+  no_unnecessary_unseal_question_when_visibly_used_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["还是没拆封", "是否拆封", "是不是拆封", "有没有拆封", "已开封还是未拆封", "在用还是没拆封", "已经在用还是还没拆封", "正在用的对吧", "在用的对吧", "是不是在用", "是否在用", "应该是正在用"]
+    guidance: >
+      清晰产品图里如果已经有明显使用痕迹，例如软管被捏瘪、包装打开或有残留，
+      回复不要继续追问用户是否拆封。可以轻量说“我先按在用来看”，再询问是否需要整理资料或继续回答。
+    prompt_fix_hint: >
+      对明显已开封/在用的产品图，不要机械追问拆封状态；
+      将视觉证据暂按在用处理，重点回答用户的问题或低压询问是否需要整理资料。
+    positive_example: "这张清楚多了，我先按已经在用来看；如果你愿意，我可以帮你整理下它更适合什么肤质。"
+    negative_example: "另外这支你是已经在用，还是还没拆封呀？"
+    weight: 1.2
+
+  product_advice_uses_skin_profile_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["混油", "偏油", "下巴", "痘", "泛红", "肤质", "你现在"]
+    guidance: >
+      用户补充自己的肤况后，回复需要结合已有肤质或用户本轮自述，
+      例如混合偏油、下巴痘、泛红等，而不是只泛泛介绍产品。
+    prompt_fix_hint: >
+      产品建议要和用户画像挂钩：结合偏油、痘痘、泛红或当前关注点，给轻量适配判断。
+    positive_example: "以你偏油、下巴会冒痘又有点泛红的状态看，这类产品可以先谨慎小范围试。"
+    negative_example: "护肤品一般都可以用，注意坚持就好。"
+    weight: 1.3
+
+  product_usage_caution_for_sensitive_or_acne_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["耐受", "刺激", "少量", "局部", "隔天", "避开", "泛红", "痘"]
+    guidance: >
+      用户有痘痘、泛红、偏油等状态时，产品建议应提醒先少量/局部试用、观察耐受，
+      避开明显红肿痘或刺痛泛红区域，必要时降低频率。
+    prompt_fix_hint: >
+      对不确定产品和敏感/痘痘状态，给低风险试用边界：少量、局部、隔天、看耐受。
+    positive_example: "可以先在脸颊边缘少量试两三次，没刺痛泛红再慢慢加；红肿痘位置先避开。"
+    negative_example: "你可以全脸每天用，不用担心。"
+    weight: 1.2
+
+  product_advice_no_overpromise_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["一定能", "保证", "马上变白", "彻底改善", "治疗痘痘", "根治", "完全没风险", "随便用", "百分百适合"]
+    guidance: >
+      产品适配建议不要承诺确定效果、医疗治疗效果或完全无风险。
+      应保持克制，表达为“可以谨慎试/大概适合/需要观察耐受”。
+    prompt_fix_hint: >
+      把确定承诺改成克制判断：可以考虑、先试、观察耐受，不要说保证改善。
+    weight: 1.2
+
+  respect_decline_no_repush_cabinet_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["好", "不加", "先不", "不用", "只是问问", "尊重", "大概"]
+    none_of: ["还是建议添加", "必须添加", "我现在帮你添加", "加到护肤柜吧", "不加不方便", "需要先添加"]
+    guidance: >
+      用户明确拒绝添加护肤柜、表示只是问问或不想维护时，回复应尊重拒绝，
+      不继续劝说添加，不把拒绝当成新的销售机会。
+    prompt_fix_hint: >
+      用户说“不用加入护肤柜/只是问问”后，先尊重：好，那就不加；
+      继续回答她问的大概能不能用，不要继续推护肤柜。
+    positive_example: "好，那就不加护肤柜，我们只按你现在的肤况粗看一下。"
+    negative_example: "还是建议你添加到护肤柜，这样我才能更好判断。"
+    weight: 1.3
+
+  rough_product_advice_after_decline_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["大概", "粗看", "先试", "少量", "耐受", "如果", "可以先"]
+    guidance: >
+      用户拒绝护肤柜后，仍然希望知道大概能不能用。
+      回复应继续给粗略、低风险、带边界的产品建议，而不是因为用户拒绝工具就结束对话。
+    prompt_fix_hint: >
+      拒绝工具后仍要直接答：按当前可见信息和肤况给“大概/粗看”的建议，带少量试用和观察耐受边界。
+    positive_example: "那我们就不加。粗看你可以先少量试，重点观察有没有刺痛、泛红或闷痘。"
+    negative_example: "不加护肤柜我就没法判断。"
+    weight: 1.1
+
+behavior_contracts:
+  blurry_product_input_repair_v1:
+    description: 用户上传模糊产品图时的纠错策略。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      用户让 Agent 看产品，但图片模糊或关键信息不足。
+      应诚实说明当前看不清，并低压请求清晰正面、标签或成分图；
+      不编造产品识别结果，不直接下适配结论。
+    rubric:
+      - 承认图片糊/看不清/信息不足。
+      - 请求清晰正面/标签/成分图。
+      - 低压，不责备。
+      - 不输出确定产品结论。
+    hard_assertions:
+      - ref: product_consult_no_async_research_without_consent_v1
+    checks:
+      - ref: blurry_product_requests_clearer_image_v1
+      - ref: no_product_conclusion_when_image_blurry_v1
+
+  clear_product_visible_info_boundary_v1:
+    description: 用户重新上传清晰产品图后的承接策略。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      用户补传清晰产品图后，应承接新图并基于可见信息谨慎回答；
+      不要把看不清的成分、功效或品牌编成确定事实。
+      如果仍缺成分表，应保留不确定性。
+    rubric:
+      - 承接新图比前一张清楚。
+      - 基于可见信息回答。
+      - 保留不确定性。
+      - 不夸大效果。
+    hard_assertions:
+      - ref: product_consult_no_async_research_without_consent_v1
+    checks:
+      - ref: clear_product_acknowledges_new_image_v1
+      - ref: product_reply_keeps_visible_info_boundary_v1
+      - ref: no_product_research_without_explicit_consent_v1
+      - ref: no_unnecessary_unseal_question_when_visibly_used_v1
+      - ref: product_advice_no_overpromise_v1
+
+  product_advice_with_user_skin_state_v1:
+    description: 用户补充肤况后的产品适配建议。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      用户补充混油、下巴痘、泛红等状态后，应结合这些状态给克制建议；
+      对不确定产品或可能刺激的产品，提醒少量、局部、隔天试用和观察耐受。
+    rubric:
+      - 结合用户肤况。
+      - 给轻量适配判断。
+      - 提醒少量/局部/看耐受。
+      - 不承诺确定效果。
+    hard_assertions:
+      - ref: product_consult_no_async_research_without_consent_v1
+    checks:
+      - ref: product_advice_uses_skin_profile_v1
+      - ref: product_usage_caution_for_sensitive_or_acne_v1
+      - ref: product_advice_no_overpromise_v1
+
+  decline_cabinet_preference_v1:
+    description: 用户拒绝加入护肤柜后的承接策略。
+    editable_components: [main_agent, soul_style]
+    expected_behavior: >
+      用户明确拒绝加入护肤柜或表示只是问问。应尊重拒绝，
+      不继续推添加；同时继续回答“大概能不能用”这个问题，
+      给粗略、低风险、带边界的建议。
+    rubric:
+      - 尊重用户拒绝。
+      - 不继续推护肤柜。
+      - 不因拒绝工具而结束对话。
+      - 继续给大概能不能用的低风险建议。
+    hard_assertions:
+      - ref: product_consult_no_async_research_without_consent_v1
+    checks:
+      - ref: respect_decline_no_repush_cabinet_v1
+      - ref: rough_product_advice_after_decline_v1

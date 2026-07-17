@@ -1,0 +1,476 @@
+id: S05_skin_diary_current_concern_review
+name: stress_skin_diary_current_concern_review
+description: 肌肤日记子 Agent 鲁棒性压测：用户对「当前关注」卡片提出漏检/误检异议时，是否能加载 current_concern_review skill，并按具象询问、图片复核、补图和可选重生成的阶段推进。
+agent: skin_diary
+initial_stage: explore
+wait_side_effects_s: 1
+session:
+  reuse: false
+  subscriptions:
+    - "main:{tenant_key}"
+    - "skin_diary:{tenant_key}"
+
+seed:
+  docs:
+    USER.md: |
+      ## identity
+
+      （无内容）
+
+      ## style
+
+      （无内容）
+
+      ## skin
+
+      对冒痘问题比较在意，受痘痘困扰明显
+      用户自身比较在意黑眼圈问题
+
+      ## lifestyle
+
+      （无内容）
+
+      ## goals
+
+      （无内容）
+
+      ## Learned Skin Profile
+
+      肤龄阶段：年轻肌
+      肤色调：暖调二白
+      肤质：混合性
+      主要肤况：闭口（轻度）、黑头（轻度）、毛孔粗大（重度）、摩擦暗沉（轻度）、黑眼圈（轻度）
+      问题分布：额头：闭口（轻度）；鼻子：黑头（轻度）、毛孔粗大（重度）；下巴：摩擦暗沉（轻度）；左眼周·右眼周：黑眼圈（轻度）
+      皮肤总评：年轻底子好，控油淡印分区护理
+      皮肤优势：胶原充足、轮廓紧致
+      护理关注点：温和代谢角质、控油+清洁、控油+收缩毛孔、减少摩擦提亮、眼周防晒淡斑
+      最近图片建档时间：2026-06-08
+    SOUL.md: |
+      - 用户不喜欢被否定自己的肤感；检测异议时先接住，再解释图片复核边界。
+    SKIN_DIARY_TODO.md: |
+      ## active
+
+      （无内容）
+
+      ## done
+
+      （无内容）
+
+      ## dismissed
+
+      （无内容）
+  memories:
+    - source: skin_diary
+      topic: "首次自拍后冒痘及在用产品跟进"
+      description: "用户首次自拍后提到冒痘和在用产品，后续可承接痘痘与产品用法线索。"
+      content: |
+        用户为生成肌肤日记上传正脸照，明确表示最近冒痘，正在使用谷雨光感美白修护焕能精华霜怀疑用法不对，已同意帮忙调研产品成分适配性和正确用法。后续等分析和调研结果出来同步，下次用户问相关进展直接接这条线不用从头引导发图。
+  skin_profile:
+    image_url: "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    overall_state: "年轻底子好，控油淡印分区护理。"
+    signals:
+      - name: "闭口"
+        code: "closed_comedones"
+        severity: "轻度"
+        regions: ["额头"]
+        careSuggestions: ["温和代谢角质", "减少厚重叠加"]
+      - name: "黑头"
+        code: "blackheads"
+        severity: "轻度"
+        regions: ["鼻子"]
+        careSuggestions: ["温和清洁", "控油"]
+      - name: "毛孔粗大"
+        code: "visible_pores"
+        severity: "重度"
+        regions: ["鼻子"]
+        careSuggestions: ["控油", "收缩毛孔"]
+      - name: "摩擦暗沉"
+        code: "friction_dullness"
+        severity: "轻度"
+        regions: ["下巴"]
+        careSuggestions: ["减少摩擦", "提亮"]
+      - name: "黑眼圈"
+        code: "dark_circles"
+        severity: "轻度"
+        regions: ["左眼周", "右眼周"]
+        careSuggestions: ["眼周防晒", "减少摩擦"]
+    advantages: ["胶原充足", "轮廓紧致"]
+  skin_diary_result:
+    state: "fluctuating"
+    summary: "今日发现鼻子毛孔和黑头更明显，额头有轻微闭口，眼下黑眼圈需要继续观察"
+    chips:
+      - label: "闭口"
+        isNew: true
+        severity: "轻度"
+        analysis: "额头能看到一些细小闭口，可能和最近出油、熬夜或厚重叠加有关。"
+        suggestion: "先保持温和清洁，减少厚重叠加，局部观察变化。"
+      - label: "黑头"
+        isNew: true
+        severity: "轻度"
+        analysis: "鼻子黑头比较明显，和局部油脂堆积有关。"
+        suggestion: "清洁重点放在鼻子，避免全脸过度清洁。"
+      - label: "毛孔粗大"
+        isNew: true
+        severity: "重度"
+        analysis: "鼻子毛孔视觉上比较明显，和出油、清洁不到位有关。"
+        suggestion: "先控油保湿，稳定清洁频率。"
+      - label: "黑眼圈"
+        isNew: true
+        severity: "轻度"
+        analysis: "眼下暗沉轻微可见，熬夜后可能更明显。"
+        suggestion: "眼周减少摩擦，白天注意防晒。"
+    morning_steps:
+      - title: "温和洁面"
+        usage: "用温水简单洗脸，鼻子和额头轻轻带过就好。"
+        effect: "清掉早上多余油脂，减少闷堵。"
+        focus_area: "额头"
+      - title: "轻薄保湿"
+        usage: "少量按压在全脸，下巴和唇周不要反复揉搓。"
+        effect: "稳住基础保湿，减少摩擦暗沉。"
+        focus_area: "下巴"
+      - title: "清爽防晒"
+        usage: "出门前均匀涂开，眼下轻轻带过。"
+        effect: "减少眼周暗沉继续加深。"
+        focus_area: "眼周"
+    evening_steps:
+      - title: "认真清洁"
+        usage: "晚上把防晒和油脂洗干净，鼻子多停留一会儿。"
+        effect: "减少黑头和油脂堆积。"
+        focus_area: "鼻子"
+      - title: "局部观察"
+        usage: "额头闭口处先别叠太多功能步骤，薄薄保湿就好。"
+        effect: "降低闷堵风险。"
+        focus_area: "额头"
+    raw_output:
+      source: "scenario_seed"
+      current_concern_card_shown: true
+  image_jobs:
+    - image_ref: "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+      status: "succeeded"
+      focus: "image_full"
+
+turns:
+  - scenario_action:
+      name: mock_latest_image_analysis_profile_ready
+      image_url: "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+      sync_status: "synced"
+      sync_reason: "scenario_seed"
+      overall_state: "年轻底子好，控油淡印分区护理。"
+      signals:
+        - name: "闭口"
+          code: "closed_comedones"
+          severity: "轻度"
+          regions: ["额头"]
+          careSuggestions: ["温和代谢角质", "减少厚重叠加"]
+        - name: "黑头"
+          code: "blackheads"
+          severity: "轻度"
+          regions: ["鼻子"]
+          careSuggestions: ["温和清洁", "控油"]
+        - name: "毛孔粗大"
+          code: "visible_pores"
+          severity: "重度"
+          regions: ["鼻子"]
+          careSuggestions: ["控油", "收缩毛孔"]
+        - name: "摩擦暗沉"
+          code: "friction_dullness"
+          severity: "轻度"
+          regions: ["下巴"]
+          careSuggestions: ["减少摩擦", "提亮"]
+        - name: "黑眼圈"
+          code: "dark_circles"
+          severity: "轻度"
+          regions: ["左眼周", "右眼周"]
+          careSuggestions: ["眼周防晒", "减少摩擦"]
+      advantages: ["胶原充足", "轮廓紧致"]
+    phase: setup
+    measure: false
+
+  - scenario_action:
+      name: mark_latest_runtime_task
+      task_type: image_analysis
+      status: succeeded
+      summary: "scenario seed image analysis succeeded"
+    phase: setup
+    measure: false
+
+  - user: "你漏了我下巴的痘痘啊，昨天熬夜吃火锅长的，气死我了"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: load_skill
+      - not_tool_called: generate_skin_diary
+      - not_tool_called: retrieve_evidence
+      - not_tool_called: update_user_skin_section
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "下巴"
+
+  - user: "就是下巴正中间，还有一点点在唇周"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: generate_skin_diary
+      - not_tool_called: update_user_skin_section
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "下巴"
+
+  - user: "摸起来硬硬的，有点痛，还没冒白头"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: generate_skin_diary
+      - not_tool_called: update_user_skin_section
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "复核"
+
+  - user: "不对啊，我脸颊还有点泛红呢，昨天敷了个面膜好像有点过敏，你也没检测出来"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: generate_skin_diary
+      - not_tool_called: update_user_skin_section
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "脸颊"
+
+  - user: "我重新发这张，你再看一下"
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: generate_skin_diary
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "新照片"
+
+  - user: "好的好的，麻烦你啦"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: generate_skin_diary
+      - not_tool_called: retrieve_evidence
+      - not_tool_called: update_user_skin_section
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "更新"
+
+  - user: "可以，按这个更新一版肌肤日记吧"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: generate_skin_diary
+      - runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "肌肤日记"
+
+  - user: "[scenario_action] wait 3min for main session skin-diary completion activation"
+    phase: setup
+    measure: false
+    scenario_action:
+      name: wait_for_session_events
+      session_key: "main:{tenant_key}"
+      use_existing_listener: true
+      timeout_s: 180
+      max_events: 64
+      source: system_activation
+      activation_kind: skin_diary_completion
+    wait_until_timeout_s: 180
+    wait_until_interval_s: 3
+    wait_until:
+      - skin_diary_result_created: true
+    hard_assertions:
+      - session_event_contains: "skin_diary_completion"
+      - skin_diary_result_created: true
+
+  - user: "[scenario_action] wait 5min before closed-comedones objection flow"
+    phase: setup
+    measure: false
+    scenario_action:
+      name: wait_for_side_effects
+    wait_side_effects_s: 300
+    hard_assertions:
+      - reply_non_empty: true
+
+  - user: "你检测错了，我好像没有闭口呢"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: load_skill
+      - not_tool_called: generate_skin_diary
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "闭口"
+      - reply_contains: "记录"
+
+  - user: "你自己看图片就行，我不想说，反正就是没有"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: load_skill
+      - not_tool_called: generate_skin_diary
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "图片"
+
+  - user: "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: generate_skin_diary
+      - no_runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "闭口"
+
+  - user: "好的，应该没有吧，你看到了吗？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: generate_skin_diary
+      - runtime_task_created: skin_diary_generation
+    soft_checks:
+      - reply_contains: "肌肤日记"
+
+  - user: "太好了，我看看～黑眼圈真的好烦啊，怎么都消不掉"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - reply_contains: "闭口"
+
+  - user: "就是就是！我用了好多去黑眼圈的产品都没用"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - reply_contains: "闭口"
+
+  - user: "我用了水杨酸棉片，还有一些刷酸的精华"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - reply_contains: "水杨酸"
+
+  - user: "啊？那我应该怎么用才对呀？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - reply_contains: "不要"
+
+  - user: "好的，我之前就是天天用，难怪皮肤越来越干"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - reply_contains: "天天"
+
+  - user: "那我需要去医院做针清吗？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - reply_contains: "皮肤科"
+
+  - user: "好的好的，我知道了～谢谢你的建议"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true

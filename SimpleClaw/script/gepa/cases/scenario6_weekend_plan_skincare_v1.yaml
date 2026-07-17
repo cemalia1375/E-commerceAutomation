@@ -1,0 +1,200 @@
+id: scenario6_weekend_plan_skincare_v1
+name: scenario6_weekend_plan_skincare_v1_multi_turn
+objective: |
+  用“周末计划闲聊→关联护肤提醒→场景化护肤方案”这一条多轮流，
+  测试主 Agent 是否能把用户的周末安排、出行地点、活动类型和已提到的护肤品自然纳入建议。
+
+  这不是测试真实提醒、天气查询、肌肤日记或护肤柜链路。
+  重点是：
+  用户说周五/周末开心时，Agent 先保持闲聊感；
+  用户说去海边、爬山或宅家时，Agent 记住地点、活动和时间；
+  户外计划下给防晒、补涂、物理遮挡和晒后修护建议；
+  宅家计划下给低压、轻松、具体的补水修护步骤；
+  不强推工具、不制造焦虑、不把护肤说成复杂任务。
+background: |
+  本 case 来源于 MD/成功标准.md 的“场景六：周末计划闲聊→关联护肤提醒→场景化护肤方案”。
+  它是 trajectory eval：同一个 example 下的 turns 会在同一 tenant/session 顺序执行。
+
+  当前只优化主回复相关组件：
+  1. main_agent：生活闲聊到场景化护肤建议的转场、轻量产品记忆使用、工具边界。
+  2. soul_style：语气、亲密度、低压提醒和陪伴感。
+
+  注意：本 case 不要求真实创建定时提醒，也不要求触发肌肤日记、深度报告、图片分析或护肤柜流程。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.94
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局对话策略、周末计划闲聊、轻量产品记忆使用、工具边界。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 语气、亲密度、低压提醒和陪伴感。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      用户仍处于新手期，刚开始和 Agent 熟悉起来。
+      用户刚刚/近期有过一次轻量皮肤观察，但还没有进入探索期，也没有稳定长期画像。
+
+      ## Recent Skin Observation
+      - 当前可参考的轻量线索：脸颊偶尔泛红，户外后容易晒红。
+      - 护理偏好：喜欢具体、可执行的建议，不喜欢被强推流程。
+
+      ## Recent Product Mentions
+      - 用户最近提到过防晒：安热沙小金瓶。
+      - 用户最近提到过修护产品：理肤泉 B5 修复霜。
+      - 用户最近提到过晚间精华：小棕瓶。
+
+contract_sources:
+  - ../contracts/scenario6_weekend_plan_skincare_contracts.yaml
+
+examples:
+  - id: beach_weekend_then_home_repair
+    split: dfeedback
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户周五开心地说周末不用上班，随后说明明天和朋友去海边，
+      再确认会涂防晒、询问还要带什么护肤品，接着说后天宅家，并追问精华面膜怎么做。
+      Agent 应先保持周末闲聊感，记住海边、朋友、明天/后天安排；
+      户外部分给防晒补涂和晒后修护建议，结合安热沙小金瓶和 B5；
+      宅家部分给轻松、低压、可执行的补水修护步骤，结合小棕瓶但不过度承诺。
+    rubric:
+      - 第一轮接住周五/周末开心，轻问计划。
+      - 第二轮承接朋友和海边，提醒防晒和物理遮挡。
+      - 第三轮承接安热沙小金瓶，提醒补涂频率和下水/出汗后补涂。
+      - 第四轮建议带 B5 做晒后舒缓修护，不医疗化。
+      - 第五轮承接后天宅家，给轻松护理安排。
+      - 第六轮说明精华面膜步骤，控制时长，不夸大。
+      - 第七轮温暖收束，承接周末计划，不推工具。
+    turns:
+      - id: weekend_opening
+        user_query: "终于到周五啦！明天不用上班咯"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: weekend_opening_invites_plan_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: beach_plan
+        user_query: "我和朋友约了明天去海边玩"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: remembers_weekend_plan_detail_v1
+          - ref: outdoor_sunscreen_context_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: sunscreen_confirm
+        user_query: "知道啦，我会涂防晒霜的"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: known_sunscreen_reapply_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: asks_what_to_pack
+        user_query: "好的我记住了，那我还需要带什么护肤的东西吗？"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: after_sun_repair_pack_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: home_day_plan
+        user_query: "好的，我会带上的。那我后天呢？后天打算宅在家里"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: home_day_care_plan_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: serum_mask_howto
+        user_query: "精华面膜怎么做呀？"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: serum_mask_steps_safe_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: closure
+        user_query: "听起来不错，我后天试试"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: warm_weekend_closure_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+  - id: hiking_then_home_recovery_variant
+    split: dpareto
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户说周末想出去透气，随后说明周六爬山、周日宅家补觉，
+      追问防晒够不够、晚上泛红怎么办、宅家怎么简单护理。
+      Agent 应承接爬山/周六/周日宅家安排，给防晒补涂、晒后舒缓和轻护理建议；
+      不触发真实提醒或专项工具。
+    rubric:
+      - 第一轮接住周末想透气，轻问计划。
+      - 第二轮承接爬山和宅家两个安排，并提醒户外防晒。
+      - 第三轮承接安热沙，提醒补涂和物理遮挡。
+      - 第四轮给泛红晒后舒缓建议，结合 B5。
+      - 第五轮给宅家轻护理安排，不复杂化。
+    turns:
+      - id: weekend_opening
+        user_query: "这周终于结束了，周末想出去透透气"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: weekend_opening_invites_plan_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: hiking_and_home_plan
+        user_query: "周六跟同事去爬山，周日就宅家补觉"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: remembers_weekend_plan_detail_v1
+          - ref: outdoor_sunscreen_context_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: sunscreen_question
+        user_query: "防晒我就带安热沙小金瓶可以吗？"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: known_sunscreen_reapply_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: after_sun_redness
+        user_query: "晚上回来皮肤如果泛红怎么办？"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: after_sun_repair_pack_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1
+
+      - id: home_easy_care
+        user_query: "周日在家想简单护理一下，有啥轻松点的安排？"
+        hard_assertions:
+          - ref: weekend_text_reply_no_specialist_task_v1
+          - ref: weekend_no_tool_handoff_or_reminder_v1
+        behavior_checks:
+          - ref: home_day_care_plan_v1
+          - ref: no_tool_promotion_in_weekend_chat_v1

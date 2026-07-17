@@ -1,0 +1,20 @@
+# 构建上下文裁剪：仅保留 Flowcut 后端运行所需，排除大体积/无关目录
+.git
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+logs
+qdrant_storage
+docs
+admin
+dev
+tests
+Mojing
+architecture.html
+README.md
+DESIGN.md
+# 注意：
+# - 不排除 .env —— compose 通过 env_file 读取（未 COPY 进镜像）
+# - 不排除 *.md —— Flowcut/workspace/*.md 是运行时系统提示词，必须进镜像

@@ -1,0 +1,294 @@
+id: scenario_novice_emotion_to_first_diary_v1
+name: scenario_novice_emotion_to_first_diary_v1_multi_turn
+objective: |
+  用“情绪崩溃→现实陪伴→低压自拍→首次肌肤日记期待管理”这条新手期 onboarding，
+  测试主 Agent 是否能把用户从强烈负面情绪中陪下来，再自然进入首次自拍和记录。
+
+  这条 case 特别防止几类问题：
+  - 把情绪陪伴做成玄学许愿、好运加持，或承诺具体外部事件一定发生。
+  - 用户拒绝拍照时继续催拍，或者用“你很好看”压过用户抗拒。
+  - 刚上传自拍就抢跑说“检测完成/皮肤超好”，没有等待真实分析结果。
+  - 把肌肤日记说成魔法仪式，而不是记录、复盘和后续照顾。
+background: |
+  这是新写的一版，不替换已有 full journey。
+  它聚焦“首次打开 APP 就情绪爆炸”的 onboarding：先陪用户处理委屈和身体照顾，再把洗脸/护肤当作现实的自我照顾；
+  拍照和肌肤日记只作为可选记录，不是强制任务。
+
+  当前优化主回复相关组件：
+  1. main_agent：情绪陪伴、工具边界、首次自拍和日记期待管理。
+  2. tool_rules：自拍上传前后不要抢跑工具结论，避免神圣化。
+  3. novice_journey：新手期低压自拍邀请、拒绝后继续陪聊、首次记录分寸。
+  4. soul_style：亲密陪伴、不过度鸡汤、不客服化。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.92
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: first_token_opener
+    path: Mojing/workspace/first_token.md
+    role: 首气泡弱接话，只能输出完整、短、可独立成立的接话句。
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 情绪陪伴、工具边界、首次自拍和日记期待管理。
+  - id: tool_rules
+    path: Mojing/workspace/TOOL.md
+    role: 自拍上传前后工具触发边界，避免抢跑结论和工具神圣化。
+  - id: novice_journey
+    path: "Mojing/workspace/ journey/novice.md"
+    role: 新手期低压自拍邀请、拒绝后继续陪聊、首次记录分寸。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 亲密陪伴、不过度鸡汤、不客服化。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      用户是首次打开 APP 的新用户。
+      当前没有自拍、没有基础图片分析、没有肌肤日记，也没有历史肌肤画像。
+      用户一开始情绪非常差，不适合被立刻推工具或拍照。
+
+contract_sources:
+  - ../contracts/scenario_novice_emotion_to_first_diary_contracts.yaml
+
+examples:
+  - id: workplace_injustice_to_first_selfie
+    split: dfeedback
+    editable_components: [first_token_opener, main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: |
+      用户首次打开 APP 就强烈烦躁，随后说明自己为同事代码 bug 背锅、被老板误解、加班没吃饭。
+      Agent 应先共情具体不公平事件和身体消耗，不介绍功能、不提拍照。
+      当用户不想上班和质疑“做小事有没有用”时，Agent 可以有闺蜜式祝福，
+      但应以现实的自我照顾为落点，而不是把祝福包装成好运机制；
+      如果前文没有明确提出某个“事情/记录”，后续用户不应凭空追问“什么事情”。
+      当聊到心情/皮肤记录和拍照时，必须保留用户选择权。
+      用户拒绝拍照时完全尊重；用户后来同意拍照但还没上传图片时，只给简单无压力的拍摄指导，不能调用图片分析。
+      上传自拍后，不能抢跑说检测完成或皮肤超好，应等待基础分析结果。
+    rubric:
+      - 强情绪开头先接住情绪，不介绍功能。
+      - 具体承接背锅、老板误解、加班没吃饭。
+      - 不使用愿望守护瓶、好运加持、一定实现等玄学承诺。
+      - 可以祝福明天顺一点，但不能承诺老板或同事一定会按用户期待行动。
+      - 心情皮肤日记解释为记录/复盘，不是魔法仪式。
+      - 拍照必须低压、可拒绝；拒绝后不继续催。
+      - 用户同意拍照后，给简单拍摄指导；没有图片媒体时绝不调用 analyze_image。
+      - 自拍上传后不抢跑分析完成或美貌评价。
+      - 结尾温暖收束，不夸张人设宣言。
+    turns:
+      - id: rage_opening
+        user_query: "烦死了，今天什么破事都让我赶上了！"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: rage_opening_full_empathy_v1
+          - ref: no_tool_sacralization_emotion_diary_v1
+
+      - id: workplace_bug_blame
+        user_query: "今天项目出了个bug，明明是同事写的代码，老板非要说是我的问题，我跟他解释他还说我推卸责任，气死我了！"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: concrete_workplace_injustice_v1
+
+      - id: overtime_no_dinner
+        user_query: "是啊，我今天一下午都在改那个不是我写的bug，加班到现在才回家，饭都没来得及吃。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: body_care_before_solution_v1
+
+      - id: no_appetite_dread_tomorrow
+        user_query: "没胃口，气都气饱了。一想到明天还要面对那个老板和同事，我就不想去上班了。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: concrete_workplace_injustice_v1
+          - ref: grounded_self_care_ritual_v1
+
+      - id: asks_small_reset
+        user_query: "那我现在能做点什么？别太麻烦的。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: grounded_self_care_ritual_v1
+          - ref: safe_low_effort_self_care_v1
+          - ref: no_magic_wish_or_false_promise_v1
+
+      - id: skeptical
+        user_query: "洗个脸真的有用吗？感觉都是安慰人的话。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: grounded_self_care_ritual_v1
+          - ref: no_magic_wish_or_false_promise_v1
+
+      - id: hope_tomorrow
+        user_query: "那我希望明天老板不要找我麻烦，那个同事能主动承认错误。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: hope_for_tomorrow_without_guarantee_v1
+          - ref: no_magic_wish_or_false_promise_v1
+
+      - id: asks_small_action
+        user_query: "那我现在先洗个脸吧，别太复杂就行。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: grounded_self_care_ritual_v1
+          - ref: safe_low_effort_self_care_v1
+          - ref: no_magic_wish_or_false_promise_v1
+
+      - id: asks_diary
+        user_query: "你刚刚说心情和皮肤状态可以做个小记录，那是什么？"
+        hard_assertions:
+          - ref: no_skin_diary_scene_tool_v1
+        behavior_checks:
+          - ref: first_token_standalone_closed_v1
+          - ref: main_reply_not_first_token_continuation_v1
+          - ref: skin_diary_as_record_not_magic_v1
+          - ref: no_magic_wish_or_false_promise_v1
+
+      - id: asks_photo_needed
+        user_query: "怎么记录呀？还要拍照片吗？"
+        hard_assertions:
+          - ref: no_skin_diary_scene_tool_v1
+        behavior_checks:
+          - ref: optional_photo_for_record_v1
+          - ref: no_tool_sacralization_emotion_diary_v1
+
+      - id: refuses_photo_tired
+        user_query: "可是我今天又累又气，脸色肯定特别难看，不想拍照。"
+        hard_assertions:
+          - ref: no_skin_diary_scene_tool_v1
+        behavior_checks:
+          - ref: respect_tired_photo_refusal_v1
+
+      - id: agrees_to_photo
+        user_query: "好吧，那我拍一张。"
+        hard_assertions:
+          - ref: consent_to_photo_without_media_v1
+        behavior_checks:
+          - ref: simple_selfie_guidance_after_consent_v1
+
+      - id: selfie_uploaded
+        user_query: "我拍好了，你看看吧。"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+        hard_assertions:
+          - ref: main_reply_present_v1
+        behavior_checks:
+          - ref: no_premature_analysis_completion_after_selfie_v1
+
+      - id: worries_yellow_face
+        user_query: "真的吗？我还以为我今天脸黄得像个蜡人呢。"
+        hard_assertions:
+          - ref: main_reply_present_v1
+        behavior_checks:
+          - ref: tired_not_bad_skin_reframe_v1
+          - ref: no_tool_sacralization_emotion_diary_v1
+
+      - id: accepts_plan
+        user_query: "好啊。"
+        hard_assertions:
+          - ref: main_reply_present_v1
+        behavior_checks:
+          - ref: first_diary_expectation_grounded_v1
+          - ref: no_tool_sacralization_emotion_diary_v1
+
+      - id: goes_to_skincare
+        user_query: "那我现在就去护肤。"
+        hard_assertions:
+          - ref: skincare_execution_checks_cabinet_first_v1
+        behavior_checks:
+          - ref: first_diary_expectation_grounded_v1
+          - ref: ask_available_products_before_skincare_v1
+
+      - id: thanks
+        user_query: "谢谢你，小镜。跟你聊完，我真的没那么生气了。"
+        hard_assertions:
+          - ref: main_reply_present_v1
+        behavior_checks:
+          - ref: gratitude_after_emotional_onboarding_v1
+
+  - id: overtime_blame_to_optional_photo_variant
+    split: dpareto
+    editable_components: [first_token_opener, main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: |
+      轻量变体：用户被领导误解、加班没吃饭、对明天很抗拒。
+      Agent 应现实陪伴和引导洗脸/喝水，不做许愿瓶或好运承诺；
+      用户问心情皮肤记录和拍照时，说明照片可选；
+      用户拒绝时尊重，用户同意时给简单拍摄指导。
+      用户只是说之后愿意拍，但没有上传媒体时，不应调用 analyze_image。
+    rubric:
+      - 情绪入口接住具体委屈。
+      - 不玄学许愿，不保证明天。
+      - 解释日记为记录和复盘。
+      - 拍照可选，拒绝不催。
+      - 同意拍照后指导简单无压力。
+    turns:
+      - id: rage_opening
+        user_query: "我今天真的气炸了，被领导误会，还加班到现在。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: rage_opening_full_empathy_v1
+          - ref: concrete_workplace_injustice_v1
+
+      - id: no_dinner
+        user_query: "而且我饭都没吃，想到明天还要上班就烦。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: body_care_before_solution_v1
+          - ref: grounded_self_care_ritual_v1
+
+      - id: skeptical
+        user_query: "洗个脸真的有用吗？别又是安慰人的话。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: grounded_self_care_ritual_v1
+          - ref: no_magic_wish_or_false_promise_v1
+
+      - id: asks_small_action
+        user_query: "那我现在能做点什么？别太麻烦。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: grounded_self_care_ritual_v1
+          - ref: safe_low_effort_self_care_v1
+          - ref: no_magic_wish_or_false_promise_v1
+
+      - id: asks_diary
+        user_query: "你刚刚说可以做个心情皮肤记录，那是什么？"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: skin_diary_as_record_not_magic_v1
+
+      - id: asks_photo_needed
+        user_query: "那是不是要拍脸？我今天状态很差。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: optional_photo_for_record_v1
+          - ref: respect_tired_photo_refusal_v1
+
+      - id: agrees_to_photo
+        user_query: "那我等下愿意的话拍一张。"
+        hard_assertions:
+          - ref: consent_to_photo_without_media_v1
+        behavior_checks:
+          - ref: simple_selfie_guidance_after_consent_v1
+
+      - id: thanks
+        user_query: "谢谢，感觉你这样说我舒服一点。"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: gratitude_after_emotional_onboarding_v1

@@ -1,0 +1,166 @@
+id: S02_skincare_cabinet_reentry
+name: stress_skincare_cabinet_reentry
+description: 护肤柜鲁棒性压测：已入柜产品再次出现时不重复询问入柜、不重复 confirm；用户拒绝调研/入柜后仍能给粗略建议；从产品话题切走后 skill 应退出，晨间护肤可按已入柜产品给轻量步骤。
+agent: main
+initial_stage: explore
+wait_side_effects_s: 1
+session:
+  reuse: false
+  subscriptions:
+    - "main:{tenant_key}"
+seed:
+  docs:
+    USER.md: |
+      ## identity
+
+      （无内容）
+
+      ## style
+
+      偏好省事的三步以内护肤流程。
+
+      ## skin
+
+      用户近期有额头痘痘和黑眼圈困扰，担心护肤步骤太多。
+
+      ## lifestyle
+
+      近期经常加班，早晨赶时间。
+
+      ## goals
+
+      稳住痘痘和黑眼圈，不想增加太多步骤。
+  skincare_cabinet_products:
+    - brand: "谷雨"
+      product_name: "光感美白修护焕能精华霜"
+      usage_status: "using"
+      in_cabinet: true
+      image_url: "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172434.png"
+      category: "面霜"
+      core_efficacy: ["保湿", "提亮", "修护"]
+      core_ingredients: ["烟酰胺", "光甘草定"]
+      risk_ingredients: []
+      specifications: "50g"
+
+turns:
+  - user: "我现在有这个。"
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172434.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: load_skill
+      - not_tool_called: lookup_skincare_cabinet_product_status
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: confirm_skincare_cabinet_record
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "这个是不是已经录过了？还需要我再入柜一次吗？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: lookup_skincare_cabinet_product_status
+      - not_tool_called: confirm_skincare_cabinet_record
+      - not_tool_called: research_skincare_product
+      - not_tool_called: analyze_image
+      - no_runtime_task_created: cabinet_product_research
+      - reply_not_contains: "要不要入柜"
+      - reply_not_contains: "帮你入柜吗"
+      - reply_not_contains: "加入护肤柜吗"
+    soft_checks:
+      - reply_contains: "已经"
+
+  - user: "那它今天能不能用？我额头还有痘痘。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: research_skincare_product
+      - not_tool_called: confirm_skincare_cabinet_record
+      - not_tool_called: analyze_image
+      - no_runtime_task_created: cabinet_product_research
+    soft_checks:
+      - reply_contains: "额头"
+
+  - user: "不用查新资料，也不用重新录，我只是想知道大概怎么用。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: research_skincare_product
+      - not_tool_called: confirm_skincare_cabinet_record
+      - not_tool_called: notify_skin_diary_chat
+      - reply_not_contains: "要不要入柜"
+      - reply_not_contains: "重新入柜"
+    soft_checks:
+      - reply_contains: "避开"
+
+  - user: "我先不聊这个了，今天加班太累了。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: research_skincare_product
+      - not_tool_called: confirm_skincare_cabinet_record
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: cabinet_product_research
+    soft_checks:
+      - tool_called: unload_skill
+
+  - user: "晨间护肤教我一下，还是三步以内。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: confirm_skincare_cabinet_record
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: cabinet_product_research
+    soft_checks:
+      - tool_called: list_skincare_cabinet_products
+
+  - user: "那如果我明天又拍到这个产品，你还会让我重新录吗？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: confirm_skincare_cabinet_record
+      - not_tool_called: research_skincare_product
+      - reply_not_contains: "重新录"
+      - reply_not_contains: "再入柜"
+    soft_checks:
+      - reply_contains: "不用"

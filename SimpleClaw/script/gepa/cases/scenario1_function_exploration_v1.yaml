@@ -1,0 +1,97 @@
+id: scenario1_function_exploration_v1
+name: scenario1_function_exploration_v1_multi_turn
+objective: |
+  用“功能探索→护肤提醒设置→忘记提醒追问”这一条小型多轮流，测试主 Agent 是否能在连续对话里保持任务上下文。
+
+  这不是让模型背诵成功标准里的理想回复，而是看它是否能做到：
+  先清楚介绍能力；用户追问提醒时直接回答；用户给出早晚时间时正确承接；
+  用户追问忘记怎么办时继续围绕提醒机制回答，而不是重启新手期拍照或护肤目标流程。
+background: |
+  本 case 来源于 MD/成功标准.md 的“场景一：功能探索→多轮指令→上下文延续”。
+  它是 trajectory eval：同一个 example 下的 turns 会在同一 tenant/session 顺序执行，
+  后一轮能看到前面真实回复和历史上下文。
+
+  当前只优化新手期主回复相关组件：
+  1. main_agent：全局任务承接、上下文保持、工具边界。
+  2. novice_journey：新手期功能介绍、任务承接、流程推进分寸。
+  3. soul_style：语气、亲密度、气泡感与陪伴感。
+
+  注意：本 case 不验证真实提醒工具是否创建成功；它只评估文本层是否诚实承接提醒设置意图。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.94
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局任务承接、上下文保持、工具边界。
+  - id: novice_journey
+    path: "Mojing/workspace/ journey/novice.md"
+    role: 新手期功能介绍、输入承接、流程推进分寸。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 语气、亲密度、气泡感与长期人格。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      刚进入新手期的新用户，对 Agent 的能力还不熟，正在探索魔镜能帮她做什么。
+
+contract_sources:
+  - ../contracts/scenario1_function_exploration_contracts.yaml
+
+examples:
+  - id: function_to_reminder_setup
+    split: dfeedback
+    editable_components: [novice_journey, soul_style]
+    slots:
+      morning_time: "早上8点"
+      evening_time: "晚上10点"
+    expected_behavior: |
+      用户先问 Agent 能做什么，然后追问护肤提醒如何设置，给出早晚提醒时间，最后问忘记了怎么办。
+      Agent 应在多轮里保持“护肤提醒设置”这个上下文：先介绍核心能力，再直接解释提醒设置方式；
+      用户给出时间后要识别早晚两个时间，不重复问；用户追问忘记怎么办时，要回答提醒补救机制。
+    rubric:
+      - 第一轮清楚介绍核心能力，并给低压探索入口。
+      - 第二轮直接回答护肤提醒怎么设置，不绕回拍照或工具流程。
+      - 第三轮识别早上8点、晚上10点两个时间，不重复问时间，不虚假声称工具已创建成功。
+      - 第四轮回答忘记护肤后的补救机制，并保持前文提醒设置上下文。
+    turns:
+      - id: capability_overview
+        user_query: "你都能帮我做什么？"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: capability_overview_covers_core_features_v1
+          - ref: capability_overview_invites_user_interest_v1
+          - ref: no_tool_sacralization_in_capability_intro_v1
+
+      - id: reminder_howto
+        user_query: "怎么设置护肤提醒？"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: reminder_setup_explains_input_format_v1
+          - ref: reminder_flow_maintains_context_v1
+
+      - id: reminder_times
+        user_query: "早上8点，晚上10点"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: reminder_time_request_understands_two_times_v1
+          - ref: reminder_creation_truthful_v1
+          - ref: reminder_flow_maintains_context_v1
+
+      - id: missed_followup
+        user_query: "那如果我有时候忘记了怎么办？"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: reminder_missed_followup_answers_policy_v1
+          - ref: reminder_flow_maintains_context_v1

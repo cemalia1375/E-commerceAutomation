@@ -1,0 +1,2518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimpleClaw 架构图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border-bottom: 1px solid #334155;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; color: #f8fafc; }
+  header p { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+  .badge {
+    background: #1e40af;
+    color: #93c5fd;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .badge-flowcut {
+    background: rgba(249,115,22,0.2);
+    color: #fed7aa;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-left: 6px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    height: calc(100vh - 73px);
+  }
+
+  /* LEFT PANEL */
+  .left {
+    background: #0d1117;
+    border-right: 1px solid #21262d;
+    overflow-y: auto;
+    padding: 20px 16px;
+  }
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #475569;
+    padding: 0 8px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  .module-card {
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .module-card:hover { border-color: #374151; }
+  .module-card.active { border-color: var(--accent); }
+
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #161b22;
+    user-select: none;
+  }
+  .module-header:hover { background: #1c2128; }
+  .module-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .module-title { flex: 1; }
+  .module-title h3 { font-size: 14px; font-weight: 600; color: #f0f6fc; }
+  .module-title p { font-size: 11px; color: #8b949e; margin-top: 2px; }
+  .module-chevron {
+    color: #484f58;
+    font-size: 12px;
+    transition: transform 0.2s;
+  }
+  .module-card.open .module-chevron { transform: rotate(90deg); }
+
+  .module-folders {
+    display: none;
+    padding: 8px 8px;
+    background: #0d1117;
+  }
+  .module-card.open .module-folders { display: block; }
+
+  .folder-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    color: #c9d1d9;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+    margin-bottom: 2px;
+  }
+  .folder-btn:hover { background: #161b22; color: #f0f6fc; }
+  .folder-btn.active {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent-light);
+  }
+  .folder-icon { font-size: 14px; flex-shrink: 0; }
+  .folder-name { flex: 1; font-weight: 500; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+  .folder-desc { font-size: 11px; color: #6e7681; }
+
+  /* RIGHT PANEL */
+  .right {
+    background: #161b22;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #21262d;
+    background: #0d1117;
+    padding: 0 24px;
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    padding: 12px 14px;
+    border: none;
+    background: transparent;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    margin-bottom: -1px;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: #c9d1d9; }
+  .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+  .tab-content { display: none; padding: 24px; flex: 1; }
+  .tab-content.active { display: block; }
+
+  /* DETAIL PANEL */
+  .detail-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #484f58;
+    gap: 12px;
+    padding: 40px;
+    text-align: center;
+  }
+  .detail-placeholder .icon { font-size: 48px; }
+  .detail-placeholder p { font-size: 14px; line-height: 1.6; }
+
+  .detail-card {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .detail-card h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f0f6fc;
+    margin-bottom: 4px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .detail-card .role-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .detail-card p.desc {
+    font-size: 14px;
+    color: #8b949e;
+    line-height: 1.7;
+  }
+
+  .files-grid {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .file-item {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .file-item .filename {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: #79c0ff;
+    margin-bottom: 4px;
+  }
+  .file-item .file-desc { font-size: 12px; color: #8b949e; }
+
+  .connections-list { margin-top: 16px; display: grid; gap: 8px; }
+  .conn-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .conn-arrow { font-size: 18px; flex-shrink: 0; }
+  .conn-text { font-size: 12px; color: #8b949e; line-height: 1.6; }
+  .conn-text strong { color: #c9d1d9; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+
+  /* FLOW VIEW */
+  .flow-container { padding: 24px; }
+  .flow-title { font-size: 16px; font-weight: 700; color: #f0f6fc; margin-bottom: 4px; }
+  .flow-subtitle { font-size: 12px; color: #8b949e; margin-bottom: 24px; }
+
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+  .flow-step {
+    display: flex;
+    gap: 16px;
+    position: relative;
+  }
+  .flow-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 40px;
+    bottom: -16px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--step-color), transparent);
+  }
+  .flow-step { padding-bottom: 16px; }
+  .step-bullet {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--step-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+    font-weight: 700;
+    color: #fff;
+  }
+  .step-body { flex: 1; padding-top: 8px; }
+  .step-body h4 { font-size: 13px; font-weight: 700; color: #f0f6fc; margin-bottom: 4px; }
+  .step-body p { font-size: 12px; color: #8b949e; line-height: 1.7; }
+  .step-code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    color: #79c0ff;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* DATA FLOW VIEW */
+  .data-flow-box {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #8b949e;
+  }
+  .data-flow-box .highlight { color: #a5f3fc; }
+  .data-flow-box .arrow { color: #334155; }
+  .data-flow-box .label { color: #6ee7b7; }
+  .data-flow-box .result { color: #fbbf24; }
+  .data-flow-box h4 { font-size: 12px; font-weight: 700; color: #f0f6fc; margin-bottom: 10px; font-family: inherit; }
+
+  /* COLORS */
+  .color-harness { --accent: #3b82f6; --accent-light: #93c5fd; }
+  .color-business { --accent: #10b981; --accent-light: #6ee7b7; }
+  .color-flowcut { --accent: #f97316; --accent-light: #fed7aa; }
+  .color-infra { --accent: #8b5cf6; --accent-light: #c4b5fd; }
+  .color-test { --accent: #f59e0b; --accent-light: #fcd34d; }
+
+  .bg-harness { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+  .bg-business { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+  .bg-flowcut { background: rgba(249, 115, 22, 0.15); color: #fed7aa; }
+  .bg-infra { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
+  .bg-test { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+  .highlight-box {
+    border: 1px solid #3b82f6;
+    border-radius: 10px;
+    padding: 16px 20px;
+    background: rgba(59,130,246,0.07);
+    margin-bottom: 16px;
+  }
+  .highlight-box h3 { font-size: 14px; font-weight: 700; color: #93c5fd; margin-bottom: 12px; }
+  .highlight-box p { font-size: 12px; color: #8b949e; line-height: 1.7; margin-bottom: 8px; }
+  .highlight-box code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: #79c0ff;
+    background: #0d1117;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* LIVE DASHBOARD */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-color, #3b82f6);
+  }
+  .stat-number {
+    font-size: 32px;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--card-color, #3b82f6);
+    line-height: 1.2;
+  }
+  .stat-label { font-size: 11px; color: #6e7681; margin-top: 4px; }
+  .stat-sub { font-size: 10px; color: #484f58; margin-top: 2px; font-family: 'SF Mono', monospace; }
+
+  .live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    margin-right: 6px;
+    animation: livepulse 1.8s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  .live-dot.idle { background: #484f58; animation: none; }
+  .live-dot.warn { background: #f59e0b; }
+  @keyframes livepulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+  }
+
+  .stream-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+  }
+  .stream-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: #fed7aa;
+    width: 180px;
+    flex-shrink: 0;
+  }
+  .stream-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: #21262d;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .stream-bar {
+    height: 100%;
+    border-radius: 3px;
+    background: #f97316;
+    transition: width 0.8s ease;
+  }
+  .stream-depth {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    color: #8b949e;
+    width: 60px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .status-cell {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .status-cell .status-val {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: 'SF Mono', monospace;
+  }
+  .status-cell .status-key { font-size: 11px; color: #6e7681; margin-top: 3px; }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f0f6fc;
+    margin-bottom: 12px;
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .db-table-card {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .db-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #161b22;
+    border-bottom: 1px solid #21262d;
+  }
+  .db-table-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: #79c0ff;
+    font-weight: 600;
+  }
+  .db-row-count {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    color: #6e7681;
+  }
+  .db-cols {
+    padding: 8px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .db-col-tag {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #161b22;
+    color: #8b949e;
+    border: 1px solid #21262d;
+  }
+  .db-col-tag.pk { color: #fbbf24; border-color: rgba(251,191,36,0.3); }
+  .db-col-tag.fk { color: #a5f3fc; border-color: rgba(165,243,252,0.3); }
+  .db-col-tag.status-col { color: #c4b5fd; border-color: rgba(196,181,253,0.3); }
+
+  .arch-dep-box {
+    margin-top: 24px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  /* ── Clickable file items ─────────────────────────────────────────── */
+  .file-item.has-snippet {
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s, transform 0.15s;
+  }
+  .file-item.has-snippet:hover {
+    border-color: #388bfd;
+    background: rgba(56,139,253,0.06);
+    transform: translateX(2px);
+  }
+  .file-item.has-snippet:hover .filename { color: #79c0ff; }
+  .snippet-hint {
+    font-size: 10px; color: #484f58;
+    margin-left: 8px; font-family: 'SF Mono', monospace;
+    transition: color 0.15s; font-weight: 400;
+    vertical-align: middle;
+  }
+  .file-item.has-snippet:hover .snippet-hint { color: #388bfd; }
+
+  /* ── Code Snippet Modal ───────────────────────────────────────────── */
+  .cm-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(1,4,9,0.82);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.22s;
+  }
+  .cm-overlay.open { opacity: 1; pointer-events: all; }
+  .cm-dialog {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 14px;
+    width: min(860px, 94vw);
+    max-height: 86vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 32px 100px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.04);
+    transform: translateY(22px) scale(0.96);
+    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+  }
+  .cm-overlay.open .cm-dialog { transform: none; }
+
+  .cm-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px; border-bottom: 1px solid #21262d;
+    background: #161b22; flex-shrink: 0;
+  }
+  .cm-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 1px; }
+  .cm-headinfo { flex: 1; min-width: 0; }
+  .cm-fname {
+    font-family: 'SF Mono','Fira Code',monospace;
+    font-size: 13px; font-weight: 600; color: #79c0ff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cm-ftitle { font-size: 11px; color: #6e7681; margin-top: 1px; }
+  .cm-kbd {
+    font-size: 10px; color: #484f58; font-family: 'SF Mono', monospace;
+    border: 1px solid #30363d; border-radius: 3px; padding: 1px 5px;
+    margin-left: 4px;
+  }
+  .cm-close {
+    width: 26px; height: 26px; border-radius: 5px;
+    border: 1px solid #30363d; background: transparent;
+    color: #8b949e; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.12s, color 0.12s; flex-shrink: 0;
+  }
+  .cm-close:hover { background: #21262d; color: #f0f6fc; }
+
+  .cm-explain {
+    padding: 11px 18px;
+    background: rgba(56,139,253,0.05);
+    border-bottom: 1px solid rgba(56,139,253,0.1);
+    font-size: 12.5px; color: #8b949e; line-height: 1.75;
+    flex-shrink: 0;
+  }
+  .cm-explain strong { color: #c9d1d9; }
+  .cm-explain code {
+    font-family: 'SF Mono',monospace; font-size: 11px;
+    background: #161b22; padding: 1px 5px; border-radius: 3px; color: #79c0ff;
+  }
+
+  .cm-body { overflow-y: auto; flex: 1; }
+  .cm-code {
+    font-family: 'SF Mono','Fira Code',monospace;
+    font-size: 11.5px; line-height: 1.85; padding: 10px 0;
+  }
+  .cl {
+    display: flex; padding: 0 18px;
+    transition: background 0.08s;
+  }
+  .cl:hover { background: rgba(255,255,255,0.025); }
+  .cl.hl-o { background: rgba(249,115,22,0.08); border-left: 2px solid #f97316; padding-left: 16px; }
+  .cl.hl-b { background: rgba(59,130,246,0.08); border-left: 2px solid #3b82f6; padding-left: 16px; }
+  .cl.hl-g { background: rgba(16,185,129,0.08); border-left: 2px solid #10b981; padding-left: 16px; }
+  .ln { width: 32px; flex-shrink: 0; color: #3d444d; text-align: right; margin-right: 16px; user-select: none; font-size: 10.5px; padding-top: 2px; }
+  .lc { flex: 1; color: #c9d1d9; white-space: pre-wrap; word-break: break-all; }
+  /* syntax tokens */
+  .tk  { color: #ff7b72; }
+  .ts  { color: #a5d6ff; }
+  .tc  { color: #6e7681; font-style: italic; }
+  .tf  { color: #d2a8ff; }
+  .tcl { color: #ffa657; }
+  .tn  { color: #79c0ff; }
+  .td  { color: #e3b341; }
+  .tse { color: #ff7b72; }
+  .tty { color: #56d364; }
+
+  .cm-tags {
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+    padding: 10px 18px; border-top: 1px solid #21262d;
+    background: #161b22; flex-shrink: 0;
+  }
+  .cm-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    font-weight: 600; letter-spacing: 0.3px;
+  }
+  .cm-legend {
+    margin-left: auto; display: flex; gap: 10px; align-items: center;
+    font-size: 10px; color: #484f58;
+  }
+  .cm-legend span { display: flex; align-items: center; gap: 4px; }
+  .cm-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>SimpleClaw 架构浏览器</h1>
+    <p>点击左侧文件夹查看详情 · 右侧 Tabs 切换视图</p>
+  </div>
+  <span class="badge">Mojing × simpleclaw</span>
+  <span class="badge-flowcut">+ Flowcut</span>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <div class="section-label">核心框架层</div>
+
+    <div class="module-card color-harness open" id="card-simpleclaw" onclick="toggleCard('simpleclaw')">
+      <div class="module-header">
+        <div class="module-icon" style="background:rgba(59,130,246,0.2)">🔧</div>
+        <div class="module-title">
+          <h3>simpleclaw/</h3>
+          <p>共享 LLM 编排框架 · Harness 层</p>
+        </div>
+        <span class="module-chevron">▶</span>
+      </div>
+      <div class="module-folders">
+        <button class="folder-btn" onclick="showDetail('sc_core',event)">
+          <span class="folder-icon">⚡</span>
+          <span class="folder-name">core/</span>
+          <span class="folder-desc">ReAct 执行引擎</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_llm',event)">
+          <span class="folder-icon">🧠</span>
+          <span class="folder-name">llm/</span>
+          <span class="folder-desc">LLM 抽象接口</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_tools',event)">
+          <span class="folder-icon">🔩</span>
+          <span class="folder-name">tools/</span>
+          <span class="folder-desc">工具基类 + 注册表</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_context',event)">
+          <span class="folder-icon">📐</span>
+          <span class="folder-name">context/</span>
+          <span class="folder-desc">上下文组装器</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_harness',event)">
+          <span class="folder-icon">🛡️</span>
+          <span class="folder-name">harness/</span>
+          <span class="folder-desc">工具生命周期钩子</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_runtime',event)">
+          <span class="folder-icon">🔄</span>
+          <span class="folder-name">runtime/</span>
+          <span class="folder-desc">任务队列 + 锁</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_subagent',event)">
+          <span class="folder-icon">🤖</span>
+          <span class="folder-name">subagent/</span>
+          <span class="folder-desc">子 Agent 抽象</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_memory',event)">
+          <span class="folder-icon">💾</span>
+          <span class="folder-name">memory/</span>
+          <span class="folder-desc">记忆抽象层</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('sc_api',event)">
+          <span class="folder-icon">🌐</span>
+          <span class="folder-name">api/</span>
+          <span class="folder-desc">开发调试服务器</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="section-label">业务模块</div>
+
+    <div class="module-card color-business open" id="card-mojing" onclick="toggleCard('mojing')">
+      <div class="module-header">
+        <div class="module-icon" style="background:rgba(16,185,129,0.2)">💄</div>
+        <div class="module-title">
+          <h3>Mojing/</h3>
+          <p>魔镜业务 · 参考实现架构</p>
+        </div>
+        <span class="module-chevron">▶</span>
+      </div>
+      <div class="module-folders">
+        <button class="folder-btn" onclick="showDetail('mj_api',event)">
+          <span class="folder-icon">🌐</span>
+          <span class="folder-name">api/</span>
+          <span class="folder-desc">FastAPI 路由 + DI 容器</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_agent',event)">
+          <span class="folder-icon">🧩</span>
+          <span class="folder-name">agent/</span>
+          <span class="folder-desc">主 Agent 装配层</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_tools',event)">
+          <span class="folder-icon">🔨</span>
+          <span class="folder-name">tools/</span>
+          <span class="folder-desc">业务具体工具实现</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_context',event)">
+          <span class="folder-icon">📋</span>
+          <span class="folder-name">context/</span>
+          <span class="folder-desc">业务动态上下文提供者</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_storage',event)">
+          <span class="folder-icon">🗄️</span>
+          <span class="folder-name">storage/</span>
+          <span class="folder-desc">MySQL 仓储层</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_runtime',event)">
+          <span class="folder-icon">⚙️</span>
+          <span class="folder-name">runtime/</span>
+          <span class="folder-desc">后台 Worker + 执行器</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_subagent',event)">
+          <span class="folder-icon">👥</span>
+          <span class="folder-name">subagent/</span>
+          <span class="folder-desc">皮肤日记 / 深度报告子 Agent</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_harness',event)">
+          <span class="folder-icon">🔐</span>
+          <span class="folder-name">harness/</span>
+          <span class="folder-desc">业务前置校验 Gate</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_workspace',event)">
+          <span class="folder-icon">📝</span>
+          <span class="folder-name">workspace/</span>
+          <span class="folder-desc">系统提示 Markdown 文件</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('mj_config',event)">
+          <span class="folder-icon">⚙️</span>
+          <span class="folder-name">config.py</span>
+          <span class="folder-desc">应用配置 + LLM 配置工厂</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="module-card color-flowcut open" id="card-flowcut" onclick="toggleCard('flowcut')">
+      <div class="module-header">
+        <div class="module-icon" style="background:rgba(249,115,22,0.2)">🎬</div>
+        <div class="module-title">
+          <h3>Flowcut/</h3>
+          <p>千川内容生产 · MVP 骨架（2026-05-13）</p>
+        </div>
+        <span class="module-chevron">▶</span>
+      </div>
+      <div class="module-folders">
+        <button class="folder-btn" onclick="showDetail('fc_api',event)">
+          <span class="folder-icon">🌐</span>
+          <span class="folder-name">api/</span>
+          <span class="folder-desc">FastAPI 路由 + DI 容器（端口 8001）</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('fc_agent',event)">
+          <span class="folder-icon">🧩</span>
+          <span class="folder-name">agent/</span>
+          <span class="folder-desc">主 Agent（单一 default 阶段）</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('fc_tools',event)">
+          <span class="folder-icon">🔨</span>
+          <span class="folder-name">tools/</span>
+          <span class="folder-desc">6 个工具骨架（NotImplementedError 占位）</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('fc_context',event)">
+          <span class="folder-icon">📋</span>
+          <span class="folder-name">context/</span>
+          <span class="folder-desc">TaskContextProvider（占位 stub）</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('fc_storage',event)">
+          <span class="folder-icon">🗄️</span>
+          <span class="folder-name">storage/</span>
+          <span class="folder-desc">5 张 fc_* MySQL 表</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('fc_runtime',event)">
+          <span class="folder-icon">⚙️</span>
+          <span class="folder-name">runtime/</span>
+          <span class="folder-desc">5 个 TaskStream + Worker 骨架</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('fc_workspace',event)">
+          <span class="folder-icon">📝</span>
+          <span class="folder-name">workspace/</span>
+          <span class="folder-desc">4 个系统提示文件（无 journey 阶段）</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('fc_config',event)">
+          <span class="folder-icon">⚙️</span>
+          <span class="folder-name">config.py</span>
+          <span class="folder-desc">FLOWCUT_* 环境变量 + OSS 配置</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="section-label">周边支撑</div>
+
+    <div class="module-card color-infra" id="card-admin" onclick="toggleCard('admin')">
+      <div class="module-header">
+        <div class="module-icon" style="background:rgba(139,92,246,0.2)">🖥️</div>
+        <div class="module-title">
+          <h3>admin/</h3>
+          <p>调试面板 · 运维工具</p>
+        </div>
+        <span class="module-chevron">▶</span>
+      </div>
+      <div class="module-folders">
+        <button class="folder-btn" onclick="showDetail('admin',event)">
+          <span class="folder-icon">🖥️</span>
+          <span class="folder-name">admin/</span>
+          <span class="folder-desc">Prompt 编辑 + 场景调试页</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="module-card color-test" id="card-tests" onclick="toggleCard('tests')">
+      <div class="module-header">
+        <div class="module-icon" style="background:rgba(245,158,11,0.2)">🧪</div>
+        <div class="module-title">
+          <h3>tests/ · script/</h3>
+          <p>测试套件 · 基准脚本</p>
+        </div>
+        <span class="module-chevron">▶</span>
+      </div>
+      <div class="module-folders">
+        <button class="folder-btn" onclick="showDetail('tests',event)">
+          <span class="folder-icon">🧪</span>
+          <span class="folder-name">tests/</span>
+          <span class="folder-desc">pytest 测试套件</span>
+        </button>
+        <button class="folder-btn" onclick="showDetail('script',event)">
+          <span class="folder-icon">📊</span>
+          <span class="folder-name">script/</span>
+          <span class="folder-desc">基准测试 + Runner</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('detail')">📄 模块详情</button>
+      <button class="tab-btn" onclick="switchTab('flow')">🔄 协作流程</button>
+      <button class="tab-btn" onclick="switchTab('dataflow')">📦 数据流示例</button>
+      <button class="tab-btn" onclick="switchTab('connect')">🔗 架构关系</button>
+      <button class="tab-btn" onclick="switchTab('live')">🎬 Flowcut 实时状态</button>
+    </div>
+
+    <!-- TAB: detail -->
+    <div class="tab-content active" id="tab-detail">
+      <div id="detail-placeholder" class="detail-placeholder" style="height:400px">
+        <div class="icon">👈</div>
+        <p>点击左侧任意文件夹<br>查看该模块的功能详情、关键文件和对外连接</p>
+      </div>
+      <div id="detail-body" style="display:none"></div>
+    </div>
+
+    <!-- TAB: flow -->
+    <div class="tab-content" id="tab-flow">
+      <div class="flow-container">
+        <div class="flow-title">一次用户请求的完整执行链路</div>
+        <div class="flow-subtitle">以 Mojing 为例，从用户消息到 SSE 流式响应的全程调用路径（Flowcut 结构一致）</div>
+
+        <div class="flow">
+
+          <div class="flow-step" style="--step-color:#3b82f6">
+            <div class="step-bullet">1</div>
+            <div class="step-body">
+              <h4>用户请求进入 FastAPI</h4>
+              <p><code>Mojing/api/server.py</code> 接收 <code>POST /chat</code> 请求，解析 tenant_key、message、media 等字段。</p>
+              <div class="step-code">POST /chat
+{"tenant_key": "u_001", "message": "帮我分析一下最近的皮肤状态"}</div>
+            </div>
+          </div>
+
+          <div class="flow-step" style="--step-color:#10b981">
+            <div class="step-bullet">2</div>
+            <div class="step-body">
+              <h4>SessionStore 查找 / 冷启动 ReactLoop</h4>
+              <p><code>Mojing/storage/session_store.py</code> 按 tenant_key 查缓存；首次访问时调用 <code>MainAgent.make_context_builder()</code> 和 <code>make_tool_registry()</code> 组装 simpleclaw 的 ReactLoop。</p>
+              <div class="step-code">loop = ReactLoop(
+  llm=VolcengineLLM,           # simpleclaw/llm/volcengine.py
+  tool_registry=ToolRegistry,   # simpleclaw/tools/registry.py
+  context_builder=ContextBuilder # simpleclaw/context/builder.py
+)</div>
+            </div>
+          </div>
+
+          <div class="flow-step" style="--step-color:#8b5cf6">
+            <div class="step-bullet">3</div>
+            <div class="step-body">
+              <h4>ContextBuilder 组装 System Prompt</h4>
+              <p><code>simpleclaw/context/builder.py</code> 合并：<br>
+              • 稳定前缀：从 <code>workspace/</code> 加载的 Agent.md + SOUL.md + TOOL.md（走前缀缓存）<br>
+              • 动态尾部：业务 Provider 每轮实时计算<br>
+              • Attention Packets：注入到消息流特定位置</p>
+              <div class="step-code">system = [stable_prefix]  # ~3200 tokens，前缀缓存
+       + [dynamic_tail]  # 每轮实时计算
+messages = history + attention_packets</div>
+            </div>
+          </div>
+
+          <div class="flow-step" style="--step-color:#ef4444">
+            <div class="step-bullet">4</div>
+            <div class="step-body">
+              <h4>ReactLoop 调用 LLM，流式输出 Token</h4>
+              <p><code>simpleclaw/core/loop.py</code> 调用 <code>VolcengineLLM.stream_with_retry()</code>，TextChunk 实时 yield 给前端（SSE），同时收集 ToolCallChunk。</p>
+              <div class="step-code">async for chunk in llm.stream_with_retry(messages):
+    if isinstance(chunk, TextChunk):
+        yield TextEvent(chunk.token)  # → 前端实时看到
+    elif isinstance(chunk, ToolCallChunk):
+        tool_calls.append(...)        # → 收集待执行工具</div>
+            </div>
+          </div>
+
+          <div class="flow-step" style="--step-color:#f59e0b">
+            <div class="step-bullet">5</div>
+            <div class="step-body">
+              <h4>工具执行：耦合 vs 解耦</h4>
+              <p>LLM 返回工具调用后，ReactLoop 按 needs_followup 分流：<br>
+              • coupled（needs_followup=True）：并行执行，结果注入历史 → 再次调用 LLM<br>
+              • decoupled（needs_followup=False）：asyncio.create_task() 后台触发，不阻塞 LLM</p>
+              <div class="step-code">coupled   = [SearchMaterials]  # 等待结果 → 注入 LLM
+decoupled = [DecomposeVideo]   # fire & forget</div>
+            </div>
+          </div>
+
+          <div class="flow-step" style="--step-color:#06b6d4">
+            <div class="step-bullet">6</div>
+            <div class="step-body">
+              <h4>durable 工具 → 任务队列 → Worker 消费</h4>
+              <p>长运行工具（<code>execution_mode="durable"</code>）调用 RuntimeServices.submit_task() 入队；TaskWorker 后台消费，完成后写 DB。</p>
+              <div class="step-code">TaskQueue → stream: VIDEO_DECOMPOSE
+TaskWorker → executor: make_decompose_video_executor()</div>
+            </div>
+          </div>
+
+          <div class="flow-step" style="--step-color:#10b981">
+            <div class="step-bullet">7</div>
+            <div class="step-body">
+              <h4>Turn 结束 → Postprocess / 记忆提取</h4>
+              <p>每轮结束后，PostprocessHook 和 ContextCompressor 被触发；超出 token 窗口的历史消息被压缩，consolidated_from 指针前移。</p>
+              <div class="step-code">compressor.maybe_compress(active_messages)
+postprocess_hook.on_turn_end(session_id, messages)</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: dataflow -->
+    <div class="tab-content" id="tab-dataflow">
+      <div class="flow-container">
+        <div class="flow-title">真实数据流追踪</div>
+        <div class="flow-subtitle">以「用户上传视频请求分解脚本」为例（Flowcut），追踪数据在各层的转换</div>
+
+        <div class="data-flow-box">
+          <h4>示例场景：用户上传抖音视频，请 Flowcut 分解素材并生成广告脚本</h4>
+          <span class="highlight">输入</span>: POST /chat<br>
+          &nbsp;&nbsp;{<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;"tenant_key": <span class="result">"fc_u_001"</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;"message": <span class="result">"帮我分析这个视频，提取素材并生成3个脚本"</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;"media": [<span class="result">"https://oss.example.com/videos/v_001.mp4"</span>]<br>
+          &nbsp;&nbsp;}
+        </div>
+
+        <div class="data-flow-box">
+          <h4>Step 1 → SessionStore 冷启动</h4>
+          <span class="label">Flowcut/storage/session_store.py</span><br>
+          <span class="arrow">↓</span> sessions[<span class="result">"fc_u_001"</span>] → cache miss → 冷启动<br>
+          <span class="arrow">↓</span> main_agent.make_context_builder(<span class="result">"fc_u_001"</span>, stage=<span class="result">"default"</span>)  <span class="result"># 无三阶段</span><br>
+          <span class="arrow">↓</span> main_agent.make_tool_registry(<span class="result">"fc_u_001"</span>)  <span class="result"># 注册 6 个工具</span><br>
+          <span class="highlight">→ ReactLoop 实例化完成（端口 8001）</span>
+        </div>
+
+        <div class="data-flow-box">
+          <h4>Step 2 → ContextBuilder 拼接 System Prompt</h4>
+          <span class="label">simpleclaw/context/builder.py</span><br>
+          <span class="arrow">↓</span> stable_sections = [Agent.md, SOUL.md, TOOL.md, compliance.md]（<span class="result">~2800 tokens</span>，走前缀缓存）<br>
+          <span class="arrow">↓</span> TaskContextProvider → 当前进行中任务 <span class="result">0</span> 个（stub 返回 []）<br>
+          <span class="highlight">→ messages: [system(稳定), system(动态), user_with_video_url]</span>
+        </div>
+
+        <div class="data-flow-box">
+          <h4>Step 3 → LLM 决策调用 decompose_video</h4>
+          <span class="label">simpleclaw/core/loop.py + simpleclaw/llm/volcengine.py</span><br>
+          <span class="arrow">↓</span> TextChunk → SSE: <span class="result">"好的，我来帮你分解这个视频..."</span><br>
+          <span class="arrow">↓</span> ToolCallChunk → {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;id: <span class="result">"call_001"</span>, name: <span class="result">"decompose_video"</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;arguments: {video_url: <span class="result">"https://oss.example.com/videos/v_001.mp4"</span>}<br>
+          &nbsp;&nbsp;}
+        </div>
+
+        <div class="data-flow-box">
+          <h4>Step 4 → DecomposeVideoTool 入队（durable）</h4>
+          <span class="label">Flowcut/tools/decompose_video.py → simpleclaw/runtime/services.py</span><br>
+          <span class="arrow">↓</span> execution_mode = <span class="result">"durable"</span><br>
+          <span class="arrow">↓</span> prepare_task() → TaskEnvelope {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;task_id: <span class="result">"task_abc"</span>, stream: <span class="result">"VIDEO_DECOMPOSE"</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;payload: {video_url, tenant_key}<br>
+          &nbsp;&nbsp;}<br>
+          <span class="arrow">↓</span> RuntimeServices.submit_task() → 写入 Redis/InMemory Stream<br>
+          <span class="arrow">↓</span> ToolResult { ok: true, task_id: <span class="result">"task_abc"</span> } → 注入 LLM<br>
+          <span class="highlight">→ LLM 回复「已提交分解任务，完成后可生成脚本」→ DoneEvent</span>
+        </div>
+
+        <div class="data-flow-box">
+          <h4>Step 5 → Worker 后台处理（当前 NotImplementedError 占位）</h4>
+          <span class="label">Flowcut/runtime/executors.py → make_decompose_video_executor()</span><br>
+          <span class="arrow">↓</span> TaskWorker 消费 VIDEO_DECOMPOSE stream<br>
+          <span class="arrow">↓</span> <span class="result">raise NotImplementedError  # ASR + Gemini 场景分解待实现</span><br>
+          <span class="arrow">↓</span> 预期：material_repo.create(status=PROCESSING) → ASR → 分割 → status=READY<br>
+          <span class="highlight">→ 下次对话 TaskContextProvider 注入任务状态摘要</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB: connect -->
+    <div class="tab-content" id="tab-connect">
+      <div class="flow-container">
+        <div class="flow-title">架构关系：业务模块 × simpleclaw</div>
+        <div class="flow-subtitle">Mojing 和 Flowcut 均以相同方式接入 simpleclaw，体现框架的可复用性</div>
+
+        <div style="font-size:12px;font-weight:700;color:#6e7681;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Mojing × simpleclaw — 5 个连接点</div>
+
+        <div class="highlight-box">
+          <h3>连接点 ①  Tool 继承</h3>
+          <p>Mojing 的所有工具都继承自 <code>simpleclaw.tools.base.Tool</code>。ReactLoop 只认 Tool 抽象，不需要知道 Mojing 的存在。</p>
+          <p><code>Mojing/tools/image_tools.py</code> → <code>class AnalyzeImageTool(Tool)</code><br>
+          <code>Mojing/tools/deep_research.py</code> → <code>class DeepResearchTool(Tool)</code></p>
+        </div>
+
+        <div class="highlight-box" style="border-color:#10b981;background:rgba(16,185,129,0.07)">
+          <h3 style="color:#6ee7b7">连接点 ②  ContextBuilder 注入</h3>
+          <p><code>MainAgent.make_context_builder()</code> 实例化 ContextBuilder，并把 Mojing 的 Provider 实现注入进去。按三阶段（novice/explore/mature）动态组装。</p>
+        </div>
+
+        <div class="highlight-box" style="border-color:#8b5cf6;background:rgba(139,92,246,0.07)">
+          <h3 style="color:#c4b5fd">连接点 ③  ToolRegistry 组装</h3>
+          <p><code>MainAgent.make_tool_registry()</code> 实例化 ToolRegistry，按用户阶段（staged_tool_factories）动态决定注册哪些工具。</p>
+        </div>
+
+        <div class="highlight-box" style="border-color:#ef4444;background:rgba(239,68,68,0.07)">
+          <h3 style="color:#fca5a5">连接点 ④  RuntimeServices 共享</h3>
+          <p>单一 RuntimeServices 实例被 ToolRegistry 和所有 TaskWorker 共享，形成统一任务调度中心。9 个 Worker 并行运行。</p>
+        </div>
+
+        <div class="highlight-box" style="border-color:#f59e0b;background:rgba(245,158,11,0.07)">
+          <h3 style="color:#fcd34d">连接点 ⑤  SubagentBase 继承（Mojing 独有）</h3>
+          <p><code>SkinDiarySubagent</code> 和 <code>DeepReportSubagent</code> 继承 <code>SubagentBase</code>，内部各运行一个独立 ReactLoop。<strong>Flowcut 无此层。</strong></p>
+        </div>
+
+        <div style="height:1px;background:#21262d;margin:24px 0"></div>
+
+        <div style="font-size:12px;font-weight:700;color:#6e7681;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Flowcut × simpleclaw — 4 个连接点（无 SubagentBase）</div>
+
+        <div class="highlight-box" style="border-color:#f97316;background:rgba(249,115,22,0.07)">
+          <h3 style="color:#fed7aa">连接点 ①  Tool 继承（6 个工具）</h3>
+          <p>6 个 Flowcut 工具全部继承 <code>simpleclaw.tools.base.Tool</code>。核心逻辑以 <code>raise NotImplementedError</code> 占位，框架接入已完成。</p>
+          <p><code>decompose_video</code> / <code>generate_scripts</code> / <code>search_materials</code><br>
+          <code>compose_video</code> / <code>check_task_status</code> / <code>publish_to_qianchuan</code></p>
+        </div>
+
+        <div class="highlight-box" style="border-color:#f97316;background:rgba(249,115,22,0.07)">
+          <h3 style="color:#fed7aa">连接点 ②  ContextBuilder 注入（单一 default 阶段）</h3>
+          <p><code>Flowcut/agent/main_agent.py</code> 注入 <code>TaskContextProvider</code>（当前 stub）。无三阶段切换，所有用户使用同一工具集和提示词。</p>
+        </div>
+
+        <div class="highlight-box" style="border-color:#f97316;background:rgba(249,115,22,0.07)">
+          <h3 style="color:#fed7aa">连接点 ③  ToolRegistry 组装（无 staged_tool_factories）</h3>
+          <p>所有 6 个工具在 <code>build_container()</code> 时通过 lambda 工厂注册，无按阶段动态启停逻辑。</p>
+        </div>
+
+        <div class="highlight-box" style="border-color:#f97316;background:rgba(249,115,22,0.07)">
+          <h3 style="color:#fed7aa">连接点 ④  RuntimeServices 共享（5 个 Stream）</h3>
+          <p>5 个 TaskStream：<code>VIDEO_DECOMPOSE</code> / <code>SCRIPT_GENERATE</code> / <code>MATERIAL_SEARCH</code> / <code>VIDEO_COMPOSE</code> / <code>QIANCHUAN_PUBLISH</code>。5 个 Worker 并行，Executor 全部占位。</p>
+        </div>
+
+        <div class="arch-dep-box">
+          <div style="font-size:13px;font-weight:700;color:#f0f6fc;margin-bottom:12px">架构依赖方向（单向，两个业务模块均遵守）</div>
+          <div style="font-family:'SF Mono','Fira Code',monospace;font-size:12px;color:#8b949e;line-height:2.2">
+            <span style="color:#10b981">Mojing</span>  →  imports  →  <span style="color:#3b82f6">simpleclaw</span><br>
+            <span style="color:#f97316">Flowcut</span>  →  imports  →  <span style="color:#3b82f6">simpleclaw</span><br>
+            <span style="color:#3b82f6">simpleclaw</span>  ✗  永远不导入  ✗  <span style="color:#10b981">Mojing</span>  /  <span style="color:#f97316">Flowcut</span><br>
+            <span style="color:#10b981">Mojing</span>  ✗  不导入  ✗  <span style="color:#f97316">Flowcut</span>（业务模块互相独立）<br><br>
+            <span style="color:#3b82f6">simpleclaw</span> 提供协议 / 抽象 — Tool, LLMProvider, Memory, SubagentBase...<br>
+            <span style="color:#10b981">Mojing</span> 实现美妆垂直领域业务逻辑（9 Worker，子 Agent，三阶段旅程）<br>
+            <span style="color:#f97316">Flowcut</span> 实现千川内容生产业务逻辑（5 Worker，无子 Agent，单阶段）
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB: live -->
+    <div class="tab-content" id="tab-live">
+      <div style="padding: 4px 0 20px">
+
+        <div class="section-title">
+          <span class="live-dot"></span>
+          Flowcut 运行概览
+          <span style="font-size:11px;color:#484f58;font-weight:400;margin-left:auto">模拟数据 · 每 3s 刷新</span>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="stat-card" style="--card-color:#f97316">
+            <div class="stat-number" id="cnt-material">0</div>
+            <div class="stat-label">fc_material 素材数</div>
+            <div class="stat-sub">READY: <span id="cnt-mat-ready">0</span></div>
+          </div>
+          <div class="stat-card" style="--card-color:#a78bfa">
+            <div class="stat-number" id="cnt-script">0</div>
+            <div class="stat-label">fc_script 脚本数</div>
+            <div class="stat-sub">segments_json</div>
+          </div>
+          <div class="stat-card" style="--card-color:#34d399">
+            <div class="stat-number" id="cnt-creative">0</div>
+            <div class="stat-label">fc_creative 成片数</div>
+            <div class="stat-sub">HOT: <span id="cnt-hot">0</span></div>
+          </div>
+          <div class="stat-card" style="--card-color:#60a5fa">
+            <div class="stat-number" id="cnt-account">3</div>
+            <div class="stat-label">千川账号</div>
+            <div class="stat-sub">OAuth token 已存储</div>
+          </div>
+        </div>
+
+        <div class="section-title">⚙️ 任务队列实时状态（5 个 Stream）</div>
+
+        <div id="stream-rows">
+          <div class="stream-row">
+            <span class="live-dot" id="dot-0"></span>
+            <span class="stream-name">VIDEO_DECOMPOSE</span>
+            <div class="stream-bar-wrap"><div class="stream-bar" id="bar-0" style="width:0%"></div></div>
+            <span class="stream-depth" id="depth-0">0 tasks</span>
+          </div>
+          <div class="stream-row">
+            <span class="live-dot" id="dot-1"></span>
+            <span class="stream-name">SCRIPT_GENERATE</span>
+            <div class="stream-bar-wrap"><div class="stream-bar" id="bar-1" style="width:0%"></div></div>
+            <span class="stream-depth" id="depth-1">0 tasks</span>
+          </div>
+          <div class="stream-row">
+            <span class="live-dot" id="dot-2"></span>
+            <span class="stream-name">MATERIAL_SEARCH</span>
+            <div class="stream-bar-wrap"><div class="stream-bar" id="bar-2" style="width:0%"></div></div>
+            <span class="stream-depth" id="depth-2">0 tasks</span>
+          </div>
+          <div class="stream-row">
+            <span class="live-dot" id="dot-3"></span>
+            <span class="stream-name">VIDEO_COMPOSE</span>
+            <div class="stream-bar-wrap"><div class="stream-bar" id="bar-3" style="width:0%"></div></div>
+            <span class="stream-depth" id="depth-3">0 tasks</span>
+          </div>
+          <div class="stream-row">
+            <span class="live-dot" id="dot-4"></span>
+            <span class="stream-name">QIANCHUAN_PUBLISH</span>
+            <div class="stream-bar-wrap"><div class="stream-bar" id="bar-4" style="width:0%"></div></div>
+            <span class="stream-depth" id="depth-4">0 tasks</span>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px">
+
+          <div>
+            <div class="section-title">🎞 成片状态分布（fc_creative）</div>
+            <div class="status-grid" style="grid-template-columns:repeat(2,1fr)">
+              <div class="status-cell">
+                <div class="stat-number" style="font-size:20px;color:#f59e0b" id="cv-pending">0</div>
+                <div class="status-key">PENDING</div>
+              </div>
+              <div class="status-cell">
+                <div class="stat-number" style="font-size:20px;color:#a78bfa" id="cv-composing">0</div>
+                <div class="status-key">COMPOSING</div>
+              </div>
+              <div class="status-cell">
+                <div class="stat-number" style="font-size:20px;color:#34d399" id="cv-ready">0</div>
+                <div class="status-key">READY</div>
+              </div>
+              <div class="status-cell">
+                <div class="stat-number" style="font-size:20px;color:#f87171" id="cv-failed">0</div>
+                <div class="status-key">FAILED</div>
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <div style="font-size:11px;color:#6e7681;margin-bottom:6px">标签分布 (label)</div>
+              <div id="label-bars">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+                  <span style="font-family:monospace;font-size:11px;color:#8b949e;width:50px">NORMAL</span>
+                  <div style="flex:1;height:5px;background:#21262d;border-radius:3px"><div id="lb-normal" style="height:100%;background:#60a5fa;border-radius:3px;width:0%;transition:width 0.8s"></div></div>
+                  <span style="font-family:monospace;font-size:11px;color:#6e7681" id="lb-normal-n">0</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+                  <span style="font-family:monospace;font-size:11px;color:#8b949e;width:50px">HOT</span>
+                  <div style="flex:1;height:5px;background:#21262d;border-radius:3px"><div id="lb-hot" style="height:100%;background:#f97316;border-radius:3px;width:0%;transition:width 0.8s"></div></div>
+                  <span style="font-family:monospace;font-size:11px;color:#6e7681" id="lb-hot-n">0</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-family:monospace;font-size:11px;color:#8b949e;width:50px">DEAD</span>
+                  <div style="flex:1;height:5px;background:#21262d;border-radius:3px"><div id="lb-dead" style="height:100%;background:#484f58;border-radius:3px;width:0%;transition:width 0.8s"></div></div>
+                  <span style="font-family:monospace;font-size:11px;color:#6e7681" id="lb-dead-n">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-title">📦 素材流水线（fc_material）</div>
+            <div class="status-grid" style="grid-template-columns:repeat(3,1fr)">
+              <div class="status-cell">
+                <div class="stat-number" style="font-size:20px;color:#fbbf24" id="mat-proc">0</div>
+                <div class="status-key">PROCESSING</div>
+              </div>
+              <div class="status-cell">
+                <div class="stat-number" style="font-size:20px;color:#34d399" id="mat-ready">0</div>
+                <div class="status-key">READY</div>
+              </div>
+              <div class="status-cell">
+                <div class="stat-number" style="font-size:20px;color:#f87171" id="mat-fail">0</div>
+                <div class="status-key">FAILED</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:24px">🗄️ DB Schema 快览（5 张 fc_* 表）</div>
+
+        <div class="db-table-card">
+          <div class="db-table-header">
+            <span class="db-table-name">fc_material</span>
+            <span class="db-row-count" id="schema-mat-rows">-- rows</span>
+          </div>
+          <div class="db-cols">
+            <span class="db-col-tag pk">id PK</span>
+            <span class="db-col-tag">tenant_key</span>
+            <span class="db-col-tag">oss_url</span>
+            <span class="db-col-tag status-col">status</span>
+            <span class="db-col-tag">duration_ms</span>
+            <span class="db-col-tag">asr_text</span>
+            <span class="db-col-tag">scenes_json</span>
+            <span class="db-col-tag">created_at</span>
+          </div>
+        </div>
+
+        <div class="db-table-card">
+          <div class="db-table-header">
+            <span class="db-table-name">fc_script</span>
+            <span class="db-row-count" id="schema-scr-rows">-- rows</span>
+          </div>
+          <div class="db-cols">
+            <span class="db-col-tag pk">id PK</span>
+            <span class="db-col-tag">tenant_key</span>
+            <span class="db-col-tag fk">material_id FK</span>
+            <span class="db-col-tag">segments_json</span>
+            <span class="db-col-tag">title</span>
+            <span class="db-col-tag">created_at</span>
+          </div>
+        </div>
+
+        <div class="db-table-card">
+          <div class="db-table-header">
+            <span class="db-table-name">fc_creative</span>
+            <span class="db-row-count" id="schema-cre-rows">-- rows</span>
+          </div>
+          <div class="db-cols">
+            <span class="db-col-tag pk">id PK</span>
+            <span class="db-col-tag">tenant_key</span>
+            <span class="db-col-tag fk">script_id FK</span>
+            <span class="db-col-tag">oss_url</span>
+            <span class="db-col-tag status-col">status</span>
+            <span class="db-col-tag status-col">label</span>
+            <span class="db-col-tag">qianchuan_task_id</span>
+            <span class="db-col-tag">created_at</span>
+          </div>
+        </div>
+
+        <div class="db-table-card">
+          <div class="db-table-header">
+            <span class="db-table-name">fc_material_usage</span>
+            <span class="db-row-count">关联表</span>
+          </div>
+          <div class="db-cols">
+            <span class="db-col-tag fk">material_id FK</span>
+            <span class="db-col-tag fk">creative_id FK</span>
+            <span class="db-col-tag">usage_type</span>
+          </div>
+        </div>
+
+        <div class="db-table-card">
+          <div class="db-table-header">
+            <span class="db-table-name">fc_qianchuan_account</span>
+            <span class="db-row-count" id="schema-acc-rows">-- rows</span>
+          </div>
+          <div class="db-cols">
+            <span class="db-col-tag pk">id PK</span>
+            <span class="db-col-tag">tenant_key</span>
+            <span class="db-col-tag">advertiser_id</span>
+            <span class="db-col-tag">access_token</span>
+            <span class="db-col-tag">refresh_token</span>
+            <span class="db-col-tag">token_expires_at</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Code Snippet Modal -->
+<div class="cm-overlay" id="cm-overlay" onclick="handleOverlayClick(event)">
+  <div class="cm-dialog" id="cm-dialog">
+    <div class="cm-head">
+      <div class="cm-dot" id="cm-dot"></div>
+      <div class="cm-headinfo">
+        <div class="cm-fname" id="cm-fname">file.py</div>
+        <div class="cm-ftitle" id="cm-ftitle"></div>
+      </div>
+      <span class="cm-kbd">ESC</span>
+      <button class="cm-close" onclick="closeCodeModal()">✕</button>
+    </div>
+    <div class="cm-explain" id="cm-explain"></div>
+    <div class="cm-body">
+      <div class="cm-code" id="cm-code"></div>
+    </div>
+    <div class="cm-tags" id="cm-tags">
+      <div class="cm-legend">
+        <span><div class="cm-legend-dot" style="background:#10b981"></div>关键输出</span>
+        <span><div class="cm-legend-dot" style="background:#3b82f6"></div>核心逻辑</span>
+        <span><div class="cm-legend-dot" style="background:#f97316"></div>重要配置</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DETAILS = {
+  sc_core: {
+    name: "simpleclaw/core/",
+    badge: "Harness 核心",
+    badgeClass: "bg-harness",
+    desc: "ReAct 执行引擎。实现「LLM 调用 → 工具执行 → 结果注入 → 再次 LLM」的迭代循环。这是整个 Agent 的心脏，与任何业务无关。",
+    files: [
+      { name: "loop.py", desc: "ReactLoop：核心 ReAct 执行引擎，处理 Tool 的耦合/解耦调度，max_iterations=20" },
+      { name: "events.py", desc: "TextEvent / ToolResultEvent / DoneEvent / ErrorEvent 定义" },
+      { name: "messages.py", desc: "UserMessage / AssistantMessage / ToolResultMessage 内部消息类型" },
+      { name: "timing.py", desc: "耗时统计工具" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/llm/base.py</strong>：调用 LLMProvider.stream_with_retry() 获取 Token 流" },
+      { arrow: "→", text: "<strong>simpleclaw/tools/registry.py</strong>：调用 registry.execute() 执行工具、schemas() 获取 JSON Schema" },
+      { arrow: "→", text: "<strong>simpleclaw/context/builder.py</strong>：每轮调用 ContextBuilder.build() 组装消息" },
+      { arrow: "←", text: "<strong>Mojing/storage/session_store.py</strong>：实例化并持有 ReactLoop，每轮调用 loop.run()" },
+      { arrow: "←", text: "<strong>Flowcut/storage/session_store.py</strong>：同样模式，端口 8001" },
+    ],
+  },
+  sc_llm: {
+    name: "simpleclaw/llm/",
+    badge: "Harness 核心",
+    badgeClass: "bg-harness",
+    desc: "LLM 提供者抽象层。定义 LLMProvider 接口，VolcengineLLM 是面向豆包/火山引擎的具体实现，支持流式输出、前缀缓存和自动重试。",
+    files: [
+      { name: "base.py", desc: "LLMProvider 抽象基类：stream() / stream_with_retry() 协议定义" },
+      { name: "volcengine.py", desc: "VolcengineLLM：豆包大模型具体实现，支持前缀缓存（prefix_cache_lane）" },
+      { name: "chunks.py", desc: "TextChunk / ToolCallChunk：LLM 流式输出的块类型" },
+      { name: "config.py", desc: "LLMConfig：模型参数配置（model_id, temperature, max_tokens...）" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/api/container.py</strong>：实例化 3 个 VolcengineLLM（main / hook / first_token）" },
+      { arrow: "←", text: "<strong>Flowcut/api/container.py</strong>：同样实例化 3 个 VolcengineLLM" },
+      { arrow: "←", text: "<strong>simpleclaw/core/loop.py</strong>：ReactLoop 持有 LLMProvider，调用 stream_with_retry()" },
+    ],
+  },
+  sc_tools: {
+    name: "simpleclaw/tools/",
+    badge: "Harness 核心",
+    badgeClass: "bg-harness",
+    desc: "工具系统。Tool 抽象基类定义所有工具的契约，ToolRegistry 管理注册、Schema 生成和执行分发。execution_mode × needs_followup 两轴控制工具行为模式。",
+    files: [
+      { name: "base.py", desc: "Tool 抽象基类 + ToolResult（execution_mode: inline/durable，needs_followup: True/False）" },
+      { name: "registry.py", desc: "ToolRegistry：注册工具、生成 JSON Schema、按名执行、判断 needs_followup" },
+      { name: "execution_runtime.py", desc: "ToolExecutionRuntime：统一处理 durable 工具的入队逻辑" },
+      { name: "invocation.py", desc: "ToolInvocationStore 协议：记录工具调用日志" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/tools/*.py</strong>：所有 Mojing 工具继承 Tool" },
+      { arrow: "←", text: "<strong>Flowcut/tools/*.py</strong>：6 个 Flowcut 工具继承 Tool（NotImplementedError 占位）" },
+      { arrow: "→", text: "<strong>simpleclaw/core/loop.py</strong>：ReactLoop 持有 ToolRegistry" },
+    ],
+  },
+  sc_context: {
+    name: "simpleclaw/context/",
+    badge: "Harness 核心",
+    badgeClass: "bg-harness",
+    desc: "上下文组装层。ContextBuilder 将稳定系统提示（走前缀缓存）和动态上下文（每轮实时计算）合并，组装出发给 LLM 的最终消息列表。",
+    files: [
+      { name: "builder.py", desc: "ContextBuilder：合并 stable_sections + dynamic providers + attention packets" },
+      { name: "providers.py", desc: "DynamicContextProvider / AttentionProvider / StablePromptProvider 抽象协议定义" },
+      { name: "compressor.py", desc: "ContextCompressor：超 token 限制时压缩历史（max_tokens=2200）" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/context/providers.py</strong>：DocumentContextProvider 等实现 Provider 协议" },
+      { arrow: "←", text: "<strong>Flowcut/context/providers.py</strong>：TaskContextProvider 实现 Provider 协议（当前 stub）" },
+      { arrow: "→", text: "<strong>simpleclaw/core/loop.py</strong>：每轮 _get_messages_async() 调用 ContextBuilder.build()" },
+    ],
+  },
+  sc_harness: {
+    name: "simpleclaw/harness/",
+    badge: "Harness 核心",
+    badgeClass: "bg-harness",
+    desc: "工具生命周期钩子系统。ToolLifecycle 在工具执行前运行 BeforeToolHook，允许/拒绝工具调用，实现业务前置校验。",
+    files: [
+      { name: "lifecycle.py", desc: "ToolLifecycle + BeforeToolHook 协议：工具执行前 Gate 检查" },
+      { name: "hooks.py", desc: "ToolGateDecision：allowed/denied 决策结果" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/harness/tool_gates.py</strong>：DeepReportGate / HistoricalImageGate 实现 BeforeToolHook" },
+      { arrow: "←", text: "<strong>Flowcut/agent/main_agent.py</strong>：Flowcut 目前无 Gate，直接不注入 lifecycle" },
+      { arrow: "→", text: "<strong>simpleclaw/tools/registry.py</strong>：ToolRegistry 持有 lifecycle，执行前调用 hooks" },
+    ],
+  },
+  sc_runtime: {
+    name: "simpleclaw/runtime/",
+    badge: "Harness 基础设施",
+    badgeClass: "bg-harness",
+    desc: "任务队列基础设施。TaskQueue（Redis 或 InMemory）、ScopeLockRegistry、RuntimeServices。Mojing 和 Flowcut 共用此层基础设施。",
+    files: [
+      { name: "services.py", desc: "RuntimeServices：封装 submit_task()，供 durable 工具调用入队" },
+      { name: "task_queue.py", desc: "InMemoryTaskQueue / RedisTaskQueue：按 REDIS_URL 环境变量自动切换" },
+      { name: "scope_lock.py", desc: "ScopeLockRegistry：同一 scope 任务串行，防并发竞态" },
+      { name: "task_state.py", desc: "TaskStateStore 协议：持久化任务状态" },
+      { name: "worker.py", desc: "TaskWorker：单 stream 消费循环（从 Mojing 迁移此处，Flowcut 直接使用）" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/api/container.py</strong>：创建 RuntimeServices，启动 9 个 TaskWorker" },
+      { arrow: "←", text: "<strong>Flowcut/api/container.py</strong>：创建 RuntimeServices，启动 5 个 TaskWorker" },
+      { arrow: "→", text: "<strong>simpleclaw/tools/execution_runtime.py</strong>：durable 工具通过 runtime.submit_task() 入队" },
+    ],
+  },
+  sc_subagent: {
+    name: "simpleclaw/subagent/",
+    badge: "Harness 核心",
+    badgeClass: "bg-harness",
+    desc: "子 Agent 抽象层。SubagentBase 定义子 Agent 的标准接口（内部运行一个 ReactLoop）。注意：Flowcut 无子 Agent，此层仅 Mojing 使用。",
+    files: [
+      { name: "base.py", desc: "SubagentBase：name / memory_source() / make_tool_registry() 等协议" },
+      { name: "runner.py", desc: "SubagentRunner：子 Agent 会话查找/创建/执行入口" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/subagent/skin_diary.py</strong>：SkinDiarySubagent 继承 SubagentBase" },
+      { arrow: "←", text: "<strong>Mojing/subagent/deep_report.py</strong>：DeepReportSubagent 继承 SubagentBase" },
+      { arrow: "✗", text: "<strong>Flowcut</strong> 不使用 SubagentBase，长运行工作全部走 TaskQueue" },
+    ],
+  },
+  sc_memory: {
+    name: "simpleclaw/memory/",
+    badge: "Harness 基础设施",
+    badgeClass: "bg-harness",
+    desc: "记忆抽象层。定义 Memory 协议，MemoryDynamicContextProvider 将记忆自动注入每轮 System Prompt 动态尾部。Flowcut 当前无记忆层实现。",
+    files: [
+      { name: "base.py", desc: "Memory 抽象协议：load() / append() 接口定义" },
+      { name: "session.py", desc: "MemoryDynamicContextProvider：将 Memory 内容注入 ContextBuilder 动态区" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/storage/memory_repo.py</strong>：MySQLMemory 实现 Memory 协议" },
+      { arrow: "→", text: "<strong>simpleclaw/context/builder.py</strong>：ContextBuilder 调用 MemoryDynamicContextProvider" },
+    ],
+  },
+  sc_api: {
+    name: "simpleclaw/api/",
+    badge: "开发调试",
+    badgeClass: "bg-infra",
+    desc: "轻量 FastAPI 开发服务器，用于不启动业务模块的情况下测试 ReactLoop 核心功能。",
+    files: [
+      { name: "server.py", desc: "POST /chat（SSE 流式响应）+ GET /admin（调试页）" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/core/loop.py</strong>：直接实例化 ReactLoop 进行独立测试" },
+    ],
+  },
+  mj_api: {
+    name: "Mojing/api/",
+    badge: "业务模块",
+    badgeClass: "bg-business",
+    desc: "FastAPI 服务入口 + 依赖注入容器。build_container() 是整个应用的 DI 根，负责初始化所有依赖、启动 9 个后台 Worker 任务。",
+    files: [
+      { name: "container.py", desc: "AppContainer + build_container()：统一装配所有依赖，启动 TaskWorker（约 470 行）" },
+      { name: "server.py", desc: "FastAPI app 定义，挂载 /chat SSE 路由和 admin 面板" },
+      { name: "routes/", desc: "各业务路由（chat / subagent / cron / event 等）" },
+      { name: "event_hub.py", desc: "EventHub：跨组件事件发布/订阅" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/llm/volcengine.py</strong>：实例化 3 个 VolcengineLLM" },
+      { arrow: "→", text: "<strong>simpleclaw/runtime/services.py</strong>：创建全局 RuntimeServices" },
+      { arrow: "→", text: "<strong>Mojing/agent/main_agent.py</strong>：创建 MainAgent" },
+      { arrow: "→", text: "<strong>Mojing/runtime/worker.py</strong>：asyncio.create_task() 启动 9 个 TaskWorker" },
+    ],
+  },
+  mj_agent: {
+    name: "Mojing/agent/",
+    badge: "业务模块",
+    badgeClass: "bg-business",
+    desc: "主 Agent 装配层。MainAgent 将业务 Providers/Tools 组装为 simpleclaw 的 ContextBuilder 和 ToolRegistry，是 Mojing 与 simpleclaw 最关键的连接点。",
+    files: [
+      { name: "main_agent.py", desc: "MainAgent：make_context_builder() + make_tool_registry()，按阶段（novice/explore/mature）动态组装" },
+      { name: "first_token.py", desc: "FirstTokenAgent：快速预输出第一个 Token，降低用户感知延迟" },
+      { name: "postprocess.py", desc: "PostprocessHook：对话结束后的结构化分析（提取用户文档）" },
+      { name: "cold_path.py", desc: "ColdPathHook：首轮对话初始化（话题 State 种子）" },
+      { name: "memory_extract.py", desc: "记忆提取 Executor：从对话历史中提取结构化记忆写入 MySQL" },
+      { name: "cron_scheduler.py", desc: "CronScheduler：基于 croniter 的定时任务调度器" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/context/builder.py</strong>：实例化并返回 ContextBuilder" },
+      { arrow: "→", text: "<strong>simpleclaw/tools/registry.py</strong>：实例化并返回 ToolRegistry（注册 Mojing 工具）" },
+      { arrow: "←", text: "<strong>Mojing/storage/session_store.py</strong>：冷启动时调用 make_context_builder() / make_tool_registry()" },
+    ],
+  },
+  mj_tools: {
+    name: "Mojing/tools/",
+    badge: "业务实现",
+    badgeClass: "bg-business",
+    desc: "魔镜业务工具具体实现。每个工具继承 simpleclaw.tools.base.Tool，实现 execute() 或 prepare_task()。",
+    files: [
+      { name: "image_tools.py", desc: "AnalyzeImageTool：触发图片分析（durable）" },
+      { name: "retrieve_evidence.py", desc: "RetrieveEvidenceTool：从记忆 + 文档中检索相关证据（inline）" },
+      { name: "deep_research.py", desc: "DeepResearchTool：触发深度研究子 Agent（durable）" },
+      { name: "notify_skin_diary.py", desc: "NotifySkinDiaryChatTool：通知用户皮肤日记" },
+      { name: "runtime_status.py", desc: "CheckRuntimeStatusTool：查询后台任务状态" },
+      { name: "cron_tools.py", desc: "CronAddOnceTool / CronAddIntervalTool / CronAddCronTool" },
+    ],
+    connections: [
+      { arrow: "↑", text: "所有工具继承 <strong>simpleclaw/tools/base.py → Tool</strong>" },
+      { arrow: "→", text: "<strong>Mojing/storage/</strong>：工具执行时读写各 Repository" },
+    ],
+  },
+  mj_context: {
+    name: "Mojing/context/",
+    badge: "业务实现",
+    badgeClass: "bg-business",
+    desc: "业务动态上下文 Provider 实现。每个 Provider 实现 simpleclaw 的协议，在每次 LLM 调用前注入业务相关信息（文档、时间、皮肤档案等）。",
+    files: [
+      { name: "providers.py", desc: "DocumentContextProvider / CurrentTimeContextProvider / SelfieAgeContextProvider / TopicAttentionProvider 等" },
+      { name: "skin_diary.py", desc: "皮肤日记相关上下文（日记状态、日记提示注入）" },
+      { name: "deep_report.py", desc: "深度报告相关上下文（报告摘要注入 System Prompt）" },
+    ],
+    connections: [
+      { arrow: "↑", text: "实现 <strong>simpleclaw/context/providers.py → DynamicContextProvider / AttentionProvider</strong>" },
+      { arrow: "→", text: "<strong>Mojing/storage/</strong>：查询 DocumentRepository / TopicRepository / ImageRepository" },
+    ],
+  },
+  mj_storage: {
+    name: "Mojing/storage/",
+    badge: "业务实现",
+    badgeClass: "bg-business",
+    desc: "MySQL 数据访问层（Repository 模式）。每个 Repository 封装一张业务表的 CRUD，SessionStore 管理 ReactLoop 生命周期。",
+    files: [
+      { name: "database.py", desc: "Database：aiomysql 连接池 + ensure_schema() 建表" },
+      { name: "session_store.py", desc: "SessionStore：ReactLoop 生命周期管理（冷启动/查找/执行一轮/压缩）" },
+      { name: "document_repo.py", desc: "DocumentRepository：用户文档（分析报告、护肤方案等）" },
+      { name: "image_repo.py", desc: "ImageRepository：用户图片记录 + 分析状态" },
+      { name: "memory_repo.py", desc: "MySQLMemory：实现 simpleclaw Memory 协议" },
+      { name: "runtime_task_repo.py", desc: "RuntimeTaskRepository：后台任务状态持久化（实现 TaskStateStore 协议）" },
+    ],
+    connections: [
+      { arrow: "↑", text: "<strong>memory_repo.py</strong> 实现 <strong>simpleclaw/memory/base.py → Memory</strong> 协议" },
+      { arrow: "↑", text: "<strong>runtime_task_repo.py</strong> 实现 <strong>simpleclaw/runtime/task_state.py → TaskStateStore</strong> 协议" },
+    ],
+  },
+  mj_runtime: {
+    name: "Mojing/runtime/",
+    badge: "业务实现",
+    badgeClass: "bg-business",
+    desc: "后台任务执行层。TaskWorker 消费 TaskQueue，按 stream 名称分发给 Executor。共 9 个 Worker 并行运行。",
+    files: [
+      { name: "worker.py", desc: "re-export TaskWorker（已迁移到 simpleclaw/runtime/worker.py，此处保持向后兼容）" },
+      { name: "executors.py", desc: "各 Executor 工厂（make_image_analysis_executor / make_skin_diary_generation_executor 等）" },
+      { name: "streams.py", desc: "MojingTaskStream：Stream 名称常量（IMAGE_ANALYSIS / SKIN_DIARY / MEMORY_EXTRACT 等）" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/runtime/task_queue.py</strong>：消费 InMemoryTaskQueue 或 RedisTaskQueue" },
+      { arrow: "←", text: "<strong>Mojing/api/container.py</strong>：asyncio.create_task() 启动各 Worker" },
+    ],
+  },
+  mj_subagent: {
+    name: "Mojing/subagent/",
+    badge: "业务实现",
+    badgeClass: "bg-business",
+    desc: "业务子 Agent 实现。SkinDiarySubagent 和 DeepReportSubagent 各自持有独立的 ReactLoop 和工具集，处理复杂的多步骤子任务。",
+    files: [
+      { name: "skin_diary.py", desc: "SkinDiarySubagent：皮肤日记生成子 Agent（继承 SubagentBase）" },
+      { name: "deep_report.py", desc: "DeepReportSubagent：深度分析报告子 Agent（继承 SubagentBase）" },
+    ],
+    connections: [
+      { arrow: "↑", text: "继承 <strong>simpleclaw/subagent/base.py → SubagentBase</strong>" },
+      { arrow: "←", text: "<strong>Mojing/storage/subagent_store.py</strong>：通过 SubagentRunner 调度" },
+    ],
+  },
+  mj_harness: {
+    name: "Mojing/harness/",
+    badge: "业务实现",
+    badgeClass: "bg-business",
+    desc: "业务前置校验 Gate。在工具执行前检查业务就绪条件，避免无效的 LLM 工具调用。",
+    files: [
+      { name: "tool_gates.py", desc: "DeepReportGate / HistoricalImageGate：实现 BeforeToolHook 协议" },
+      { name: "readiness/", desc: "ImageAnalysisReadiness / DeepReportReadiness 等就绪检查器" },
+    ],
+    connections: [
+      { arrow: "↑", text: "实现 <strong>simpleclaw/harness/lifecycle.py → BeforeToolHook</strong> 协议" },
+      { arrow: "←", text: "<strong>Mojing/agent/main_agent.py</strong>：_make_tool_lifecycle() 注入 Gate" },
+    ],
+  },
+  mj_workspace: {
+    name: "Mojing/workspace/",
+    badge: "提示词",
+    badgeClass: "bg-business",
+    desc: "系统提示 Markdown 文件。按固定顺序拼接为 System Prompt 稳定前缀，走豆包前缀缓存。",
+    files: [
+      { name: "Agent.md", desc: "Agent 身份、行为规则、能力边界" },
+      { name: "SOUL.md", desc: "人格特征、对话风格" },
+      { name: "TOOL.md", desc: "工具使用规范" },
+      { name: "compliance.md", desc: "合规约束" },
+      { name: "journey/novice.md", desc: "新手阶段专属策略" },
+      { name: "journey/explore.md", desc: "探索阶段专属策略" },
+      { name: "journey/mature.md", desc: "成熟阶段专属策略" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/config.py → load_stable_sections(stage)</strong>：按阶段加载对应文件" },
+      { arrow: "→", text: "<strong>simpleclaw/context/builder.py</strong>：作为 stable_sections 注入（走前缀缓存）" },
+    ],
+  },
+  mj_config: {
+    name: "Mojing/config.py",
+    badge: "业务配置",
+    badgeClass: "bg-business",
+    desc: "应用配置中心。读取环境变量，提供各种工厂函数和 load_stable_sections() 加载 workspace 提示词文件。",
+    files: [
+      { name: "config.py", desc: "load_stable_sections(stage) / make_llm_config() / make_hook_llm_config() / make_task_queue() 等工厂函数" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/api/container.py</strong>：build_container() 调用所有 make_*() 工厂函数" },
+    ],
+  },
+  fc_api: {
+    name: "Flowcut/api/",
+    badge: "业务模块",
+    badgeClass: "bg-flowcut",
+    desc: "FastAPI 服务入口（端口 8001）+ DI 容器。build_container() 初始化 DB、Repos、LLM、6 个工具工厂和 5 个后台 Worker。与 Mojing 结构一致，但无子 Agent 支持。",
+    files: [
+      { name: "container.py", desc: "AppContainer + build_container()：装配所有依赖，启动 5 个 TaskWorker" },
+      { name: "server.py", desc: "FastAPI app，挂载 POST /chat SSE 路由，端口 8001" },
+      { name: "routes/", desc: "chat 路由（SSE）、task 状态查询路由" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/llm/volcengine.py</strong>：实例化 VolcengineLLM（main / hook / first_token）" },
+      { arrow: "→", text: "<strong>simpleclaw/runtime/services.py</strong>：创建全局 RuntimeServices" },
+      { arrow: "→", text: "<strong>Flowcut/agent/main_agent.py</strong>：创建 MainAgent，传入所有 repos 和工具工厂" },
+      { arrow: "→", text: "<strong>Flowcut/runtime/</strong>：asyncio.create_task() 启动 5 个 TaskWorker" },
+    ],
+  },
+  fc_agent: {
+    name: "Flowcut/agent/",
+    badge: "业务模块",
+    badgeClass: "bg-flowcut",
+    desc: "主 Agent 装配层。MainAgent 使用单一 'default' 阶段（无 journey 三段），无子 Agent。PostprocessHook 和 ColdPathHook 均为占位实现。",
+    files: [
+      { name: "main_agent.py", desc: "MainAgent：make_context_builder() + make_tool_registry()，单一 'default' 阶段，无三阶段动态组装" },
+      { name: "first_token.py", desc: "FirstTokenAgent：快速预输出第一个 Token" },
+      { name: "postprocess.py", desc: "PostprocessHook：对话结束后触发（当前为占位实现）" },
+      { name: "cold_path.py", desc: "ColdPathHook：首轮对话初始化（当前为占位实现）" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/context/builder.py</strong>：实例化并返回 ContextBuilder" },
+      { arrow: "→", text: "<strong>simpleclaw/tools/registry.py</strong>：注册 6 个 Flowcut 工具" },
+      { arrow: "←", text: "<strong>Flowcut/storage/session_store.py</strong>：冷启动时调用 make_context_builder() / make_tool_registry()" },
+    ],
+  },
+  fc_tools: {
+    name: "Flowcut/tools/",
+    badge: "业务实现（占位）",
+    badgeClass: "bg-flowcut",
+    desc: "6 个业务工具骨架。核心逻辑（ASR、Gemini 分解、FFmpeg、千川 API）以 raise NotImplementedError 占位，等待后续实现。",
+    files: [
+      { name: "decompose_video.py", desc: "DecomposeVideoTool：ASR 转写 + Gemini 场景分解（durable，NotImplementedError 占位）" },
+      { name: "generate_scripts.py", desc: "GenerateScriptsTool：基于素材生成广告脚本（durable，NotImplementedError 占位）" },
+      { name: "search_materials.py", desc: "SearchMaterialsTool：根据条件搜索可用素材（inline，needs_followup=True）" },
+      { name: "compose_video.py", desc: "ComposeVideoTool：按脚本合成视频（durable，FFmpeg 占位）" },
+      { name: "check_task_status.py", desc: "CheckTaskStatusTool：查询后台任务状态（inline，needs_followup=True）" },
+      { name: "publish_to_qianchuan.py", desc: "PublishToQianchuanTool：推送成片到千川（durable，API 占位）" },
+    ],
+    connections: [
+      { arrow: "↑", text: "所有工具继承 <strong>simpleclaw/tools/base.py → Tool</strong>" },
+      { arrow: "→", text: "<strong>Flowcut/storage/</strong>：工具执行时读写 MaterialRepo / ScriptRepo / CreativeRepo" },
+      { arrow: "→", text: "<strong>simpleclaw/runtime/services.py</strong>：durable 工具调用 runtime.submit_task() 入队" },
+    ],
+  },
+  fc_context: {
+    name: "Flowcut/context/",
+    badge: "业务实现（占位）",
+    badgeClass: "bg-flowcut",
+    desc: "业务动态上下文 Provider。TaskContextProvider 将当前进行中的任务状态注入 System Prompt，目前返回 []（占位），待 Repo 实现后填充。",
+    files: [
+      { name: "providers.py", desc: "TaskContextProvider：实现 DynamicContextProvider，当前 stub 返回 []；未来注入进行中任务摘要" },
+    ],
+    connections: [
+      { arrow: "↑", text: "实现 <strong>simpleclaw/context/providers.py → DynamicContextProvider</strong>" },
+      { arrow: "←", text: "<strong>Flowcut/agent/main_agent.py</strong>：make_context_builder() 注入 ContextBuilder" },
+    ],
+  },
+  fc_storage: {
+    name: "Flowcut/storage/",
+    badge: "业务实现",
+    badgeClass: "bg-flowcut",
+    desc: "MySQL 数据访问层。5 张 fc_* 业务表，通过 ensure_schema() 自动建表。MaterialRepo / CreativeRepo / ScriptRepo 完整实现；QianchuanRepo 存储 OAuth Token。",
+    files: [
+      { name: "database.py", desc: "Database：aiomysql 连接池，ensure_schema() 建 5 张 fc_* 表" },
+      { name: "material_repo.py", desc: "MaterialRepo：fc_material 表，status: PROCESSING → READY / FAILED" },
+      { name: "script_repo.py", desc: "ScriptRepo：fc_script 表，segments_json JSON 数组" },
+      { name: "creative_repo.py", desc: "CreativeRepo：fc_creative 表，status 状态机 + label: NORMAL / HOT / DEAD" },
+      { name: "material_usage_repo.py", desc: "MaterialUsageRepo：fc_material_usage 多对多关联表" },
+      { name: "qianchuan_repo.py", desc: "QianchuanRepo：fc_qianchuan_account，OAuth token 存储和刷新" },
+      { name: "session_store.py", desc: "SessionStore：ReactLoop 生命周期管理（与 Mojing 同模式）" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Flowcut/api/container.py</strong>：初始化所有 Repository，注入 Database" },
+      { arrow: "←", text: "<strong>Flowcut/tools/*.py</strong>：工具执行时调用对应 Repo" },
+    ],
+  },
+  fc_runtime: {
+    name: "Flowcut/runtime/",
+    badge: "业务实现（占位）",
+    badgeClass: "bg-flowcut",
+    desc: "后台任务执行层。5 个 TaskStream，5 个对应 Worker。所有 Executor 均以 NotImplementedError 占位，结构与 Mojing 一致。",
+    files: [
+      { name: "streams.py", desc: "FlowcutTaskStream：VIDEO_DECOMPOSE / SCRIPT_GENERATE / MATERIAL_SEARCH / VIDEO_COMPOSE / QIANCHUAN_PUBLISH" },
+      { name: "executors.py", desc: "5 个 Executor 工厂（全部 NotImplementedError 占位，等待 ASR/FFmpeg/千川 API 实现）" },
+      { name: "workers.py", desc: "make_workers()：返回 5 个 TaskWorker 实例，由 container.py 启动" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/runtime/task_queue.py</strong>：消费 InMemoryTaskQueue 或 RedisTaskQueue" },
+      { arrow: "→", text: "<strong>simpleclaw/runtime/worker.py</strong>：直接使用 TaskWorker（不需要 re-export）" },
+      { arrow: "←", text: "<strong>Flowcut/api/container.py</strong>：asyncio.create_task() 启动 5 个 Worker" },
+    ],
+  },
+  fc_workspace: {
+    name: "Flowcut/workspace/",
+    badge: "提示词",
+    badgeClass: "bg-flowcut",
+    desc: "系统提示 Markdown 文件。4 个文件，无 journey 子目录（单一 default 阶段）。走豆包前缀缓存。",
+    files: [
+      { name: "Agent.md", desc: "Agent 身份：千川内容生产助手，处理素材→脚本→成片→发布全流程" },
+      { name: "SOUL.md", desc: "人格特征：专业高效的内容运营助手" },
+      { name: "TOOL.md", desc: "6 个工具的使用规范和调用时机" },
+      { name: "compliance.md", desc: "广告合规约束（广告法、违禁词、平台政策）" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Flowcut/config.py → load_stable_sections()</strong>：加载 4 个 Markdown 文件（无阶段参数）" },
+      { arrow: "→", text: "<strong>simpleclaw/context/builder.py</strong>：作为 stable_sections 注入 ContextBuilder（走前缀缓存）" },
+    ],
+  },
+  fc_config: {
+    name: "Flowcut/config.py",
+    badge: "业务配置",
+    badgeClass: "bg-flowcut",
+    desc: "Flowcut 应用配置中心。读取 FLOWCUT_* 环境变量，支持 OSS 配置（素材存储），提供 load_stable_sections() 和各种工厂函数。",
+    files: [
+      { name: "config.py", desc: "FLOWCUT_OSS_BUCKET / FLOWCUT_OSS_ENDPOINT 等 OSS 配置 + load_stable_sections() / make_llm_config() / make_task_queue() 等工厂" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Flowcut/api/container.py</strong>：build_container() 调用所有 make_*() 工厂函数" },
+      { arrow: "←", text: "<strong>Flowcut/agent/main_agent.py</strong>：startup() 预热 stable_sections 缓存" },
+    ],
+  },
+  admin: {
+    name: "admin/",
+    badge: "运维工具",
+    badgeClass: "bg-infra",
+    desc: "Admin 调试面板。提供 Prompt 文件在线编辑、场景回放、对话历史查看等运维能力。",
+    files: [
+      { name: "handlers.py", desc: "Admin 路由处理器（查询会话历史、切换 Prompt 版本等）" },
+      { name: "prompt_files.py", desc: "Prompt 文件在线编辑接口（读写 workspace/*.md）" },
+      { name: "scenario_page.py", desc: "场景回放页面（重放历史对话进行调试）" },
+    ],
+    connections: [
+      { arrow: "←", text: "<strong>Mojing/api/server.py</strong>：startup() 时挂载 admin 路由" },
+      { arrow: "→", text: "<strong>Mojing/storage/</strong>：查询会话历史、文档等数据" },
+    ],
+  },
+  tests: {
+    name: "tests/",
+    badge: "测试",
+    badgeClass: "bg-test",
+    desc: "pytest 测试套件。覆盖 simpleclaw 框架层和 Mojing 业务层，包含单元测试、集成测试和 smoke 测试。",
+    files: [
+      { name: "test_runtime_pipeline.py", desc: "ReactLoop + ToolRegistry 完整流水线集成测试" },
+      { name: "test_context_builder_images.py", desc: "ContextBuilder 图片处理和占位符替换测试" },
+      { name: "test_skin_diary_*.py", desc: "皮肤日记生成、后处理、状态机等全流程测试" },
+      { name: "smoke_test.py", desc: "端到端冒烟测试（调用真实 LLM/API）" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>simpleclaw/</strong> 和 <strong>Mojing/</strong>：直接 import 被测模块" },
+    ],
+  },
+  script: {
+    name: "script/",
+    badge: "基准测试",
+    badgeClass: "bg-test",
+    desc: "基准测试和批量 Runner 脚本。用于对比不同 Prompt 版本的效果、批量运行测试场景。",
+    files: [
+      { name: "run_all.py", desc: "批量运行所有 scenario 并收集日志" },
+      { name: "compare.py", desc: "对比两次运行结果的质量差异" },
+      { name: "scenarios/", desc: "预设测试场景（YAML/JSON 格式）" },
+    ],
+    connections: [
+      { arrow: "→", text: "<strong>Mojing/api/</strong>：通过 HTTP 调用本地运行的 Mojing 服务" },
+    ],
+  },
+};
+
+// ── Syntax highlighter (segment-based, safe) ──────────────────────────────
+function hlPy(raw) {
+  let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let segs = [{r:true,t:s}];
+  function applyRule(arr, re, fn) {
+    return arr.flatMap(seg => {
+      if (!seg.r) return [seg];
+      const out=[]; let last=0;
+      const g = new RegExp(re.source,'g'); let m;
+      while ((m=g.exec(seg.t))!==null) {
+        if (m.index>last) out.push({r:true,t:seg.t.slice(last,m.index)});
+        out.push({r:false,t:fn(m)});
+        last=g.lastIndex;
+      }
+      if (last<seg.t.length) out.push({r:true,t:seg.t.slice(last)});
+      return out.length?out:[seg];
+    });
+  }
+  segs=applyRule(segs,/#[^\n]*/,         m=>`<span class="tc">${m[0]}</span>`);
+  segs=applyRule(segs,/"""[\s\S]*?"""|'''[\s\S]*?'''/,m=>`<span class="ts">${m[0]}</span>`);
+  segs=applyRule(segs,/f?"(?:[^"\\]|\\.)*"|f?'(?:[^'\\]|\\.)*'/,m=>`<span class="ts">${m[0]}</span>`);
+  segs=applyRule(segs,/@\w+/,            m=>`<span class="td">${m[0]}</span>`);
+  segs=applyRule(segs,/\bdef\s+(\w+)/,   m=>`<span class="tk">def</span> <span class="tf">${m[1]}</span>`);
+  segs=applyRule(segs,/\bclass\s+(\w+)/, m=>`<span class="tk">class</span> <span class="tcl">${m[1]}</span>`);
+  segs=applyRule(segs,/\b(async|await|import|from|return|if|elif|else|for|while|in|not|and|or|is|with|as|try|except|raise|yield|lambda|pass|break|continue|del)\b/,m=>`<span class="tk">${m[0]}</span>`);
+  segs=applyRule(segs,/\b(True|False|None)\b/,m=>`<span class="tty">${m[0]}</span>`);
+  segs=applyRule(segs,/\bself\b/,        m=>`<span class="tse">self</span>`);
+  segs=applyRule(segs,/\b\d+\b/,         m=>`<span class="tn">${m[0]}</span>`);
+  return segs.map(x=>x.t).join('');
+}
+
+// ── Code Snippets Database ─────────────────────────────────────────────────
+const CODE_SNIPPETS = {
+  'loop.py': {
+    title: 'ReactLoop._react() — ReAct 核心迭代引擎',
+    dot: '#3b82f6',
+    explain: '这是整个框架的<strong>心脏</strong>。LLM 流式输出 Token → 收集工具调用 → 按 <code>needs_followup</code> 拆分耦合/解耦两类 → 耦合工具并行执行结果注入 → 再次迭代；解耦工具以 <code>asyncio.create_task</code> 后台触发，完全不阻塞主循环。',
+    tags: [{t:'ReAct Pattern',c:'bg-harness'},{t:'Async Generator',c:'bg-harness'},{t:'Tool Coupling',c:'bg-flowcut'}],
+    hl: {19:'g', 31:'b', 32:'b', 36:'o', 37:'o', 38:'o', 39:'o', 46:'b', 47:'b', 48:'b'},
+    code: `async def _react(self) -> AsyncIterator[Event]:
+    # 本轮第一次调用 LLM 前，对工作窗口执行一次压缩检查
+    if self.compressor is not None:
+        active = self.messages[self.consolidated_from:]
+        compressed = await self.compressor.maybe_compress(active)
+        if compressed is not active:
+            dropped = len(active) - len(compressed)
+            self.consolidated_from += dropped
+
+    for iteration in range(self.max_iterations):
+        text_buffer = ""
+        tool_calls: list[ToolCall] = []
+
+        async for chunk in self.llm.stream_with_retry(
+            await self._get_messages_async(),
+            tools=self.tool_registry.schemas() or None,
+        ):
+            if isinstance(chunk, TextChunk):
+                yield TextEvent(chunk.token)      # 实时流出 → 前端看到
+                text_buffer += chunk.token
+            elif isinstance(chunk, ToolCallChunk):
+                tool_calls.append(ToolCall(id=chunk.id, name=chunk.name,
+                                           arguments=chunk.arguments))
+
+        self.messages.append(AssistantMessage(text_buffer, tool_calls))
+
+        if not tool_calls:
+            yield DoneEvent()
+            return
+
+        # 按 needs_followup 拆分：耦合 vs 解耦
+        coupled   = [c for c in tool_calls if self.tool_registry.needs_followup(c)]
+        decoupled = [c for c in tool_calls if not self.tool_registry.needs_followup(c)]
+
+        # 解耦工具：fire-and-forget，不阻塞主循环
+        for call in decoupled:
+            asyncio.create_task(
+                self._fire_decoupled(call),
+                name=f"decoupled-tool:{call.name}",
+            )
+
+        if not coupled:
+            yield DoneEvent()
+            return
+
+        # 耦合工具：并行执行，等全部结果注入历史
+        results = await asyncio.gather(*[
+            self.tool_registry.execute(call) for call in coupled
+        ])
+        for call, result in zip(coupled, results):
+            yield ToolResultEvent(tool_name=call.name, result=result.content)
+            self.messages.append(ToolResultMessage(call_id=call.id,
+                                                    content=result.content))
+
+    yield ErrorEvent(message=f"ReactLoop exceeded max_iterations")`
+  },
+
+  'base.py': {
+    title: 'Tool 抽象基类 — 两轴行为控制矩阵',
+    dot: '#3b82f6',
+    explain: '<code>execution_mode</code>（<code>inline</code> vs <code>durable</code>）与 <code>needs_followup</code>（耦合 vs 解耦）是<strong>正交两轴</strong>，决定工具如何与 ReactLoop 协作。inline=同步执行；durable=触发后台任务入队；needs_followup=True 表示结果必须注入 LLM 继续迭代。',
+    tags: [{t:'Abstract Base Class',c:'bg-harness'},{t:'Dual-Axis Design',c:'bg-flowcut'},{t:'ToolResult',c:'bg-infra'}],
+    hl: {16:'o', 17:'o', 19:'b', 20:'b', 23:'g', 24:'g', 27:'b', 28:'b', 29:'b', 30:'b'},
+    code: `@dataclass
+class ToolResult:
+    content: str    # LLM 将看到的文本（needs_followup=True 时有意义）
+    ok: bool = True # False 表示工具级错误；Loop 仍注入 content
+
+
+class Tool(ABC):
+    """所有 Agent 工具的抽象基类。"""
+
+    name: str           # LLM 调用时使用的工具名
+    description: str    # LLM 选择工具的依据
+    parameters: dict    # JSON Schema，约束 LLM 传参格式
+
+    # ── 两轴行为控制 ─────────────────────────────────────────────────
+    needs_followup: bool = True               # True  → 结果注入 LLM 进入下一轮
+    execution_mode: ToolExecutionMode = "inline"  # "durable" → 入队后台任务
+
+    async def execute(self, **kwargs) -> ToolResult:
+        """inline 工具实现此方法。不要抛出异常，用 ok=False 包装错误。"""
+        raise NotImplementedError(f"Tool '{self.name}' has no execute()")
+
+    async def prepare_task(self, **kwargs) -> "TaskEnvelope | ToolResult":
+        """durable 工具实现此方法，返回 TaskEnvelope 提交后台队列。"""
+        raise NotImplementedError(f"Tool '{self.name}' has no prepare_task()")
+
+    def durable_result(self, task, queue_id) -> ToolResult:
+        """durable 入队成功后返回给 LLM 的标准 ack。"""
+        return ToolResult(content=json.dumps({
+            "ok": True, "action": self.durable_action,
+            "task_id": task.task_id, "task_type": task.task_type,
+        }))`
+  },
+
+  'builder.py': {
+    title: 'ContextBuilder.build() — 稳定前缀 × 动态尾部',
+    dot: '#3b82f6',
+    explain: '将 System Prompt 拆分为<strong>稳定前缀</strong>（workspace/*.md 加载，打 <code>_cache_stable_prefix</code> 标记走豆包前缀缓存，约 2800-3200 tokens）和<strong>动态尾部</strong>（Provider 每轮实时计算，打 <code>_cache_dynamic_tail</code> 标记）。这是降低推理成本的核心设计。',
+    tags: [{t:'前缀缓存',c:'bg-harness'},{t:'动态上下文',c:'bg-business'},{t:'Attention Packets',c:'bg-infra'}],
+    hl: {8:'o', 9:'o', 10:'o', 14:'o', 18:'b', 19:'b', 20:'b', 23:'b', 24:'b', 28:'g', 29:'g'},
+    code: `async def build(self, history, *, dynamic_context_sections=None,
+               attention_packets=None, metadata=None, query="") -> list[dict]:
+
+    ctx = ContextBuildContext(history=history, query=query,
+                              tenant_key=self._tenant_key, ...)
+
+    # ── 稳定前缀（走豆包前缀缓存，约 2800-3200 tokens）─────────────
+    stable_text = self._SEP.join(
+        s for s in self._stable_sections if s and s.strip()
+    )
+    stable_msg = {
+        "role": "system",
+        "content": stable_text,
+        "_cache_stable_prefix": True,   # ← 触发豆包前缀缓存
+    }
+
+    # ── 动态尾部（每轮实时计算，不走缓存）───────────────────────────
+    dynamic_parts = []
+    for provider in self._dynamic_context_providers:
+        sections = await provider.collect(ctx)
+        dynamic_parts.extend(s.content for s in sections)
+    dynamic_msg = {
+        "role": "system",
+        "content": "\\n\\n".join(dynamic_parts),
+        "_cache_dynamic_tail": True,    # ← 动态区，不缓存
+    }
+
+    # ── Attention Packets 注入消息流特定位置 ─────────────────────────
+    messages = self._assemble_history(history)
+    messages = self._inject_attention(messages, attention_packets, ctx)
+
+    return [stable_msg, dynamic_msg] + messages`
+  },
+
+  'decompose_video.py': {
+    title: 'DecomposeVideoTool — durable 工具骨架示例',
+    dot: '#f97316',
+    explain: '6 个 Flowcut 工具中最典型的 <code>durable</code> 工具：<strong>触发后台 Gemini 拆镜任务，立即返回 task_id 给 LLM</strong>，实际 ASR+分镜由 TaskWorker 异步消费。<code>execution_mode="durable"</code> + <code>needs_followup=True</code> 意味着 LLM 会收到入队 ack 后继续生成回复。',
+    tags: [{t:'durable 模式',c:'bg-flowcut'},{t:'needs_followup=True',c:'bg-flowcut'},{t:'NotImplementedError 占位',c:'bg-test'}],
+    hl: {20:'o', 21:'o', 23:'b', 26:'g', 27:'g', 28:'g', 29:'g', 30:'g'},
+    code: `class DecomposeVideoTool(Tool):
+    """拆解爆款视频为分镜场景数据，调用 Gemini 进行视觉分析。"""
+
+    name = "decompose_video"
+    description = (
+        "上传一个已处理完成的爆款视频素材（status=READY），"
+        "触发后台 Gemini 拆镜任务，将视频分解为时间戳、画面描述和口播台词。"
+        "任务异步执行，调用后立即返回 task_id，可用 check_task_status 查进度。"
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "material_id": {
+                "type": "integer",
+                "description": "已上传并处理完成的素材 ID（status=READY）",
+            }
+        },
+        "required": ["material_id"],
+    }
+    execution_mode = "durable"    # ← 触发后台任务，ReactLoop 立即收到 ack
+    needs_followup = True         # ← LLM 收到 task_id 后继续生成回复
+
+    def __init__(self, *, runtime: "RuntimeServices") -> None:
+        self._runtime = runtime   # ← DI 注入，通过 build_container() 传入
+
+    async def prepare_task(
+        self, material_id: int, **kwargs
+    ) -> "TaskEnvelope | ToolResult":
+        """构造拆镜 TaskEnvelope 并提交到后台队列。"""
+        raise NotImplementedError("TODO: 构造 TaskEnvelope 并返回")`
+  },
+
+  'main_agent.py': {
+    title: 'MainAgent — 业务注入 simpleclaw 的核心装配层',
+    dot: '#10b981',
+    explain: '<strong>MainAgent</strong> 是 Mojing 业务逻辑注入 simpleclaw 框架的核心连接点。<code>make_context_builder()</code> 和 <code>make_tool_registry()</code> 在 SessionStore 冷启动时调用，按用户 journey 阶段（novice / explore / mature）动态组装工具集和上下文 Provider。',
+    tags: [{t:'DI 装配层',c:'bg-business'},{t:'三阶段 journey',c:'bg-business'},{t:'Factory Pattern',c:'bg-harness'}],
+    hl: {16:'o', 17:'o', 18:'o', 21:'b', 22:'b', 23:'b', 24:'b', 25:'b', 26:'b', 27:'b', 32:'g', 33:'g', 34:'g', 35:'g'},
+    code: `class MainAgent:
+    """主 Agent 装配层。持有所有依赖；SessionStore 只调它的方法。"""
+
+    _VALID_STAGES = ("novice", "explore", "mature")
+
+    def __init__(self, *, db, document_repo, image_repo, topic_repo,
+                 base_registry, tool_factories=None,
+                 staged_tool_factories=None, ...) -> None:
+        self._db = db
+        self._document_repo = document_repo
+        self._image_repo = image_repo
+        self._base_registry = base_registry
+        self._tool_factories = list(tool_factories or [])
+        self._staged_tool_factories = list(staged_tool_factories or [])
+
+    def make_context_builder(self, tenant_key: str, stage: str) -> ContextBuilder:
+        """按 tenant + stage 实例化 ContextBuilder，注入业务 Providers。"""
+        stable = load_stable_sections(stage)   # workspace/*.md → 前缀缓存
+        return ContextBuilder(
+            stable_sections=stable,
+            dynamic_context_providers=[
+                DocumentContextProvider(self._document_repo, tenant_key),
+                CurrentTimeContextProvider(),
+                SelfieAgeContextProvider(self._image_repo, tenant_key),
+            ],
+            attention_providers=[
+                TopicAttentionProvider(self._topic_repo, tenant_key),
+                ImageUploadAttentionProvider(),
+            ],
+            tenant_key=tenant_key,
+        )
+
+    def make_tool_registry(self, tenant_key: str, stage: str) -> ToolRegistry:
+        """按 tenant + stage 注册工具；staged_tool_factories 按阶段启停。"""
+        registry = ToolRegistry(base=self._base_registry)
+        for factory in self._tool_factories:
+            registry.register(factory(tenant_key))
+        for allowed_stages, factory in self._staged_tool_factories:
+            if stage in allowed_stages:   # 阶段门控：仅特定阶段可用
+                registry.register(factory(tenant_key))
+        return registry`
+  },
+
+  'container.py': {
+    title: 'build_container() — DI 根，统一装配入口',
+    dot: '#10b981',
+    explain: '<strong>build_container()</strong> 是整个应用的依赖注入根：初始化 DB 连接、实例化所有 Repo / LLM / Agent，最终以 <code>asyncio.create_task()</code> 启动后台 Worker。Mojing 启动 9 个 Worker，Flowcut 启动 5 个。所有依赖的生命周期在此处统一管理。',
+    tags: [{t:'DI Container',c:'bg-business'},{t:'lifespan hook',c:'bg-infra'},{t:'asyncio Task',c:'bg-harness'}],
+    hl: {12:'b', 13:'b', 18:'b', 19:'b', 23:'o', 27:'o', 30:'g', 31:'g', 32:'g'},
+    code: `@dataclass
+class AppContainer:
+    db: Database
+    main_agent: MainAgent
+    runtime_services: RuntimeServices
+    # ... 所有依赖都挂在这里
+
+async def build_container(config: AppConfig) -> AppContainer:
+    """DI 根：初始化所有依赖，启动 Worker。在 FastAPI lifespan 中调用。"""
+
+    # 1. 基础设施
+    db = Database(config.mysql_dsn)
+    await db.connect()
+    await db.ensure_schema()          # 自动建表（幂等）
+
+    # 2. Repositories
+    document_repo = DocumentRepository(db)
+    image_repo    = ImageRepository(db)
+    task_repo     = RuntimeTaskRepository(db)
+
+    # 3. LLM（三个实例：main / hook / first_token）
+    llm      = VolcengineLLM(make_llm_config())
+    hook_llm = VolcengineLLM(make_hook_llm_config())
+
+    # 4. MainAgent（装配层）
+    main_agent = MainAgent(db=db, document_repo=document_repo,
+                           image_repo=image_repo, ...)
+    runtime = RuntimeServices(task_queue=make_task_queue(), task_repo=task_repo)
+
+    # 5. 启动后台 Workers（每个 stream 一个 asyncio Task）
+    for worker in make_workers(runtime, document_repo, ...):
+        asyncio.create_task(worker.run(), name=worker.name)
+
+    return AppContainer(db=db, main_agent=main_agent, runtime_services=runtime, ...)`
+  },
+
+  'session_store.py': {
+    title: 'SessionStore — ReactLoop 生命周期管理',
+    dot: '#10b981',
+    explain: '<strong>SessionStore</strong> 按 tenant_key 缓存 ReactLoop 实例。首次访问（冷启动）时调用 MainAgent 装配 ContextBuilder + ToolRegistry；后续复用缓存实例，保留完整对话历史。<code>run_turn()</code> 是每轮对话的入口，yield SSE Event 流。',
+    tags: [{t:'冷启动',c:'bg-business'},{t:'Session Cache',c:'bg-infra'},{t:'ReactLoop 管理',c:'bg-harness'}],
+    hl: {7:'o', 8:'o', 9:'o', 10:'o', 11:'o', 12:'o', 13:'o', 19:'b', 20:'b', 21:'b'},
+    code: `class SessionStore:
+    def __init__(self, main_agent: MainAgent, llm, compressor) -> None:
+        self._sessions: dict[str, ReactLoop] = {}
+        self._main_agent = main_agent
+        self._llm = llm
+
+    def _get_or_create(self, tenant_key: str, stage: str) -> ReactLoop:
+        if tenant_key not in self._sessions:
+            # 冷启动：按 stage 装配 ContextBuilder + ToolRegistry
+            context_builder = self._main_agent.make_context_builder(tenant_key, stage)
+            tool_registry   = self._main_agent.make_tool_registry(tenant_key, stage)
+            self._sessions[tenant_key] = ReactLoop(
+                llm=self._llm,
+                tool_registry=tool_registry,
+                context_builder=context_builder,
+            )
+        return self._sessions[tenant_key]
+
+    async def run_turn(self, tenant_key, message, stage, **kwargs):
+        """一轮对话的入口，yield Event 流给 FastAPI SSE 响应。"""
+        loop = self._get_or_create(tenant_key, stage)
+        async for event in loop.run(message, **kwargs):
+            yield event`
+  },
+
+  'worker.py': {
+    title: 'TaskWorker — 单 Stream 后台消费循环',
+    dot: '#3b82f6',
+    explain: '<strong>TaskWorker</strong> 从 TaskQueue 指定 stream 中持续拉取任务，调用注册的 Executor 执行，并将状态（RUNNING → DONE / FAILED）写入 TaskStateStore。每个 stream 对应一个 Worker asyncio Task，多个 Worker 并行运行。',
+    tags: [{t:'Consumer Pattern',c:'bg-harness'},{t:'TaskQueue',c:'bg-infra'},{t:'状态机',c:'bg-business'}],
+    hl: {10:'o', 11:'o', 12:'b', 13:'b', 14:'b', 16:'g', 17:'g', 19:'o', 20:'o'},
+    code: `class TaskWorker:
+    """单 stream 任务消费 Worker。以 asyncio Task 形式运行。"""
+
+    def __init__(self, stream: str, executor, task_queue, task_state_store) -> None:
+        self.stream = stream
+        self._executor = executor
+        self._queue = task_queue
+        self._state = task_state_store
+
+    async def run(self) -> None:
+        """主消费循环——在 build_container() 中以 asyncio.create_task() 启动。"""
+        async for task in self._queue.consume(self.stream):
+            await self._state.set_status(task.task_id, "RUNNING")
+            try:
+                result = await self._executor(task)
+                await self._state.set_status(task.task_id, "DONE",
+                                             result=result)
+            except Exception as exc:
+                logger.exception("task failed: stream={} id={}", self.stream, task.task_id)
+                await self._state.set_status(task.task_id, "FAILED",
+                                             error=str(exc))`
+  },
+
+  'registry.py': {
+    title: 'ToolRegistry — 注册 + Schema 生成 + 执行分发',
+    dot: '#3b82f6',
+    explain: '<strong>ToolRegistry</strong> 是 ReactLoop 与所有工具之间的唯一接口。<code>schemas()</code> 为 LLM 生成工具描述，<code>execute()</code> 按工具名路由执行（自动处理 <code>execution_mode</code>），<code>needs_followup()</code> 决定结果是否回注 LLM。',
+    tags: [{t:'中央分发',c:'bg-harness'},{t:'JSON Schema',c:'bg-infra'},{t:'execution_mode 路由',c:'bg-flowcut'}],
+    hl: {10:'b', 11:'b', 13:'o', 14:'o', 15:'o', 16:'o', 17:'o', 18:'o', 20:'g', 21:'g'},
+    code: `class ToolRegistry:
+    def __init__(self, base: "ToolRegistry | None" = None) -> None:
+        self._tools: dict[str, Tool] = {}
+        if base:
+            self._tools.update(base._tools)   # 继承基础工具集
+
+    def register(self, tool: Tool) -> None:
+        self._tools[tool.name] = tool
+
+    def schemas(self) -> list[dict]:
+        """生成发给 LLM 的工具描述列表（JSON Schema 格式）。"""
+        return [{"name": t.name, "description": t.description,
+                 "parameters": t.parameters} for t in self._tools.values()]
+
+    async def execute(self, call: ToolCall) -> ToolResult:
+        """按工具名路由，自动处理 inline / durable 两种 execution_mode。"""
+        tool = self._tools.get(call.name)
+        if tool is None:
+            return ToolResult(ok=False, content=f"Unknown tool: {call.name}")
+        params = tool.cast_params(call.arguments)
+        if tool.execution_mode == "durable":
+            return await self._runtime.submit_task(tool, **params)
+        return await tool.execute(**params)
+
+    def needs_followup(self, call: ToolCall) -> bool:
+        """ReactLoop 用此判断工具结果是否需要注入 LLM 继续对话。"""
+        tool = self._tools.get(call.name)
+        return tool.needs_followup if tool else True`
+  },
+};
+
+// ── Modal logic ────────────────────────────────────────────────────────────
+function openCodeModal(filename) {
+  const s = CODE_SNIPPETS[filename];
+  if (!s) return;
+  document.getElementById('cm-fname').textContent = filename;
+  document.getElementById('cm-ftitle').textContent = s.title;
+  document.getElementById('cm-explain').innerHTML = s.explain;
+  document.getElementById('cm-dot').style.background = s.dot || '#3b82f6';
+
+  const hl = s.hl || {};
+  const hlMap = { 'o':'hl-o', 'b':'hl-b', 'g':'hl-g' };
+  const lines = s.code.split('\n');
+  document.getElementById('cm-code').innerHTML = lines.map((line, i) => {
+    const n = i + 1;
+    const hc = hl[n] ? ' ' + (hlMap[hl[n]] || '') : '';
+    return `<div class="cl${hc}"><span class="ln">${n}</span><span class="lc">${hlPy(line)}</span></div>`;
+  }).join('');
+
+  const tagsEl = document.getElementById('cm-tags');
+  const legendHtml = tagsEl.innerHTML;  // preserve legend
+  tagsEl.innerHTML = (s.tags || []).map(tag =>
+    `<span class="cm-tag ${tag.c}">${tag.t}</span>`
+  ).join('') + `<div class="cm-legend">
+    <span><div class="cm-legend-dot" style="background:#10b981"></div>关键输出</span>
+    <span><div class="cm-legend-dot" style="background:#3b82f6"></div>核心逻辑</span>
+    <span><div class="cm-legend-dot" style="background:#f97316"></div>重要配置</span>
+  </div>`;
+
+  document.getElementById('cm-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // scroll code to top
+  document.querySelector('.cm-body').scrollTop = 0;
+}
+
+function closeCodeModal() {
+  document.getElementById('cm-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('cm-overlay')) closeCodeModal();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeCodeModal();
+});
+
+function toggleCard(id) {
+  const card = document.getElementById('card-' + id);
+  card.classList.toggle('open');
+  event.stopPropagation();
+}
+
+function showDetail(key, evt) {
+  if (evt) evt.stopPropagation();
+  document.querySelectorAll('.folder-btn').forEach(b => b.classList.remove('active'));
+  if (evt && evt.currentTarget) evt.currentTarget.classList.add('active');
+
+  const d = DETAILS[key];
+  if (!d) return;
+
+  switchTab('detail');
+
+  const body = document.getElementById('detail-body');
+  const ph = document.getElementById('detail-placeholder');
+  ph.style.display = 'none';
+  body.style.display = 'block';
+
+  const filesHtml = d.files.map(f => {
+    const has = !!CODE_SNIPPETS[f.name];
+    const onclick = has ? ` onclick="openCodeModal('${f.name}')"` : '';
+    const hint = has ? `<span class="snippet-hint">← 点击查看代码</span>` : '';
+    return `<div class="file-item${has ? ' has-snippet' : ''}"${onclick}>
+      <div class="filename">📄 ${f.name}${hint}</div>
+      <div class="file-desc">${f.desc}</div>
+    </div>`;
+  }).join('');
+
+  const connHtml = d.connections.map(c => `
+    <div class="conn-item">
+      <span class="conn-arrow">${c.arrow}</span>
+      <span class="conn-text">${c.text}</span>
+    </div>
+  `).join('');
+
+  body.innerHTML = `
+    <div class="detail-card">
+      <h2>${d.name}</h2>
+      <span class="role-badge ${d.badgeClass}">${d.badge}</span>
+      <p class="desc">${d.desc}</p>
+    </div>
+    <div class="detail-card">
+      <div style="font-size:13px;font-weight:700;color:#f0f6fc;margin-bottom:12px">关键文件</div>
+      <div class="files-grid">${filesHtml}</div>
+    </div>
+    <div class="detail-card">
+      <div style="font-size:13px;font-weight:700;color:#f0f6fc;margin-bottom:12px">对外连接</div>
+      <div class="connections-list">${connHtml}</div>
+    </div>
+  `;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.getAttribute('onclick') === "switchTab('" + tab + "')") {
+      b.classList.add('active');
+    }
+  });
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'live') initLiveDashboard();
+}
+
+// Live dashboard
+let liveInited = false;
+let liveInterval = null;
+
+const STREAM_MAX = 12;
+let streamDepths = [2, 0, 5, 1, 0];
+let matTotal = 247, matReady = 223, matProc = 12, matFail = 12;
+let scrTotal = 89;
+let creTotal = 134, crePending = 8, creComposing = 5, creReady = 103, creFailed = 18;
+let hotCount = 31, normalCount = 89, deadCount = 14;
+
+function animateCounter(id, target, duration) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = parseInt(el.textContent) || 0;
+  const diff = target - start;
+  const startTime = performance.now();
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(start + diff * ease);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function updateStreams() {
+  streamDepths = streamDepths.map((d, i) => {
+    const delta = Math.floor(Math.random() * 3) - 1;
+    return Math.max(0, Math.min(STREAM_MAX, d + delta));
+  });
+  streamDepths.forEach((depth, i) => {
+    const bar = document.getElementById('bar-' + i);
+    const depthEl = document.getElementById('depth-' + i);
+    const dot = document.getElementById('dot-' + i);
+    if (!bar) return;
+    bar.style.width = (depth / STREAM_MAX * 100) + '%';
+    depthEl.textContent = depth + ' task' + (depth !== 1 ? 's' : '');
+    if (depth > 0) {
+      dot.classList.remove('idle');
+    } else {
+      dot.classList.add('idle');
+    }
+  });
+}
+
+function updateCreativeLabels() {
+  const total = normalCount + hotCount + deadCount;
+  const nPct = normalCount / total * 100;
+  const hPct = hotCount / total * 100;
+  const dPct = deadCount / total * 100;
+  const lb = (id, pct, n) => {
+    const el = document.getElementById(id);
+    const nel = document.getElementById(id + '-n');
+    if (el) el.style.width = pct + '%';
+    if (nel) nel.textContent = n;
+  };
+  lb('lb-normal', nPct, normalCount);
+  lb('lb-hot', hPct, hotCount);
+  lb('lb-dead', dPct, deadCount);
+}
+
+function updateLiveTick() {
+  // small random drift
+  matProc = Math.max(0, matProc + (Math.random() > 0.6 ? 1 : -1));
+  matReady = matTotal - matProc - matFail;
+  crePending = Math.max(0, crePending + (Math.random() > 0.7 ? 1 : -1));
+  creComposing = Math.max(0, creComposing + (Math.random() > 0.7 ? 1 : -1));
+
+  document.getElementById('cnt-mat-ready').textContent = matReady;
+  document.getElementById('cnt-hot').textContent = hotCount;
+  document.getElementById('mat-proc').textContent = matProc;
+  document.getElementById('mat-ready').textContent = matReady;
+  document.getElementById('mat-fail').textContent = matFail;
+  document.getElementById('cv-pending').textContent = crePending;
+  document.getElementById('cv-composing').textContent = creComposing;
+  document.getElementById('cv-ready').textContent = creReady;
+  document.getElementById('cv-failed').textContent = creFailed;
+  document.getElementById('schema-mat-rows').textContent = matTotal + ' rows';
+  document.getElementById('schema-scr-rows').textContent = scrTotal + ' rows';
+  document.getElementById('schema-cre-rows').textContent = creTotal + ' rows';
+  document.getElementById('schema-acc-rows').textContent = '3 rows';
+
+  updateStreams();
+  updateCreativeLabels();
+}
+
+function initLiveDashboard() {
+  if (liveInited) return;
+  liveInited = true;
+
+  animateCounter('cnt-material', matTotal, 1200);
+  animateCounter('cnt-script', scrTotal, 900);
+  animateCounter('cnt-creative', creTotal, 1000);
+
+  setTimeout(() => {
+    document.getElementById('cnt-mat-ready').textContent = matReady;
+    document.getElementById('cnt-hot').textContent = hotCount;
+    document.getElementById('mat-proc').textContent = matProc;
+    document.getElementById('mat-ready').textContent = matReady;
+    document.getElementById('mat-fail').textContent = matFail;
+    document.getElementById('cv-pending').textContent = crePending;
+    document.getElementById('cv-composing').textContent = creComposing;
+    document.getElementById('cv-ready').textContent = creReady;
+    document.getElementById('cv-failed').textContent = creFailed;
+    document.getElementById('schema-mat-rows').textContent = matTotal + ' rows';
+    document.getElementById('schema-scr-rows').textContent = scrTotal + ' rows';
+    document.getElementById('schema-cre-rows').textContent = creTotal + ' rows';
+    document.getElementById('schema-acc-rows').textContent = '3 rows';
+    updateStreams();
+    updateCreativeLabels();
+  }, 400);
+
+  liveInterval = setInterval(updateLiveTick, 3000);
+}
+</script>
+</body>
+</html>

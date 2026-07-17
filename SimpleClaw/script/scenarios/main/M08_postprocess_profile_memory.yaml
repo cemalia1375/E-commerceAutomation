@@ -1,0 +1,331 @@
+id: M08_postprocess_profile_memory
+name: main_postprocess_profile_memory_18_turns
+description: 主 Agent postprocess 档案写入观察场景。seed 一个 Learned Skin Profile，随后用 18 轮自然聊天暴露用户主观关注、城市、饮食、作息、护肤偏好、沟通偏好和红线，并在最后更新现居城市、追问沟通偏好、查询天气，观察 USER.md / SOUL.md 如何被后台归档和读取。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 4
+session:
+  reuse: false
+  subscriptions:
+    - "main:{tenant_key}"
+
+seed:
+  docs:
+    USER.md: |
+      ## identity
+
+      （无内容）
+
+      ## style
+
+      （无内容）
+
+      ## skin
+
+      （无内容）
+
+      ## lifestyle
+
+      （无内容）
+
+      ## goals
+
+      （无内容）
+
+      ## Learned Skin Profile
+
+      - 肤龄阶段：年轻肌
+      - 肤色调：暖调二白
+      - 肤质：混合性
+      - 主要肤况：黑头（轻度）、闭口（轻度）、PIH黑痘印（轻度）、黑眼圈（轻度）
+      - 问题分布：鼻子：黑头（轻度）；额头：闭口（轻度）；左面颊·右面颊：PIH黑痘印（轻度）；左眼周·右眼周：黑眼圈（轻度）
+      - 皮肤总评：年轻底子好，重点控油淡印
+      - 皮肤优势：胶原充足、轮廓紧致、纹理细腻、水油均衡
+      - 护理关注点：控油+疏通、温和代谢角质、防晒+淡印、眼周防晒+减少摩擦
+      - 最近图片建档时间：2026-06-01
+    SOUL.md: ""
+
+turns:
+  - user: "我感觉我的黑眼圈才是要命的，照片里虽然说轻度，但我自己最在意这个。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "黑眼圈"
+
+  - user: "我现在人在广州，平时通勤会晒到太阳，天气一闷我就觉得脸油。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "广州"
+
+  - user: "我最希望吃火锅啦，越辣越好，清淡的我真的坚持不住。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "火锅"
+
+  - user: "奶茶我也很喜欢，啤酒也喜欢，尤其周末和朋友聚餐的时候。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "奶茶"
+      - doc_contains:
+          doc: USER.md
+          text: "啤酒"
+
+  - user: "最近天天都在加班，一般到12点才睡，早上又起得很赶。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "加班"
+      - doc_contains:
+          doc: USER.md
+          text: "12点"
+
+  - user: "我脸上最近有痘痘，最烦的是它总是反复冒出来。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "痘痘"
+
+  - user: "我不太喜欢长篇大道理，你以后直接说结论就好。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: SOUL.md
+          text: "直接说结论"
+
+  - user: "还有别一直催我拍照，我会烦，我想拍的时候自己会拍。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: SOUL.md
+          text: "拍照"
+
+  - user: "年龄这个就别问了，我不想聊年龄。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: SOUL.md
+          text: "年龄"
+
+  - user: "护肤品里酒精味很重的我不太能接受，用了会觉得刺激。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "酒精"
+
+  - user: "我早上真的很赶，护肤最好三步以内，不然我肯定坚持不了。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "三步"
+
+  - user: "我的目标就是先把黑眼圈和痘印稳住，别一下子给我安排太多。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "痘印"
+
+  - user: "我不想完全戒辣，但可以接受少喝一点奶茶，啤酒也尽量周末再喝。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "戒辣"
+
+  - user: "以后你可以每次先给我一句最重要的建议，然后再补充原因。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: SOUL.md
+          text: "最重要"
+
+  - user: "总结一下我的情况吧，看看你现在记住了什么，不要太长。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - doc_contains:
+          doc: USER.md
+          text: "广州"
+      - doc_contains:
+          doc: USER.md
+          text: "黑眼圈"
+      - doc_contains:
+          doc: SOUL.md
+          text: "年龄"
+
+  - user: "对了，我现在在武汉。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    wait_until_timeout_s: 60
+    wait_until_interval_s: 2
+    wait_until:
+      - doc_contains:
+          doc: USER.md
+          text: "武汉"
+      - doc_not_contains:
+          doc: USER.md
+          text: "现居广州"
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - doc_contains:
+          doc: USER.md
+          text: "武汉"
+    soft_checks:
+      - doc_not_contains:
+          doc: USER.md
+          text: "现居广州"
+
+  - user: "我喜欢的对话方式是怎么样的？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+    soft_checks:
+      - reply_contains: "直接"
+      - reply_contains: "建议"
+      - doc_contains:
+          doc: SOUL.md
+          text: "直接说结论"
+
+  - user: "帮我看看今天的天气吧。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: query_weather
+    soft_checks:
+      - reply_contains: "武汉"
+      - doc_contains:
+          doc: USER.md
+          text: "武汉"
+      - doc_not_contains:
+          doc: USER.md
+          text: "现居广州"

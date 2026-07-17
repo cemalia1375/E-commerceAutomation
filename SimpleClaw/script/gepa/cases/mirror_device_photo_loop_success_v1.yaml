@@ -1,0 +1,82 @@
+id: mirror_device_photo_loop_success_v1
+name: mirror_device_photo_loop_success_v1
+objective: |
+  验证硬件魔镜端新手期“烦恼 -> 邀拍 -> 明确同意 -> 拍照仪式 -> 系统回图快分析”的成功闭环。
+background: |
+  照片成功和快分析事实来自设备/系统，不伪装成用户说“拍照成功了”。当前 runner
+  用下一轮“设备/系统事件”文本模拟系统回图与快分析事实，避免把它当作 App 上传图路径。
+agent: main
+initial_stage: novice
+prompt_surface: device
+device_code: mirror-regression-1
+wait_side_effects_s: 0
+target_score: 0.9
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: device_agent
+    path: Mojing/workspace/device/Agent.md
+    role: 硬件主 Agent 行为、同意边界、拍照两阶段。
+  - id: device_soul
+    path: Mojing/workspace/device/SOUL.md
+    role: 硬件镜前语感。
+  - id: device_tool
+    path: Mojing/workspace/device/TOOL.md
+    role: 硬件工具调用边界。
+  - id: device_novice
+    path: Mojing/workspace/device/journey/novice.md
+    role: 硬件新手期主线。
+  - id: device_first_token
+    path: Mojing/workspace/device/first_token.md
+    role: 硬件第一气泡弱接话，不能抢答系统回图事实。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      硬件魔镜端新用户，首次拍脸尚未完成。
+
+contract_sources:
+  - ../contracts/mirror_device_dialogue_contracts.yaml
+
+examples:
+  - id: concern_consent_capture_then_system_photo_event
+    split: dfeedback
+    expected_behavior: |
+      用户说泛红，Agent 先陈述式邀拍；用户明确说好后才拍；系统回图后基于快分析事实给即时价值。
+    turns:
+      - id: concern
+        user_query: "我脸颊最近泛红，感觉有点不稳定"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: invite_declarative_waits_consent_v1
+          - ref: no_app_surface_words_v1
+      - id: consent
+        user_query: "好，可以拍"
+        hard_assertions:
+          - ref: device_capture_dispatched_v1
+        behavior_checks:
+          - ref: capture_ritual_only_v1
+      - id: system_photo_event
+        user_query: "[设备/系统事件] 照片已回传。本轮只提供文字快分析事实，没有可再次分析的图片对象。快分析事实：脸颊轻微泛红，T区轻微出油。"
+        hard_assertions:
+          - ref: device_photo_event_reply_v1
+        behavior_checks:
+          - ref: quick_analysis_value_v1
+          - ref: no_internal_chain_words_v1
+
+  - id: advice_first_then_optional_photo
+    split: dpareto
+    expected_behavior: |
+      用户先问泛红怎么缓解，Agent 必须先给护理建议，再自然引导拍脸。
+    turns:
+      - id: advice
+        user_query: "泛红怎么缓解？我现在有点不知道该怎么护肤"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+          - ref: invite_declarative_waits_consent_v1

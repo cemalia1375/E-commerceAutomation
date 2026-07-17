@@ -1,0 +1,235 @@
+hard_assertion_library:
+  first_token_basic_contract_v1:
+    - first_token_non_empty: true
+    - first_token_len_lt: 40
+    - first_token_not_contains: "/n"
+    - first_token_not_contains: "\\n"
+    - first_token_not_contains: "\\n\\n"
+
+check_library:
+  first_token_concise_closed_v1:
+    field: first_token_reply
+    type: lexical
+    min_len: 2
+    max_len: 24
+    none_of:
+      - "如果"
+      - "的话"
+      - "要不要"
+      - "你想了解"
+      - "你想知道"
+      - "我慢慢"
+      - "接着"
+      - "继续"
+    guidance: >
+      first-token 必须是独立成立的短开场，不能是半句话、条件句或需要主回复续写的残句。
+    prompt_fix_hint: >
+      把 first-token 定位成“短开场”，不是正文第一句的一半。输出一句完整、轻、短的话。
+    positive_example: "辛苦一天了"
+    negative_example: "嗯嗯，我在这里，你想了解"
+    weight: 1.2
+
+  first_token_avoid_generic_placeholder_v1:
+    field: first_token_reply
+    type: lexical
+    none_of:
+      - "嗯嗯"
+      - "哦哦"
+      - "收到啦"
+      - "知道啦"
+      - "我知道啦"
+      - "我收到啦"
+      - "我了解啦"
+      - "我明白啦"
+    guidance: >
+      有明确上下文时，first-token 不应退回“嗯嗯/收到啦/知道啦”这类低信息占位。
+    prompt_fix_hint: >
+      允许承接当前轮最明显的情绪、生活场景或话题，例如“辛苦一天了”“这个安排挺舒服的”。
+    positive_example: "辛苦一天了"
+    negative_example: "嗯嗯，我知道啦。"
+    weight: 1.4
+
+  first_token_no_action_commitment_v1:
+    field: first_token_reply
+    type: lexical
+    none_of:
+      - "我帮你"
+      - "帮你"
+      - "我来"
+      - "我先"
+      - "马上"
+      - "这就"
+      - "这边来"
+      - "正在"
+      - "已经"
+      - "安排"
+      - "生成"
+      - "处理"
+      - "分析"
+      - "查"
+      - "看完"
+      - "想想"
+    guidance: >
+      first-token 不能承诺动作、工具、分析、处理或完成态；这些都留给主 Agent 和真实工具链。
+    prompt_fix_hint: >
+      开场只能接住用户，不提前承诺“我帮你处理/分析/生成/查进度”。
+    positive_example: "这个我们轻轻看下"
+    negative_example: "我这就帮你分析。"
+    weight: 1.3
+
+  first_token_no_literal_newline_marker_v1:
+    field: first_token_reply
+    type: lexical
+    none_of:
+      - "/n"
+      - "\\n"
+      - "\\n\\n"
+      - "\\r"
+    guidance: >
+      first-token 不应输出字面量 /n 或 \n；前端气泡换行应由协议处理，不由 opener 文本伪造。
+    prompt_fix_hint: >
+      在 first-token prompt 中明确禁止字面量 /n、\n、\n\n；短开场不需要换行。
+    positive_example: "我在呢，别急"
+    negative_example: "我了/n解了"
+    weight: 1.5
+
+  first_token_emotion_contextual_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["辛苦", "委屈", "气", "烦", "累", "我在", "先缓", "不容易"]
+    guidance: >
+      用户处在加班、被误会、疲惫或情绪低落时，first-token 应轻轻承接具体情绪或处境，
+      而不是只说“嗯嗯/知道啦”。
+    prompt_fix_hint: >
+      情绪场景的 opener 可以短到“辛苦一天了”“这真的挺气的”“我在呢”。
+    positive_example: "这真的挺气的"
+    negative_example: "嗯嗯，我知道啦。"
+    weight: 1.4
+
+  first_token_food_contextual_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["饿", "外卖", "重口", "想吃", "辣", "别太委屈", "辛苦"]
+    guidance: >
+      用户在饭点、外卖、火锅、奶茶或想吃重口时，first-token 应承接饮食和疲惫场景，
+      不要空泛占位。
+    prompt_fix_hint: >
+      饮食场景 opener 可以是“辛苦一天了”“那就别太委屈自己”“想吃辣也正常”。
+    positive_example: "那就别太委屈自己"
+    negative_example: "好呀，我收到啦。"
+    weight: 1.3
+
+  first_token_weekend_contextual_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["周末", "周五", "舒服", "海边", "爬山", "透气", "安排", "开心"]
+    guidance: >
+      用户聊周末、海边、爬山、宅家时，first-token 应承接轻松生活场景。
+    prompt_fix_hint: >
+      周末场景 opener 可以是“周末终于来了”“这个安排挺舒服的”“去透气挺好”。
+    positive_example: "这个安排挺舒服的"
+    negative_example: "嗯嗯，知道啦。"
+    weight: 1.3
+
+  first_token_question_noncommittal_v1:
+    field: first_token_reply
+    type: lexical
+    none_of:
+      - "可以"
+      - "能"
+      - "是的"
+      - "对"
+      - "一定"
+      - "必须"
+      - "没问题"
+      - "不用担心"
+    guidance: >
+      用户问“可不可以/能不能/是不是”时，first-token 不应先替主 Agent 下结论；
+      只做承接，判断留给主回复。
+    prompt_fix_hint: >
+      判断题 opener 用“这个我们轻轻看下”“我先接住这个问题”一类，不要直接说可以/不可以。
+    positive_example: "这个我们轻轻看下"
+    negative_example: "可以呀。"
+    weight: 1.2
+
+  first_token_progress_safe_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["我在", "别急", "等一下", "还在"]
+    none_of:
+      - "好了"
+      - "完成"
+      - "出来了"
+      - "查到了"
+      - "整理好了"
+      - "已经"
+    guidance: >
+      用户追问进度或结果时，first-token 只能安全接住，不能假装结果已经完成。
+    prompt_fix_hint: >
+      进度追问 opener 可以是“我在呢，别急”，不要说“已经好了/查到了”。
+    positive_example: "我在呢，别急"
+    negative_example: "已经好了。"
+    weight: 1.4
+
+  first_token_product_contextual_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["这瓶", "这款", "产品", "我接住", "先接住", "轻轻看下", "图收到"]
+    guidance: >
+      用户围绕产品图、护肤品或正在用的产品继续聊时，first-token 应轻轻承接“这款/这瓶/产品”语境；
+      可以接住图片或问题，但不能说已经看完、分析完成或开始调研。
+    prompt_fix_hint: >
+      产品场景 opener 可以是“这款我先接住”“图收到啦”“这个轻轻看下”，不要说“我帮你查/我分析完了”。
+    positive_example: "这款我先接住"
+    negative_example: "收到啦"
+    weight: 1.3
+
+  first_token_refusal_respected_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["不拍", "没关系", "不用", "先不", "放下", "我在"]
+    none_of:
+      - "还是"
+      - "要不"
+      - "拍一张"
+      - "试一下"
+      - "别担心"
+    guidance: >
+      用户拒绝、取消或说别催时，first-token 应先尊重拒绝，不继续推动拍照、分析或流程。
+    prompt_fix_hint: >
+      拒绝场景 opener 可以是“没关系，先不拍”“好，那先放下”，不要继续劝拍或推进。
+    positive_example: "没关系，先不拍"
+    negative_example: "要不还是拍一张"
+    weight: 1.4
+
+  first_token_thanks_warm_closure_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["陪着", "我在", "舒服", "没事", "不客气", "好一点"]
+    none_of:
+      - "随时"
+      - "有问题"
+      - "需要再"
+      - "下次"
+      - "工具"
+    guidance: >
+      用户感谢或说舒服一点时，first-token 应温暖收束，保留陪伴感；
+      不要客服式“有问题随时找我”，也不要继续推工具。
+    prompt_fix_hint: >
+      感谢收束 opener 可以是“陪着你呀”“舒服一点就好”“我在呢”。
+    positive_example: "陪着你呀"
+    negative_example: "有问题随时找我"
+    weight: 1.2
+
+  first_token_skin_contextual_v1:
+    field: first_token_reply
+    type: lexical
+    any_of: ["下巴", "痘", "泛红", "脸油", "闹心", "先缓", "皮肤"]
+    guidance: >
+      用户连续聊下巴痘、泛红、脸油或护肤品使用时，first-token 应承接当前肤况语境，
+      不要只输出“嗯嗯/知道啦”。
+    prompt_fix_hint: >
+      轻量肤况场景 opener 可以是“下巴痘挺闹心的”“脸油确实不舒服”“先让皮肤缓缓”。
+    positive_example: "下巴痘挺闹心的"
+    negative_example: "嗯嗯，知道啦"
+    weight: 1.3

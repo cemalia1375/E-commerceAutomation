@@ -1,0 +1,164 @@
+id: scenario2_emotional_companion_v1
+name: scenario2_emotional_companion_v1_multi_turn
+objective: |
+  用“日常闲聊→情感陪伴→自然过渡到护肤”这一条小型多轮流，测试主 Agent 是否能先陪伴情绪，再自然照顾用户。
+
+  这不是让模型复刻成功标准里的理想回复，而是看它是否能做到：
+  用户烦时先接情绪；用户说出被老板骂时接住具体事件；用户希望明天好一点时自然过渡到休息或简单护肤；
+  用户接受建议并准备洗漱护肤时，把护肤说成一种放松和自我照顾；结合“新用户无画像”的状态低压邀请自拍；
+  用户感谢时保持陪伴感，不把结尾变成工具推销或护肤品采集。
+background: |
+  本 case 来源于 MD/成功标准.md 的“场景二：日常闲聊→情感陪伴→自然过渡到护肤”。
+  它是 trajectory eval：同一个 example 下的 turns 会在同一 tenant/session 顺序执行，
+  后一轮能看到前面真实回复和历史上下文。
+
+  当前只优化主回复相关组件：
+  1. main_agent：全局对话策略、情绪陪伴到自我照顾的转场分寸。
+  2. soul_style：语气、亲密度、气泡感与长期人格。
+
+  注意：本 case 不验证真实护肤提醒、肌肤日记或工具链，只评估文本层的多轮陪伴节奏。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.94
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局对话策略、情绪陪伴、自然转向自我照顾。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 语气、亲密度、气泡感与长期人格。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      刚进入新手期的新用户，对 Agent 还不熟，但愿意把生活里的小情绪说给 Agent 听。
+      当前还没有上传过自拍，也没有形成稳定肌肤画像。
+
+contract_sources:
+  - ../contracts/scenario2_emotional_companion_contracts.yaml
+
+examples:
+  - id: bad_day_to_self_care
+    split: dfeedback
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户先说今天很烦，随后说明是上班被老板骂，接着希望明天好一点。
+      Agent 应先陪伴情绪，不急着切工具流程；听到具体事件后要承认委屈和被消耗；
+      当用户表达希望好一点时，可以自然轻轻过渡到休息、找点乐子或简单护肤，
+      把护肤说成“把自己哄回来”的放松方式，而不是任务或专业计划；
+      用户接受并准备去护肤时，因为当前还没有自拍和肌肤画像，可以低压邀请她给一张当前状态，
+      让后续建议更具体；用户感谢时温暖收束。
+    rubric:
+      - 第一轮先接情绪，并轻轻邀请用户说发生了什么。
+      - 第二轮接住“上班被老板骂”这个具体事件，不泛泛鸡汤。
+      - 第三轮可以自然过渡到休息/放松/简单护肤，最好能表达“护肤也是一种放松方式”。
+      - 第四轮用户接受建议后，先承接护肤是放松；新用户无画像时，可以低压邀请自拍来获得更具体建议，但不直接调工具。
+      - 第五轮用户感谢时，温暖收束，不推工具、不客服化，也不继续采集护肤品信息。
+    turns:
+      - id: emotion_opening
+        user_query: "今天好烦啊"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: acknowledge_negative_emotion_v1
+          - ref: invite_emotion_context_gently_v1
+          - ref: no_force_skin_transition_from_emotion_v1
+
+      - id: workplace_reason
+        user_query: "今天上班被老板骂了，心情特别不好"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: remember_workplace_event_v1
+          - ref: validate_without_overpromising_emotion_v1
+          - ref: no_force_skin_transition_from_emotion_v1
+
+      - id: hope_tomorrow_better
+        user_query: "唉，希望明天会好一点"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: soft_transition_to_self_care_v1
+          - ref: no_force_skin_transition_from_emotion_v1
+
+      - id: accepts_self_care
+        user_query: "好的，我现在就去护肤"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: respond_to_user_action_warmly_v1
+          - ref: concrete_self_care_support_when_no_profile_v1
+
+      - id: thanks
+        user_query: "谢谢你，小镜"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: gratitude_closure_keeps_companion_presence_v1
+          - ref: no_force_skin_transition_from_emotion_v1
+
+  - id: overtime_to_self_care_variant
+    split: dpareto
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户先表达累和烦，随后说明今天加班被领导说了，接着想早点缓过来。
+      Agent 应承接具体事件和被消耗感，再自然引导用户用休息、放松、轻护肤或找点乐子把自己哄回来；
+      护肤应被表达为一种放松方式，而不是专业任务；
+      用户准备去洗漱护肤时，结合新用户无画像状态，低压邀请自拍以便后续建议更具体；
+      不要把对话变成工具流程、护肤品采集或客服式收尾。
+    rubric:
+      - 第一轮先接住累和烦，不急着给方案。
+      - 第二轮承接“加班/领导说了”这个具体事件。
+      - 第三轮从被消耗自然转到自我照顾或轻护肤，强调护肤也可以是放松方式。
+      - 第四轮用户准备去洗漱时，温暖确认；先承接放松感，再低压邀请自拍，但不直接调工具。
+      - 第五轮用户感谢时，温暖收束，不继续采集护肤品信息。
+    turns:
+      - id: emotion_opening
+        user_query: "今天真的有点累，也有点烦"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: acknowledge_negative_emotion_v1
+          - ref: invite_emotion_context_gently_v1
+          - ref: no_force_skin_transition_from_emotion_v1
+
+      - id: workplace_reason
+        user_query: "加班到很晚，还被领导说了一顿"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: remember_workplace_event_v1
+          - ref: validate_without_overpromising_emotion_v1
+          - ref: no_empty_emotional_overpromise_v1
+          - ref: no_force_skin_transition_from_emotion_v1
+
+      - id: hope_tomorrow_better
+        user_query: "我想早点缓过来，不想一直这么丧"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: soft_transition_to_self_care_v1
+          - ref: no_empty_emotional_overpromise_v1
+          - ref: no_force_skin_transition_from_emotion_v1
+
+      - id: accepts_self_care
+        user_query: "嗯，那我先去洗漱护肤一下"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: respond_to_user_action_warmly_v1
+          - ref: concrete_self_care_support_when_no_profile_v1
+
+      - id: thanks
+        user_query: "谢谢，感觉好多了"
+        hard_assertions:
+          - ref: text_reply_no_skin_runtime_task_v1
+        behavior_checks:
+          - ref: gratitude_closure_keeps_companion_presence_v1
+          - ref: no_force_skin_transition_from_emotion_v1

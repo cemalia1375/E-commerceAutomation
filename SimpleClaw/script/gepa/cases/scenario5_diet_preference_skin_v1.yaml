@@ -1,0 +1,178 @@
+id: scenario5_diet_preference_skin_v1
+name: scenario5_diet_preference_skin_v1_multi_turn
+objective: |
+  用“饮食爱好闲聊→关联皮肤问题→个性化饮食建议”这一条小型多轮流，
+  测试主 Agent 是否能在生活聊天里自然记住饮食偏好，并给低压、可持续的皮肤友好饮食建议。
+
+  这不是测试营养医学诊断，也不是要求用户严格戒掉喜欢的食物。
+  重点是：
+  用户只是饭点闲聊时，Agent 先保持聊天感；
+  用户说喜欢火锅、辣、奶茶时，Agent 能承接具体偏好；
+  结合新手期刚刚/近期看到的下巴痘、出油或闭口线索，谨慎说明辛辣、重油、高糖可能让皮肤更不稳定；
+  给可执行折中方案，不恐吓、不强迫戒断、不推工具。
+background: |
+  本 case 来源于 MD/成功标准.md 的“场景五：饮食爱好闲聊→关联皮肤问题→个性化饮食建议”。
+  它是 trajectory eval：同一个 example 下的 turns 会在同一 tenant/session 顺序执行。
+
+  当前只优化主回复相关组件：
+  1. main_agent：生活闲聊到护肤建议的转场、轻量皮肤线索使用、工具边界。
+  2. soul_style：语气、亲密度、低压提醒和不说教表达。
+
+  注意：本 case 不要求真实触发肌肤日记、深度报告、图片分析或护肤柜流程。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.94
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局对话策略、饮食闲聊、新手期皮肤线索使用、工具边界。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 语气、亲密度、低压提醒和不说教表达。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      用户仍处于新手期，刚开始和 Agent 熟悉起来。
+      用户刚刚/近期有过一次轻量皮肤观察，但还没有进入探索期，也没有稳定长期画像。
+
+      ## Recent Skin Observation
+      - 当前可参考的轻量线索：T 区和下巴偏容易出油。
+      - 近期重点：下巴有几颗红肿痘/闭口迹象，脸颊偶尔泛红。
+      - 护理偏好：喜欢具体、可执行的建议，不喜欢被强推流程。
+
+      ## Lifestyle Notes
+      - 用户最近工作忙，晚饭经常纠结吃什么。
+      - 用户担心下巴痘和作息、饮食有关，但不想被要求完全戒掉喜欢的食物。
+
+contract_sources:
+  - ../contracts/scenario5_diet_preference_skin_contracts.yaml
+
+examples:
+  - id: spicy_hotpot_milk_tea_skin_advice
+    split: dfeedback
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户先饭点闲聊不知道吃什么，随后说自己喜欢火锅、无辣不欢，
+      又表达不吃辣没味道，再说每天想喝奶茶，最后问吃什么对皮肤好。
+      Agent 应先保持聊天感，记住火锅/辣/奶茶偏好；
+      结合新手期刚刚/近期看到的偏油、下巴痘/闭口线索，谨慎说明饮食和皮肤的可能关系；
+      给微辣/鸳鸯锅/少油少糖/降低频率等折中方案；
+      不恐吓、不羞辱、不强迫完全戒断，也不把对话转成工具流程。
+    rubric:
+      - 第一轮饭点闲聊保持聊天感，不急着推护肤工具。
+      - 第二轮承接火锅/辣偏好，并轻量关联下巴痘或出油风险。
+      - 第三轮理解“不吃辣没味道”，给可持续折中方案。
+      - 第四轮对奶茶给阶梯式减少建议，不恐吓。
+      - 第五轮给均衡、具体、可执行的皮肤友好饮食建议。
+    turns:
+      - id: food_opening
+        user_query: "好饿啊，晚上吃什么好呢"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: casual_food_opening_keeps_chatty_v1
+          - ref: no_tool_promotion_in_food_chat_v1
+
+      - id: spicy_hotpot_preference
+        user_query: "你怎么知道！我超爱吃火锅的，无辣不欢"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: remembers_food_preference_v1
+          - ref: links_diet_to_skin_cautiously_v1
+          - ref: no_extreme_diet_restriction_v1
+          - ref: respects_user_food_enjoyment_v1
+          - ref: no_tool_promotion_in_food_chat_v1
+
+      - id: refuses_no_spicy_food
+        user_query: "啊？可是不吃辣我吃饭都没味道"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: spicy_food_compromise_v1
+          - ref: no_extreme_diet_restriction_v1
+          - ref: respects_user_food_enjoyment_v1
+
+      - id: milk_tea_daily_preference
+        user_query: "我还特别喜欢喝奶茶，每天都想喝那种"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: remembers_food_preference_v1
+          - ref: milk_tea_step_down_v1
+          - ref: links_diet_to_skin_cautiously_v1
+          - ref: no_extreme_diet_restriction_v1
+
+      - id: asks_skin_friendly_food
+        user_query: "好的我试试。对了，那吃什么对皮肤好呀？"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: skin_friendly_food_advice_balanced_v1
+          - ref: respects_user_food_enjoyment_v1
+          - ref: no_tool_promotion_in_food_chat_v1
+
+  - id: spicy_takeout_sweet_drink_variant
+    split: dpareto
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户下班后想点重口外卖，说明最近很想吃麻辣烫和甜饮。
+      Agent 应保持朋友式聊天，不把用户爱吃当成错误；
+      结合刚刚/近期看到的下巴痘和出油线索，给少油少糖、加蔬菜蛋白、降低频率的替代方案。
+    rubric:
+      - 饭点闲聊不强推工具。
+      - 承接麻辣烫/甜饮偏好。
+      - 谨慎关联下巴痘、闭口或出油。
+      - 给折中方案，不要求完全戒断。
+    turns:
+      - id: takeout_opening
+        user_query: "下班好累，想点外卖，感觉只想吃点重口的"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: casual_food_opening_keeps_chatty_v1
+          - ref: no_tool_promotion_in_food_chat_v1
+
+      - id: spicy_takeout_preference
+        user_query: "最近特别想吃麻辣烫，还想配一杯甜甜的果茶"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: remembers_food_preference_v1
+          - ref: links_diet_to_skin_cautiously_v1
+          - ref: no_extreme_diet_restriction_v1
+          - ref: respects_user_food_enjoyment_v1
+
+      - id: asks_how_to_order
+        user_query: "那我今天如果还是想吃，怎么点会好一点？"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: spicy_food_compromise_v1
+          - ref: milk_tea_step_down_v1
+          - ref: respects_user_food_enjoyment_v1
+
+      - id: asks_skin_friendly_food
+        user_query: "那平时我应该多吃点什么，对下巴痘友好一点？"
+        hard_assertions:
+          - ref: food_chat_text_reply_no_specialist_task_v1
+          - ref: food_chat_no_skill_or_diary_handoff_v1
+        behavior_checks:
+          - ref: skin_friendly_food_advice_balanced_v1
+          - ref: links_diet_to_skin_cautiously_v1
+          - ref: no_tool_promotion_in_food_chat_v1

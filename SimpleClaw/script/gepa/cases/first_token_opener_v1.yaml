@@ -1,0 +1,442 @@
+id: first_token_opener_v1
+name: first_token_opener_v1_multi_turn_contextual_openers
+objective: |
+  专门测试 first_token_llm 的多轮首气泡质量。
+
+  目标不是让 first token 抢主 Agent 的判断、建议或工具动作，
+  而是让它从“嗯嗯/哦哦/收到啦”这类低信息占位，升级为“上下文短开场”：
+  短、轻、闭合、不承诺、不判断，但能接住当前轮和近期历史。
+
+  本 case 只评价 first_token_reply，不评价主 Agent 正文好坏。
+  每个 example 都是连续多轮对话，用来测试 first token 是否能沿着 history 逐轮承接，
+  而不是把每一轮都当成孤立单句。
+background: |
+  当前 first_token.md 明确写着“极短弱接话器”和默认“嗯嗯/收到啦/知道啦”，
+  但代码已经给 first_token_llm 注入近期共享对话历史。
+  因此这次测试的核心问题是：
+  history context 已经存在时，首气泡是否能承接上下文，而不是停留在浅层占位。
+
+  另一个观察点是换行协议：
+  first token 本身不应该输出字面量 /n、\n 或 \n\n。
+  如果 baseline 中仍出现“我了/n解了”一类内容，先用本 case 记录问题，
+  再单独判断来源是 prompt、SSE 流式拼接还是前端渲染。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.98
+score_weights:
+  hard: 0.4
+  behavior: 0.6
+
+prompt_candidates:
+  - id: first_token_opener
+    path: Mojing/workspace/first_token.md
+    role: |
+      主 Agent 正式回复前的 first_token_llm 短开场。
+      只负责上下文承接，不承诺动作、不做判断、不输出建议正文。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      用户仍处于新手期，刚开始和 Agent 熟悉起来。
+      用户刚刚/近期有过一次轻量皮肤观察，但还没有进入探索期，也没有稳定长期画像。
+
+      ## Recent Skin Observation
+      - 当前可参考的轻量线索：T 区和下巴偏容易出油，下巴偶尔冒痘，脸颊偶尔泛红。
+      - 用户不喜欢被强推流程，希望回复自然一点。
+
+      ## Recent Product Mentions
+      - 用户最近提到过防晒：安热沙小金瓶。
+      - 用户最近提到过修护产品：理肤泉 B5 修复霜。
+
+contract_sources:
+  - ../contracts/first_token_opener_contracts.yaml
+
+examples:
+  - id: emotion_to_self_care_chain
+    split: dfeedback
+    editable_components: [first_token_opener]
+    expected_behavior: |
+      用户从强烈烦躁、背锅、加班没吃饭，走到低压自我照顾、拒绝拍照和感谢。
+      first-token 应沿着多轮 history 承接处境变化：
+      前几轮接“气/委屈/辛苦”，拒绝拍照时尊重拒绝，感谢时温暖收束。
+    rubric:
+      - 首气泡短、闭合，不是半句话。
+      - 不承诺动作，不提工具，不抢主 Agent 正文。
+      - 强情绪和疲惫场景要能接住具体处境。
+      - 拒绝拍照时先尊重，不继续推动。
+      - 感谢时温暖收束，不客服化。
+      - 不输出 /n、\n 或 \n\n 字面量。
+    turns:
+      - id: rage_opening
+        user_query: "烦死了，今天什么破事都让我赶上了！"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_emotion_contextual_v1
+
+      - id: workplace_blame
+        user_query: "今天项目出了个bug，明明是同事写的代码，老板非要说是我的问题，我解释了还说我推卸责任。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_emotion_contextual_v1
+
+      - id: overtime_no_dinner
+        user_query: "是啊，我改那个不是我写的bug改到现在，饭都没来得及吃。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_emotion_contextual_v1
+
+      - id: asks_easy_self_care
+        user_query: "那我现在能做点什么？别太麻烦的。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+
+      - id: refuses_photo_tired
+        user_query: "拍照就算了吧，我今天状态很差，不想拍。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_refusal_respected_v1
+
+      - id: asks_not_to_push
+        user_query: "嗯，你别一直催我拍照就行。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_refusal_respected_v1
+
+      - id: thanks_after_comfort
+        user_query: "谢谢，跟你说完舒服一点了。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_thanks_warm_closure_v1
+
+  - id: food_skin_weekend_chain
+    split: dfeedback
+    editable_components: [first_token_opener]
+    expected_behavior: |
+      用户从下班点外卖、想吃重口，聊到下巴痘、奶茶和周末爬山防晒。
+      first-token 应承接饮食、肤况、周末计划的连续变化；
+      判断题不能先替主 Agent 下结论。
+    rubric:
+      - 饮食和周末场景要有上下文，不空泛。
+      - 下巴痘/脸油等肤况要轻轻接住。
+      - 判断题不先说可以、没问题、一定。
+      - 不承诺工具或分析。
+      - 不输出 /n、\n 或 \n\n 字面量。
+    turns:
+      - id: tired_takeout
+        user_query: "下班好累，想点外卖，感觉只想吃点重口的"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_food_contextual_v1
+
+      - id: asks_how_to_order
+        user_query: "那我今天如果还是想吃，怎么点会好一点？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_food_contextual_v1
+
+      - id: chin_acne_after_spicy
+        user_query: "就是担心下巴痘又冒出来，最近已经有点烦了。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_skin_contextual_v1
+
+      - id: milk_tea_confession
+        user_query: "而且我还想喝奶茶，感觉越累越想喝甜的。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_food_contextual_v1
+
+      - id: weekend_hiking
+        user_query: "这周终于结束了，周六跟同事去爬山，周日就宅家补觉。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_weekend_contextual_v1
+
+      - id: sunscreen_question
+        user_query: "防晒我就带安热沙小金瓶可以吗？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_question_noncommittal_v1
+
+      - id: after_sun_redness_question
+        user_query: "晚上回来如果脸颊泛红怎么办？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_skin_contextual_v1
+
+  - id: product_photo_progress_chain
+    split: dfeedback
+    editable_components: [first_token_opener]
+    expected_behavior: |
+      用户连续围绕产品图、产品身份、能不能用、调研进度追问。
+      first-token 要保持产品上下文，但不能描述图片、判断清晰度、承诺调研、假装看完或完成。
+    rubric:
+      - 产品图场景轻接住，不描述图片。
+      - 产品身份/使用问题要承接“这款/这瓶/产品”。
+      - 判断题不先下结论。
+      - 进度追问不假装完成。
+      - 不输出 /n、\n 或 \n\n 字面量。
+    turns:
+      - id: product_photo_uploaded
+        user_query: "这瓶我最近在用，你帮我看看"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172504.png"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_product_contextual_v1
+
+      - id: product_is_this_one
+        user_query: "应该就是这个，我平时晚上会用。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_product_contextual_v1
+
+      - id: can_use_with_acne
+        user_query: "那我下巴长痘的时候还能不能用这款？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_question_noncommittal_v1
+          - ref: first_token_product_contextual_v1
+
+      - id: asks_research_progress
+        user_query: "好了吗？查到这瓶了吗？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_progress_safe_v1
+
+  - id: emotion_product_refusal_validation_chain
+    split: dpareto
+    editable_components: [first_token_opener]
+    expected_behavior: |
+      验证 first-token 在一条混合链路里的稳定性：
+      情绪低落、产品图、判断题、拒绝拍照、感谢收束都要能连续承接，
+      不能退回“嗯嗯/收到啦/知道啦”的浅层占位。
+    rubric:
+      - 情绪、产品、拒绝、感谢各自有上下文。
+      - 不承诺动作，不抢主回复判断。
+      - 不输出 /n、\n 或 \n\n 字面量。
+    turns:
+      - id: bad_day_opening
+        user_query: "今天加班到很晚，还被领导说了一顿，真的有点丧。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_emotion_contextual_v1
+
+      - id: oily_face_self_care
+        user_query: "那我先洗个脸吧，脸上油油的也不舒服。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_skin_contextual_v1
+
+      - id: product_photo_blurry
+        user_query: "我把其中一瓶拍给你看，这张可能有点糊。"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172518.png"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_product_contextual_v1
+
+      - id: asks_if_b5_ok
+        user_query: "旁边还有一个B5，泛红的时候是不是可以用？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_question_noncommittal_v1
+          - ref: first_token_skin_contextual_v1
+
+      - id: refuses_selfie_again
+        user_query: "但自拍就算了，我今天真的不想拍脸。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_refusal_respected_v1
+
+      - id: thanks_closure
+        user_query: "好，跟你聊完没那么烦了，谢谢你。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_thanks_warm_closure_v1
+
+  - id: weekend_food_progress_validation_chain
+    split: dpareto
+    editable_components: [first_token_opener]
+    expected_behavior: |
+      验证 first-token 在生活闲聊链路中的持续上下文能力：
+      周末计划、火锅奶茶、防晒判断、晒后泛红和进度追问都要短而具体。
+    rubric:
+      - 周末/饮食/肤况各自有上下文。
+      - 判断题不先下结论。
+      - 进度追问不假装完成。
+      - 不输出 /n、\n 或 \n\n 字面量。
+    turns:
+      - id: friday_happy
+        user_query: "终于到周五啦！明天不用上班咯。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_weekend_contextual_v1
+
+      - id: beach_plan
+        user_query: "我和朋友约了明天去海边玩。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_weekend_contextual_v1
+
+      - id: sunscreen_confirm_question
+        user_query: "安热沙小金瓶我带着就够吗？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_question_noncommittal_v1
+
+      - id: hotpot_after_beach
+        user_query: "晚上可能还会去吃火锅，最近就是很想吃点辣的。"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_avoid_generic_placeholder_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_food_contextual_v1
+
+      - id: redness_after_sun
+        user_query: "如果回来脸颊红红的，我是不是得赶紧敷面膜？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_question_noncommittal_v1
+          - ref: first_token_skin_contextual_v1
+
+      - id: progress_followup
+        user_query: "你刚刚说的那个安排整理好了吗？"
+        hard_assertions:
+          - ref: first_token_basic_contract_v1
+        behavior_checks:
+          - ref: first_token_concise_closed_v1
+          - ref: first_token_no_action_commitment_v1
+          - ref: first_token_no_literal_newline_marker_v1
+          - ref: first_token_progress_safe_v1
+

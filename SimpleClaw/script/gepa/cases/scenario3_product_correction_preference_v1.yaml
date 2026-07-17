@@ -1,0 +1,178 @@
+id: scenario3_product_correction_preference_v1
+name: scenario3_product_correction_preference_v1_multi_turn
+objective: |
+  用“模糊产品图纠错→清晰产品图承接→结合肤况给克制建议→尊重用户偏好”
+  这一条小型多轮流，测试主 Agent 在产品咨询里是否诚实、不编造、不过度推工具。
+
+  这不是让模型复刻某个固定产品的理想回复，也不是测试指定品牌或指定成分。
+  重点是：
+  用户先上传一张模糊产品图时，Agent 应承认看不清，低压请用户补一张更清晰的正面/标签/成分图；
+  用户再上传清晰产品图时，Agent 应基于图片可见信息谨慎承接，不把看不清的信息编成确定结论；
+  用户补充自己的肤况后，Agent 应结合混油、下巴痘、泛红等状态给轻量适配建议和使用边界；
+  用户表示不想维护护肤柜时，Agent 应尊重偏好，不继续推添加。
+background: |
+  本 case 来源于 MD/成功标准.md 的“场景三：错误操作纠正→记忆用户偏好→个性化引导”，
+  但不绑定成功标准里的示例产品。这里使用两张真实测试图：
+  - 模糊产品图：https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172518.png
+  - 清晰产品图：https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172504.png
+
+  它是 trajectory eval：同一个 example 下的 turns 会在同一 tenant/session 顺序执行，
+  后一轮能看到前面真实回复和历史上下文。
+
+  当前优化产品咨询相关组件：
+  1. main_agent：产品咨询边界、图像信息不足时的纠错方式、用户拒绝后的分寸。
+  2. soul_style：语气、亲密度、低压提醒和不销售化表达。
+  3. tool_policy / skincare_cabinet_skill：护肤柜场景进入、退出、拒绝入柜后的继续回答边界。
+
+  注意：本 case 不要求产品必须是某个 test 产品，也不以真实护肤柜写入或外部调研成功作为通过条件。
+  如果工具自然触发，评估重点仍然是主回复是否诚实、具体、尊重用户偏好。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 1
+target_score: 0.94
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局对话策略、产品咨询边界、拒绝后的承接分寸。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 语气、亲密度、低压提醒和不销售化表达。
+  - id: tool_policy
+    path: Mojing/workspace/TOOL.md
+    role: 工具触发边界、护肤柜 scene 的进入和退出规则。
+  - id: skincare_cabinet_skill
+    path: Mojing/skills/skincare_cabinet/SKILL.md
+    role: 产品图、产品调研、入柜拒绝后的产品建议流程。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      用户已经完成过一次基础肤况了解。
+
+      ## Learned Skin Profile
+      - 肤质：混合偏油
+      - 当前主要关注：下巴偶发痘痘、脸颊轻微泛红、肤色不均
+      - 护理偏好：希望建议具体，但不喜欢被强推流程
+      - 所在地：云南
+
+contract_sources:
+  - ../contracts/scenario3_product_correction_contracts.yaml
+
+examples:
+  - id: blurry_to_clear_product_then_decline_cabinet
+    split: dfeedback
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户先上传模糊产品图并问产品好不好。Agent 应诚实说明看不清或信息不足，
+      低压请用户补清晰正面/标签/成分图，不要编造产品名称、成分或适配结论。
+      用户随后上传清晰产品图。Agent 应承接“这次更清楚了”，基于可见信息谨慎说明，
+      如果仍不能完整确认成分，要保留不确定性。
+      用户再补充混油、下巴痘、脸颊泛红等肤况时，Agent 应给轻量适配建议，
+      提醒先看耐受、避开明显刺激，不承诺确定效果。
+      用户表示不想加入护肤柜，只想知道大概能不能用时，应尊重拒绝并继续给粗略建议，
+      不继续推护肤柜。
+    rubric:
+      - 第一轮针对模糊图纠错，不编造产品信息。
+      - 第二轮承接清晰图，但仍只基于可见信息回答，不硬编看不清的成分。
+      - 第三轮结合用户肤况给克制建议和使用边界。
+      - 第四轮尊重用户不想维护护肤柜的偏好，不继续推添加。
+    turns:
+      - id: blurry_product_unclear
+        user_query: "帮我看看这个产品好不好"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172518.png"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: blurry_product_requests_clearer_image_v1
+          - ref: no_product_conclusion_when_image_blurry_v1
+
+      - id: clear_product_followup
+        user_query: "我重新拍了一张清楚的，你再看看"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172504.png"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: clear_product_acknowledges_new_image_v1
+          - ref: product_reply_keeps_visible_info_boundary_v1
+          - ref: no_product_research_without_explicit_consent_v1
+          - ref: no_unnecessary_unseal_question_when_visibly_used_v1
+          - ref: product_advice_no_overpromise_v1
+
+      - id: asks_if_suitable_for_skin
+        user_query: "我是混油，最近下巴有点痘，脸颊也容易泛红，这个我大概能用吗？"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: product_advice_uses_skin_profile_v1
+          - ref: product_usage_caution_for_sensitive_or_acne_v1
+          - ref: product_advice_no_overpromise_v1
+
+      - id: decline_cabinet_preference
+        user_query: "不用加入护肤柜，我就想先知道大概能不能用"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: respect_decline_no_repush_cabinet_v1
+          - ref: rough_product_advice_after_decline_v1
+
+  - id: blurry_product_variant_no_specific_product
+    split: dpareto
+    editable_components: [main_agent, soul_style]
+    expected_behavior: |
+      用户上传模糊产品图并让 Agent 看。Agent 应先说明图糊或关键信息看不清。
+      用户换成清晰图后，Agent 应根据图片可见信息谨慎承接，
+      不强行假设它是某个固定产品。
+      用户补充偏油、痘痘和泛红后，Agent 应给低风险试用建议。
+      用户拒绝护肤柜后，Agent 应尊重拒绝，不继续劝。
+    rubric:
+      - 模糊图时不编造。
+      - 清晰图时不硬套固定产品名称或成分。
+      - 结合用户肤况提醒耐受/刺激/局部试用。
+      - 拒绝护肤柜后不继续推。
+    turns:
+      - id: blurry_product_unclear
+        user_query: "这个护肤品你能看出来适不适合我吗？"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172518.png"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: blurry_product_requests_clearer_image_v1
+          - ref: no_product_conclusion_when_image_blurry_v1
+
+      - id: clear_product_followup
+        user_query: "换这张呢，应该清楚多了"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172504.png"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: clear_product_acknowledges_new_image_v1
+          - ref: product_reply_keeps_visible_info_boundary_v1
+          - ref: no_product_research_without_explicit_consent_v1
+          - ref: no_unnecessary_unseal_question_when_visibly_used_v1
+          - ref: product_advice_no_overpromise_v1
+
+      - id: asks_if_suitable_for_skin
+        user_query: "我偏油、下巴会冒痘，脸颊有时候泛红，这种我能试吗？"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: product_advice_uses_skin_profile_v1
+          - ref: product_usage_caution_for_sensitive_or_acne_v1
+          - ref: product_advice_no_overpromise_v1
+
+      - id: decline_cabinet_preference
+        user_query: "先别帮我记护肤柜，我只是问问"
+        hard_assertions:
+          - ref: product_consult_no_async_research_without_consent_v1
+        behavior_checks:
+          - ref: respect_decline_no_repush_cabinet_v1
+          - ref: rough_product_advice_after_decline_v1

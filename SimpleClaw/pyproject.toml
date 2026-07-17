@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "unit: fast local unit tests",
+    "integration: tests that require multiple components or local services",
+    "smoke: lightweight end-to-end health checks",
+    "external: tests that call external services such as LLM/API providers",
+    "e2e: full end-to-end workflow tests",
+]

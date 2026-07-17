@@ -1,0 +1,360 @@
+id: mirror_device_long_dialogues_15_turn_v1
+name: mirror_device_long_dialogues_15_turn_v1
+objective: |
+  验证硬件魔镜端在 15 轮连续对话中，能维持自然陪伴感、工具边界和硬件端语境。
+background: |
+  这是用于人工审查当前效果的 15 轮长对话测试。它运行在 device prompt surface，
+  注入 device_id / device_code，并产出 runner/dialogue.md 供直接阅读。
+
+  对话覆盖：先聊护理、拒绝拍照、后续同意拍照、设备/系统真实图片 media 回传、泛红护理、
+  美白精华停用、产品刺痛但暂不看瓶身、肌肤日记价值、隐私顾虑、防晒和最终三步总结。
+agent: main
+initial_stage: novice
+prompt_surface: device
+device_code: mirror-regression-15-turn
+wait_side_effects_s: 0
+target_score: 0.86
+score_weights:
+  hard: 0.5
+  behavior: 0.5
+
+prompt_candidates:
+  - id: device_agent
+    path: Mojing/workspace/device/Agent.md
+    role: 硬件主 Agent 行为、同意边界、拍照两阶段。
+  - id: device_soul
+    path: Mojing/workspace/device/SOUL.md
+    role: 硬件镜前语感。
+  - id: device_tool
+    path: Mojing/workspace/device/TOOL.md
+    role: 硬件工具调用边界。
+  - id: device_novice
+    path: Mojing/workspace/device/journey/novice.md
+    role: 硬件新手期主线。
+  - id: device_first_token
+    path: Mojing/workspace/device/first_token.md
+    role: 硬件第一气泡弱接话，不能抢答系统回图事实。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      硬件魔镜端新用户，愿意聊天，但对拍照、照片保存和产品识别都有一点顾虑。
+
+contract_sources:
+  - ../contracts/mirror_device_dialogue_contracts.yaml
+
+examples:
+  - id: fifteen_turn_redness_photo_privacy_product_routine
+    split: dfeedback
+    expected_behavior: |
+      15 轮连续对话里，Agent 应先回答具体护理问题，再低压邀拍；用户拒绝时放下，
+      用户后续明确同意才拍。系统照片事件带真实 media URL 回传后，先基于图片和可见事实回应，
+      再调用 analyze_image 一次触发基础图片分析。
+      产品刺痛话题出现时可以低压邀看瓶身；用户不想看时继续给通用建议。
+    turns:
+      - id: t01_hello_concern
+        user_query: "魔镜魔镜，我今天皮肤看起来有点乱"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_app_surface_words_v1
+      - id: t02_specific_redness_oil
+        user_query: "主要是脸颊泛红，鼻翼还油"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: invite_declarative_waits_consent_v1
+          - ref: no_app_surface_words_v1
+      - id: t03_refuse_photo_first
+        user_query: "先别拍，你先说我现在怎么处理"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t04_later_consent
+        user_query: "那好吧，现在可以拍一下"
+        hard_assertions:
+          - ref: device_capture_dispatched_v1
+        behavior_checks:
+          - ref: capture_ritual_only_v1
+          - ref: no_internal_chain_words_v1
+      - id: t05_system_photo_event
+        user_query: "[设备/系统事件] 照片已回传。本轮照片已随 media 返回，可作为刚才魔镜拍照结果处理。可见事实提示：T 区有轻微反光/出油感，额头和眉间有少量小红点或闭口痕迹，脸颊没有大面积泛红，下巴没有明显大面积红肿。请基于图片和这些可见事实做初步观察，不要编造图外肤况。"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+        hard_assertions:
+          - ref: device_photo_media_event_reply_v1
+        behavior_checks:
+          - ref: quick_analysis_value_v1
+          - ref: no_internal_chain_words_v1
+      - id: t06_is_it_serious
+        user_query: "我脸颊会有点刺，这算严重吗？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t07_routine_order
+        user_query: "今晚我有美白精华和修护乳，应该怎么排顺序？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t08_pause_whitening
+        user_query: "那美白精华先停几天比较合适？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t09_product_stings
+        user_query: "我有一瓶精华用了会刺，是不是它的问题？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: product_invite_only_when_relevant_v1
+      - id: t10_decline_bottle_now
+        user_query: "我现在不想拿瓶子给你看，先根据情况说吧"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t11_skin_diary_value
+        user_query: "如果之后每天拍，肌肤日记到底有什么用？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_app_surface_words_v1
+      - id: t12_privacy_concern
+        user_query: "我怕照片一直保存，不太放心"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_internal_chain_words_v1
+      - id: t13_sunscreen_tomorrow
+        user_query: "那明早我出门前要不要涂防晒？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t14_tight_after_wash
+        user_query: "我今晚洗脸后很紧绷，是不是洁面太猛了？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t15_final_summary
+        user_query: "好，那你帮我总结一下今晚三步怎么做"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+          - ref: no_app_surface_words_v1
+
+  - id: fifteen_turn_acne_late_night_makeup_sunscreen_check
+    split: dfeedback
+    expected_behavior: |
+      15 轮连续对话里，Agent 应围绕熬夜后痘痘、明日见人和妆前处理给低压可执行建议。
+      用户未同意前不能拍照；用户明确同意后只触发一次硬件拍照，系统照片事件带真实 media URL 回传后
+      先基于图片和可见事实回应，再调用 analyze_image 一次触发基础图片分析。
+      产品话题只在祛痘凝胶上下文低压邀看瓶身，用户拒绝时继续给通用原则。
+    turns:
+      - id: t01_acne_before_meeting
+        user_query: "魔镜，我下巴突然冒了两个痘，明天还要见客户"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_app_surface_words_v1
+      - id: t02_refuse_photo_urgent_care
+        user_query: "先别拍，你先告诉我今晚能不能急救"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t03_acne_patch
+        user_query: "那我可以贴痘痘贴吗？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t04_consent_photo_acne
+        user_query: "好，你拍一下看看是不是很红"
+        hard_assertions:
+          - ref: device_capture_dispatched_v1
+        behavior_checks:
+          - ref: capture_ritual_only_v1
+          - ref: no_internal_chain_words_v1
+      - id: t05_system_photo_event_acne
+        user_query: "[设备/系统事件] 照片已回传。本轮照片已随 media 返回，可作为刚才魔镜拍照结果处理。可见事实提示：T 区有轻微反光/出油感，额头和眉间有少量小红点或闭口痕迹，脸颊没有大面积泛红，下巴没有明显大面积红肿。请基于图片和这些可见事实做初步观察，不要编造图外肤况。"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+        hard_assertions:
+          - ref: device_photo_media_event_reply_v1
+        behavior_checks:
+          - ref: quick_analysis_value_v1
+          - ref: no_internal_chain_words_v1
+      - id: t06_acne_mark_risk
+        user_query: "看起来会不会很严重，会留痘印吗？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t07_makeup_tomorrow
+        user_query: "明天见客户，我能不能化妆遮一下？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t08_foundation_clogging
+        user_query: "粉底会不会闷痘？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t09_acne_gel_product
+        user_query: "我有个祛痘凝胶，要不要今晚用？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: product_invite_only_when_relevant_v1
+      - id: t10_decline_product_scan
+        user_query: "瓶子不在手边，你先讲原则就行"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t11_morning_worse
+        user_query: "明早起床如果更红怎么办？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t12_should_pop
+        user_query: "那我现在是不是该挤掉它？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t13_privacy_visibility
+        user_query: "刚才拍的照片会不会被别人看到？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_internal_chain_words_v1
+      - id: t14_daily_track_acne
+        user_query: "那之后每天拍这个痘有用吗？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_app_surface_words_v1
+      - id: t15_acne_final_plan
+        user_query: "帮我总结一下今晚和明早怎么做"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+          - ref: no_app_surface_words_v1
+
+  - id: fifteen_turn_dry_peeling_barrier_product_scan
+    split: dfeedback
+    expected_behavior: |
+      15 轮连续对话里，Agent 应围绕换季干燥、起皮、屏障修护和产品选择给具体建议。
+      用户未同意前不能拍照；用户同意后只触发一次硬件拍照，系统照片事件带真实 media URL 回传后
+      先基于图片和可见事实回应，再调用 analyze_image 一次触发基础图片分析。
+      产品/瓶身只在修护霜上下文低压提及，用户不想看时继续给泛化建议。
+    turns:
+      - id: t01_dry_peeling
+        user_query: "魔镜，我最近脸很干，还起皮，笑起来有点紧"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_app_surface_words_v1
+      - id: t02_refuse_photo_unready
+        user_query: "先别拍，我刚洗完脸还没收拾，你先说怎么缓一下"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t03_retinol_exfoliation
+        user_query: "我昨晚用了 A 醇，还叠了去角质，会不会是这个原因？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t04_consent_photo_dryness
+        user_query: "那现在可以拍，你看下哪里起皮明显"
+        hard_assertions:
+          - ref: device_capture_dispatched_v1
+        behavior_checks:
+          - ref: capture_ritual_only_v1
+          - ref: no_internal_chain_words_v1
+      - id: t05_system_photo_event_dryness
+        user_query: "[设备/系统事件] 照片已回传。本轮照片已随 media 返回，可作为刚才魔镜拍照结果处理。可见事实提示：T 区有轻微反光/出油感，额头和眉间有少量小红点或闭口痕迹，脸颊没有大面积泛红，也没有明显起皮；下巴没有明显大面积红肿。请基于图片和这些可见事实做初步观察，不要编造图外肤况。"
+        media:
+          - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+        hard_assertions:
+          - ref: device_photo_media_event_reply_v1
+        behavior_checks:
+          - ref: quick_analysis_value_v1
+          - ref: no_internal_chain_words_v1
+      - id: t06_makeup_on_peeling
+        user_query: "起皮的地方明天能不能上妆？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t07_pause_retinol
+        user_query: "今晚还用 A 醇吗？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t08_repair_cream_product
+        user_query: "我有一瓶修护霜，但怕太厚，会不会闷？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: product_invite_only_when_relevant_v1
+      - id: t09_decline_bottle_dryness
+        user_query: "先别看瓶身，按修护霜的类型说吧"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t10_skip_cleanser
+        user_query: "白天是不是可以先不用洁面？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+      - id: t11_should_rephoto_morning
+        user_query: "如果早上起来还起皮，要不要再拍一次？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: invite_declarative_waits_consent_v1
+          - ref: no_app_surface_words_v1
+      - id: t12_user_defers_rephoto
+        user_query: "可以，明早我再拍，现在不用"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_internal_chain_words_v1
+      - id: t13_phone_steps
+        user_query: "手机上能看到完整步骤吗？我怕我记不住"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_app_surface_words_v1
+      - id: t14_photo_retention_concern
+        user_query: "但我不想照片留太久，这个能控制吗？"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: no_internal_chain_words_v1
+      - id: t15_dryness_three_day_plan
+        user_query: "那你帮我总结一个换季三天计划"
+        hard_assertions:
+          - ref: device_text_no_capture_v1
+        behavior_checks:
+          - ref: answer_advice_before_inviting_v1
+          - ref: no_app_surface_words_v1

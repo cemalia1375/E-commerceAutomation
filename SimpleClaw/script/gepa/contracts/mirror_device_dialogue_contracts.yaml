@@ -1,0 +1,456 @@
+hard_assertion_library:
+  device_text_no_capture_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - not_tool_called: device_command
+    - not_tool_called: analyze_image
+
+  # 无真实硬件的 GEPA runner mock 也必须对齐线上 DeviceCommandTool 的 15s 回图契约。
+  # 正常拍照成功返回 photo_ready；异常场景另行显式 mock photo_failed / photo_timeout。
+  device_capture_photo_ready_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - tool_called: device_command
+    - tool_called_count: device_command:1
+    - tool_result_action: device_command:photo_ready
+    - not_tool_called: check_runtime_status
+    - not_tool_called: device_status
+
+  device_photo_event_reply_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - not_tool_called: device_command
+    - not_tool_called: analyze_image
+
+  device_photo_media_event_reply_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - tool_called: analyze_image
+    - tool_called_count: analyze_image:1
+    - not_tool_called: device_command
+
+  device_readonly_cabinet_lookup_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - tool_called: list_skincare_cabinet_products
+    - not_tool_called: device_command
+    - not_tool_called: analyze_image
+
+  device_skin_diary_status_check_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - tool_called: check_runtime_status
+    - not_tool_called: device_command
+    - not_tool_called: analyze_image
+
+check_library:
+  no_app_surface_words_v1:
+    field: main_reply
+    type: lexical
+    none_of:
+      - 上传照片
+      - 从相册
+      - 发自拍
+      - 发一张照片
+      - 会话框
+      - 点开卡片
+      - 小程序页面
+    guidance: >
+      硬件端不能混入 App 端“上传/相册/会话框/页面”类表达。
+    prompt_fix_hint: >
+      把图片入口统一写成镜子主动看/拍，跨端查看只说“去手机上看看”。
+    weight: 1.2
+
+  no_internal_chain_words_v1:
+    field: main_reply
+    type: lexical
+    none_of:
+      - 指令已经下发
+      - 拍照指令
+      - 等照片传回来
+      - 回传后
+      - 后台
+      - 快模型
+      - 慢模型
+      - MQTT
+      - device_command
+    guidance: >
+      用户侧回复不能暴露硬件链路、后台任务或工具名称。
+    prompt_fix_hint: >
+      拍照仪式只保留摆位、光线引导和“3、2、1”；系统回图后再自然看图说话。
+    weight: 1.3
+
+  invite_declarative_waits_consent_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 你说好
+      - 你说可以
+      - 你点头
+      - 我再开始
+      - 我再拍
+      - 再开始
+      - 你说行
+      - 你愿意
+      - 你同意
+    none_of:
+      - 3...2...1
+      - 3、2、1
+      - 咔嚓
+      - 看向我
+      - 看向镜头
+      - 把镜子摆正
+      - 我先帮你拍
+      - 我帮你拍一下
+      - 我帮你拍一张
+      - 帮你拍一下
+      - 帮你拍一张
+    guidance: >
+      邀拍应用陈述式提议，并明确等待用户同意；本轮不能出现拍照仪式语言，也不能说成已经接手拍照动作。
+    prompt_fix_hint: >
+      用“拍一张会看得更准；你说好/可以，我再开始。”这一类结构，不用“我先帮你拍”。
+    weight: 1.4
+
+  capture_ritual_only_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 3、2、1
+    none_of:
+      - 咔嚓
+      - 3...2...1
+      - 指令已经下发
+      - 拍照指令
+      - 等照片传回来
+      - 回传后
+      - 后台
+      - 正在分析
+      - 已经在生成
+      - 照片已经分析好了
+      - 我已经看到你的照片了
+    guidance: >
+      用户明确同意后的拍照轮只保留短姿态/光线引导、“3、2、1”和工具调用，不说人工快门拟声词。
+    prompt_fix_hint: >
+      不解释硬件链路，不预告照片状态，不说分析已经开始，也不要说“咔嚓”。
+    weight: 1.4
+
+  quick_analysis_value_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 泛红
+      - 出油
+      - 干
+      - 起皮
+      - 闭口
+      - 修护
+      - 护肤步骤
+      - 今日皮肤分析
+      - 今天的分析
+    none_of:
+      - 诊断
+      - 已经生成日记
+      - 快模型
+      - 慢模型
+      - 后台
+    guidance: >
+      系统回图后应基于事实给初步肤况反馈，并说明今日分析/护肤步骤的即时价值。
+    prompt_fix_hint: >
+      结合系统事实说护理优先级，例如先停刺激、保湿修护、白天防晒、早晚怎么用。
+    weight: 1.4
+
+  returned_photo_followup_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 吗
+      - 有没有
+      - 会不会
+      - 要不要
+      - 想不想
+      - 是不是
+      - 更想
+      - 手边
+      - 想先
+    none_of:
+      - 只去手机上看看
+      - 去小程序看看
+      - 有问题随时找我
+    guidance: >
+      第一次回图后不能像工具结果一样结束，需要留下一个和当前事实相关的短追问。
+    prompt_fix_hint: >
+      回图回应后追加一个贴着事实的小问题，例如是否刺痛、想先处理泛红还是痘痘、手边有没有正在用的产品。
+    weight: 1.2
+
+  answer_advice_before_inviting_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 温和
+      - 保湿
+      - 修护
+      - 防晒
+      - 刺激
+      - 避免
+      - 别
+      - 不要
+      - 清洁
+      - 补水
+      - 控油
+      - 冷敷
+      - 非致痘
+      - 痘痘贴
+    guidance: >
+      用户问具体护理建议时，先给可执行建议，再自然引导下一步。
+    prompt_fix_hint: >
+      不要只邀拍。先回答“现在怎么做”，再说拍脸/瓶身能让判断更准。
+    weight: 1.2
+
+  product_invite_only_when_relevant_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 瓶身
+      - 产品
+      - 成分
+      - 手边
+    none_of:
+      - 每天都要
+      - 必须
+      - 不拍不行
+    guidance: >
+      只有产品/成分/搭配上下文才优先引导护肤柜或瓶身识别，且仍保持低压。
+    prompt_fix_hint: >
+      产品瓶身邀请也算拍照类邀请，要等用户明确同意或真的拿来。
+    weight: 1.0
+
+  wish_refusal_recovery_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 不许愿
+      - 不聊心愿
+      - 今天皮肤状态
+      - 你说好
+      - 你说可以
+    none_of:
+      - 拒绝整个新手期
+      - 那就结束
+      - 3、2、1
+      - 咔嚓
+      - 看向我
+      - 把镜子摆正
+    guidance: >
+      “没有心愿/不想说/随便吧”只代表拒绝许愿提示，不代表拒绝新手期；可以低压邀看今天皮肤状态，但必须等明确同意。
+    prompt_fix_hint: >
+      接住拒绝许愿，然后把“看看今天皮肤状态”作为可选入口，说清楚她说好再开始。
+    weight: 1.3
+
+  capability_intro_starts_with_status_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 看当天肤况
+      - 看今天肤况
+      - 今天皮肤状态
+      - 记录
+      - 变化
+      - 今日分析
+      - 护肤步骤
+    none_of:
+      - 功能菜单
+      - 上传照片
+      - 从相册
+      - 3、2、1
+      - 咔嚓
+    guidance: >
+      首次拍照前问“你能干什么”时，应简短介绍镜子端相关能力，并建议先从查看今天皮肤状态开始；不能直接拍。
+    prompt_fix_hint: >
+      能力介绍只说几项相关能力，结尾给低压入口“你说可以我再拍”。
+    weight: 1.2
+
+  intent_recovery_not_fixed_turns_v1:
+    field: main_reply
+    type: lexical
+    none_of:
+      - 过一轮
+      - 两轮后
+      - 固定流程
+      - 必须回到流程
+      - 现在必须拍
+    guidance: >
+      闲聊回收应由用户当前意图决定，不应暴露或执行固定轮数拉回策略。
+    prompt_fix_hint: >
+      先接住当前闲聊；只有出现皮肤状态、护肤、变好看或镜子能力开口时再低压回到拍照同意路径。
+    weight: 1.0
+
+  skin_lifestyle_touchpoint_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 修护
+      - 保湿
+      - 防晒
+      - 温和
+      - 先停刺激
+      - 清洁
+      - 控油
+      - 补水
+      - 别叠加
+      - 先暂停
+    none_of:
+      - 我猜你
+      - 今天气温
+      - 你的周期
+      - 你昨晚睡了
+      - 你旅行去了
+    guidance: >
+      肤况/生活场景触点要先回应当前 concern，把处境连接到护理调整，不能编造天气、周期、睡眠或行程事实。
+    prompt_fix_hint: >
+      只基于用户说出的晒后、空调房、旅行、运动、睡眠等事实给护理调整。
+    weight: 1.2
+
+  readonly_cabinet_surprise_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 柜里
+      - 护肤柜
+      - 手边
+      - 现有产品
+    none_of:
+      - 我猜柜里
+      - 护肤柜发现
+      - 已经帮你加入
+      - 已经保存
+    guidance: >
+      当当前回答依赖已有产品信息时，可以主动只读查护肤柜；但只有真实查询结果或已给事实时才提及结果。
+    prompt_fix_hint: >
+      先查柜，再结合 1-3 个相关产品说；查不到就给通用方向，不编造柜内结果。
+    weight: 1.2
+
+  no_brand_sku_or_negative_labels_v1:
+    field: main_reply
+    type: lexical
+    none_of:
+      - 黑名单
+      - 买错了
+      - 永久禁用
+      - SKU
+      - 兰蔻
+      - 雅诗兰黛
+      - SK-II
+      - 海蓝之谜
+    guidance: >
+      新手期新品方向只推荐成分方向、质地、品类或使用标准，不能用品牌/SKU，也不能羞辱用户已有产品。
+    prompt_fix_hint: >
+      用“先暂停观察/看搭配/这几天别叠加”替代黑名单式表达；新品只说成分和质地方向。
+    weight: 1.3
+
+  product_ingredient_fit_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 搭配
+      - 质地
+      - 使用方法
+      - 刺激
+      - 刺痛
+      - 闷
+      - 适合
+      - 不适合
+      - 泛醇
+      - 神经酰胺
+      - 硅
+      - 锁水
+      - 屏障
+      - 浓度
+      - 耐受
+      - 先停
+      - 冲突
+      - 瓶身
+    none_of:
+      - 买错了
+      - 黑名单
+      - 永久禁用
+      - 已经持续监控
+      - 正在持续监控
+      - 我就会帮你持续监控
+      - 已经加入护肤柜
+    guidance: >
+      在用产品/成分触点要区分使用方法、质地、搭配和反应风险；需要真实产品时低压邀请看瓶身，不能空口说已保存或监控。
+    prompt_fix_hint: >
+      先给低风险即时建议，再说明需要看瓶身确认真实产品后才能判断适配或入柜。
+    weight: 1.3
+
+  ingredient_conflict_boundary_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 不建议同晚叠
+      - 不建议一起用
+      - 不建议同一天
+      - 不要同一天
+      - 别叠
+      - 冲突
+      - 刺激
+      - 刺痛
+      - 先缓
+      - 先别用
+      - 先别碰
+      - 低浓度
+      - 错开
+      - 耐受
+    none_of:
+      - 永久禁用
+      - 保证
+      - 诊断
+    guidance: >
+      成分解释在相关时要包含作用和重要冲突边界，例如 A 醇、酸、维 C 等刺激搭配的限制。
+    prompt_fix_hint: >
+      说清楚主要作用和叠加风险；不要做医疗诊断或绝对化保证。
+    weight: 1.1
+
+  system_completion_fact_only_v1:
+    field: main_reply
+    type: lexical
+    none_of:
+      - 连续打卡
+      - 已经连续
+      - 奖励
+      - 过期日期是
+      - 我发现护肤柜
+      - 已生成方案
+      - 已经生成首次肌肤日记
+    guidance: >
+      功能完成触点只能基于真实系统事件继续，不能编造打卡连续天数、奖励、过期日期、护肤柜发现或已生成方案。
+    prompt_fix_hint: >
+      只复述系统事件明确给出的事实，再自然接一个护理调整或相关追问。
+    weight: 1.3
+
+  skin_diary_future_or_progressive_v1:
+    field: main_reply
+    type: lexical
+    any_of:
+      - 会
+      - 等
+      - 正在
+      - 还在
+      - 准备
+      - 之后
+      - 以后
+      - 记录
+      - 进度
+      - 还没
+      - 未完成
+      - 可以帮你
+    none_of:
+      - 已经生成首次肌肤日记
+      - 已经完成首次肌肤日记
+      - 专属护理方案已经生成
+      - 更新后的步骤已经完成
+    guidance: >
+      除非真实完成事实已经返回，首次肌肤日记只能用未来态或进行态；刷新/更新需要用户同意或系统完成事件。
+    prompt_fix_hint: >
+      使用“拍照和分析后会准备/还在整理/等今天分析回来”这类话术，不要提前声称完成。
+    weight: 1.2

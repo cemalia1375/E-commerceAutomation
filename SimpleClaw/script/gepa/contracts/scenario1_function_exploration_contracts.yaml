@@ -1,0 +1,183 @@
+hard_assertion_library:
+  text_reply_no_skin_runtime_task_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - no_runtime_task_created: image_analysis
+    - no_runtime_task_created: skin_diary_generation
+    - no_runtime_task_created: deep_research
+
+check_library:
+  capability_overview_covers_core_features_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      用户问“你能做什么”时，回复需要给出清晰的能力概览。
+      至少覆盖护肤陪聊/护肤建议、肌肤日记、深度报告、护肤柜或产品识别中的主要能力，
+      但不要把每个能力讲成冗长说明书。
+    prompt_fix_hint: >
+      在功能探索入口用简短、可扫读的方式介绍核心能力；
+      不要只回答“我可以陪你聊天”，也不要一上来推动拍照或工具。
+    positive_example: "我可以陪你聊护肤问题，也能在有照片和记录后帮你看肌肤日记、深度报告和护肤品适配。"
+    negative_example: "我可以帮你变美。"
+    weight: 1.2
+
+  capability_overview_invites_user_interest_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      功能概览后，应自然邀请用户选择感兴趣的方向或继续追问。
+      目标是开启探索，而不是把功能清单说完就结束。
+    prompt_fix_hint: >
+      功能介绍后补一个低压入口，例如问用户最想先了解哪一块；
+      不要用客服式“如有需要随时联系”收尾。
+    positive_example: "你对哪一块最感兴趣，我们可以先从那块聊。"
+    negative_example: "以上就是我的功能。"
+    weight: 1.0
+
+  reminder_setup_explains_input_format_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      用户问怎么设置护肤提醒时，回复应直接说明需要提供早晚护肤时间或具体提醒时间。
+      可以给一个例子，但不要过度展开到无关功能。
+    prompt_fix_hint: >
+      把提醒设置解释成用户可理解的输入方式：告诉我时间，我来帮你记；
+      不要绕回拍照、肌肤日记或护肤柜流程。
+    positive_example: "你直接告诉我早上和晚上想被提醒的时间就行，比如早上8点、晚上10点。"
+    negative_example: "你可以先上传照片，我再判断护肤步骤。"
+    weight: 1.2
+
+  reminder_time_request_understands_two_times_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      用户已经给出早晚两个提醒时间时，回复需要识别这两个时间，并围绕这两个时间继续处理。
+      可以用阿拉伯数字、中文数字或等价口语表达来复述时间；
+      重点是同时接住早晚两个提醒点，不要像没听见一样再次询问时间。
+    prompt_fix_hint: >
+      当用户给出具体提醒时间时，先复述或确认已理解早晚时间；
+      不要重复问“你想几点提醒”。不要要求模型必须原样复读用户输入的数字格式。
+    positive_example: "收到，早上八点和晚上十点这两个时间我记住了。"
+    negative_example: "你想设置几点提醒呢？"
+    weight: 1.2
+
+  reminder_creation_truthful_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      用户给出具体提醒时间后，回复需要和实际执行状态一致。
+      如果已经调用提醒、日程或 cron 能力并成功，可以确认已设置；
+      如果没有真实执行成功，则只能说明已记下、可以继续安排或需要用户确认，不能空口声称设置完成。
+    prompt_fix_hint: >
+      区分“理解了提醒时间”和“提醒任务已创建”。
+      有真实工具成功结果时可以说已设置；没有工具成功结果时不要说已设置完成。
+    positive_example: "早上8点和晚上10点我都帮你设置好了，到点会提醒你。"
+    negative_example: "没有调用提醒能力时直接说：已经设置成功了。"
+    weight: 1.3
+
+  reminder_missed_followup_answers_policy_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      用户问“如果忘记了怎么办”时，回复应解释忘记后的处理方式，
+      例如可以再次提醒、用户可以补记已完成、或后续继续帮她接上节奏。
+      不要重新介绍全部功能，也不要转移到拍照或皮肤检测。
+    prompt_fix_hint: >
+      忘记提醒的问题要直接回答补救机制：怎么再次提醒、怎么记录完成、怎么继续跟进。
+    positive_example: "如果你忘了，我可以再提醒你一次；你补做完也可以告诉我，我帮你记上。"
+    negative_example: "我还能帮你生成肌肤日记和深度报告。"
+    weight: 1.2
+
+  reminder_flow_maintains_context_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      多轮提醒设置对话中，回复需要接住前文已经在聊“护肤提醒”，
+      不要突然切到无关的新手期拍照、护肤目标或工具介绍。
+    prompt_fix_hint: >
+      多轮里要跟随当前任务上下文：用户在问提醒，就围绕提醒继续；
+      不要每轮都重启新手期主线。
+    positive_example: "对，就是围绕你刚才定的早晚提醒来处理。"
+    negative_example: "你最近有没有什么想改善的护肤小目标？"
+    weight: 1.2
+
+  no_tool_sacralization_in_capability_intro_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["全面解决", "专业诊断", "精准治疗", "保证改善", "必须先", "只有拍照才能"]
+    guidance: >
+      功能介绍和提醒设置中，不神圣化工具，不承诺确定效果，不把拍照或报告说成唯一入口。
+    prompt_fix_hint: >
+      工具能力要说成辅助观察、记录和规划，不要说成诊断或保证改善。
+    weight: 1.0
+
+behavior_contracts:
+  function_overview_entry_v1:
+    description: 用户初次问 Agent 能做什么时的功能探索入口。
+    editable_components: [novice_journey, soul_style]
+    expected_behavior: >
+      用户询问“你能做什么”。应给出简短清晰的核心能力概览，
+      并邀请用户选择感兴趣的方向继续探索；不调皮肤相关运行时工具，不强行进入拍照流程。
+    rubric:
+      - 说明核心能力，而不是泛泛说“我能陪你聊天”。
+      - 语言可扫读，不像产品说明书。
+      - 结尾给低压探索入口，问用户想先了解哪一块。
+      - 不强推拍照、肌肤日记或深度报告。
+    hard_assertions:
+      - ref: text_reply_no_skin_runtime_task_v1
+    checks:
+      - ref: capability_overview_covers_core_features_v1
+      - ref: capability_overview_invites_user_interest_v1
+      - ref: no_tool_sacralization_in_capability_intro_v1
+
+  reminder_setup_howto_v1:
+    description: 用户在功能探索后询问如何设置护肤提醒。
+    editable_components: [novice_journey, soul_style]
+    expected_behavior: >
+      用户问“怎么设置护肤提醒”。应直接解释需要告诉 Agent 早晚护肤时间或具体提醒时间，
+      并给一个简单例子；不绕回拍照、皮肤检测或工具介绍。
+    rubric:
+      - 直接回答设置方式。
+      - 可以举一个时间例子。
+      - 不重新介绍全部功能。
+      - 不切回拍照或新手期目标。
+    hard_assertions:
+      - ref: text_reply_no_skin_runtime_task_v1
+    checks:
+      - ref: reminder_setup_explains_input_format_v1
+      - ref: reminder_flow_maintains_context_v1
+
+  reminder_times_given_v1:
+    description: 用户给出早晚两个提醒时间后的承接策略。
+    editable_components: [novice_journey, soul_style]
+    expected_behavior: >
+      用户已经给出早晚两个时间。应识别并确认这两个时间，继续围绕提醒设置处理；
+      不重复询问时间，也不在未验证工具执行时空口声称已经完成设置。
+    rubric:
+      - 能识别早晚两个时间。
+      - 不再次问用户要时间。
+      - 不虚假宣称“已经设置成功”，除非运行时确有状态支持。
+      - 继续围绕护肤提醒，不跑题。
+    hard_assertions:
+      - ref: text_reply_no_skin_runtime_task_v1
+    checks:
+      - ref: reminder_time_request_understands_two_times_v1
+      - ref: reminder_creation_truthful_v1
+      - ref: reminder_flow_maintains_context_v1
+
+  reminder_missed_followup_v1:
+    description: 用户追问如果忘记护肤提醒怎么办。
+    editable_components: [novice_journey, soul_style]
+    expected_behavior: >
+      用户追问忘记提醒后的处理方式。应直接说明补救机制，
+      例如再次提醒、补记已完成、继续接上节奏；不重新介绍功能清单，不切回拍照流程。
+    rubric:
+      - 直接回答忘记后的处理方式。
+      - 延续前文“护肤提醒”的上下文。
+      - 不重新介绍全部功能。
+      - 不切到拍照、检测或护肤目标流程。
+    hard_assertions:
+      - ref: text_reply_no_skin_runtime_task_v1
+    checks:
+      - ref: reminder_missed_followup_answers_policy_v1
+      - ref: reminder_flow_maintains_context_v1

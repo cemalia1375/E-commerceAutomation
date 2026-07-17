@@ -1,0 +1,95 @@
+# Environment variables — never commit real keys
+.env
+*.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code 本地配置（仅本机生效）
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+artifacts/test-runs/
+
+# Logs
+*.log
+*.pid
+
+# Docs（本地笔记/样本/设计稿，不入库）
+docs/
+
+MD/
+
+# 本地向量库数据
+qdrant_storage/
+
+# 本地调试脚本
+dev/
+
+script/
+!script/
+script/*
+!script/runner/
+!script/runner/*.py
+# 一次性/调试脚本，不入库
+script/runner/MEM07_skin_diary_to_memory.py
+
+# Flowcut 脚本产出数据（workdir 中间数据、视频文件、perf json）
+Flowcut/scripts/spike_highlight/
+Flowcut/scripts/reverse_highlight/workdir/
+perf_highlight_*.json
+*.mp4
+script/runner/measure_skin_redundancy.py
+script/runner/real_user_skin_trend.py
+script/runner/verify_dream_skin_apply.py
+script/runner/day_cross_memory_test.py
+!script/imagegen/
+script/imagegen/*
+!script/imagegen/*.py
+!script/imagegen/*.yaml
+script/imagegen/out/
+!script/scenarios/
+script/scenarios/*
+!script/scenarios/main/
+script/scenarios/main/*
+!script/scenarios/main/M08_postprocess_profile_memory.yaml
+!script/scenarios/main/M09_memory_compression_first_diary_flow.yaml
+!script/scenarios/stress/
+script/scenarios/stress/*
+!script/scenarios/stress/*.yaml
+!script/gepa/
+script/gepa/*
+!script/gepa/cases/
+script/gepa/cases/*
+!script/gepa/cases/*.yaml
+!script/gepa/contracts/
+script/gepa/contracts/*
+!script/gepa/contracts/*.yaml

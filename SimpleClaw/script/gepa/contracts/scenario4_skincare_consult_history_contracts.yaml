@@ -1,0 +1,286 @@
+hard_assertion_library:
+  text_reply_no_image_or_deep_task_v1:
+    - reply_non_empty: true
+    - main_reply_non_empty: true
+    - no_runtime_task_created: image_analysis
+    - no_runtime_task_created: deep_research
+
+  direct_consult_no_skin_diary_handoff_v1:
+    - not_tool_called: notify_skin_diary_chat
+
+  direct_text_consult_no_skill_load_v1:
+    - not_tool_called: load_skill
+
+check_library:
+  no_ack_only_reply_v1:
+    field: main_reply
+    type: semantic
+    guidance: >
+      用户提出护肤问题时，主回复不能只停在“嗯嗯/收到/知道啦”这类接收语。
+      接住之后必须继续回应当前问题，至少给出诱因排查、当前上下文关联或下一步建议之一。
+    prompt_fix_hint: >
+      first token 可以短接住，但 main reply 必须推进问题本身；不要让主回复只剩寒暄确认。
+    positive_example: "嗯嗯，我看到你说下巴闭口又多了。我们先看最近作息、甜食和厚重面霜有没有一起影响。"
+    negative_example: "嗯嗯，收到啦。"
+    weight: 1.4
+
+  use_current_user_context_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["下巴", "痘", "闭口", "小棕瓶", "B5", "面霜", "熬夜", "加班", "甜食", "最近"]
+    guidance: >
+      新手期没有历史检测画像时，回复应使用当前对话和前文用户主动补充的信息，
+      例如下巴痘、闭口、出油、熬夜、甜食、正在用的小棕瓶/B5/厚重面霜。
+      不要假装已经看过用户历史检测或画像。
+    prompt_fix_hint: >
+      新手期护肤咨询优先接住当前问题，再结合前文用户主动说过的作息和产品信息。
+    positive_example: "下巴最近长痘，我们先看这段时间熬夜、甜食和偏厚的面霜有没有叠在一起影响。"
+    negative_example: "我看你之前检测里就是混合偏油。"
+    weight: 1.3
+
+  no_fake_history_claim_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["上次检测", "历史检测", "之前拍照", "你的画像显示", "记录里显示", "上次分析", "之前分析"]
+    guidance: >
+      本场景是新手期，没有历史图片检测或画像。回复不能伪造“上次检测/历史画像/之前拍照”的依据。
+    prompt_fix_hint: >
+      把“历史检测显示”改成“你刚才提到/你现在说/如果最近确实有这些变化”。
+    weight: 1.3
+
+  asks_lifestyle_trigger_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["熬夜", "加班", "甜食", "辛辣", "压力", "作息", "睡"]
+    guidance: >
+      面对突然爆痘或闭口增多，回复应追问或关联近期作息、压力、饮食等常见诱因，
+      但不要武断诊断。
+    prompt_fix_hint: >
+      把“痘痘怎么办”从通用建议升级为：结合当前症状 + 近期诱因排查。
+    positive_example: "最近是不是熬夜、压力大，或者甜辣吃得比较多？这些都可能让下巴更容易冒痘。"
+    negative_example: "长痘就用祛痘产品。"
+    weight: 1.1
+
+  explain_sleep_acne_link_cautiously_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["熬夜", "作息", "皮脂", "油脂", "炎症", "内分泌", "屏障"]
+    guidance: >
+      用户确认近期熬夜或加班后，回复应解释作息和痘痘/出油/炎症之间的可能关系。
+      需要用谨慎语气，不要把熬夜说成唯一确定原因。
+    prompt_fix_hint: >
+      用“可能、容易、会增加概率”表达关系，不要说“一定是熬夜导致”。
+    positive_example: "熬夜会让皮脂和炎症更容易不稳定，所以你这种混合偏油肤质下巴会更容易冒痘。"
+    negative_example: "这就是熬夜导致的。"
+    weight: 2.0
+
+  no_medical_overclaim_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["一定是", "必然是", "治好", "根治", "保证", "专业诊断", "主要原因"]
+    guidance: >
+      护肤建议不要做确定医学诊断、治疗承诺或过度因果归因。
+    prompt_fix_hint: >
+      把确定性判断改成“可能相关/容易加重/建议观察”，高风险再建议就医。
+    weight: 1.2
+
+  product_adjustment_mentions_known_products_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["小棕瓶", "B5", "面霜", "护肤柜", "正在用"]
+    guidance: >
+      用户问如何调整方案并提到现有产品时，回复应结合前文或本轮提到的用户当前产品，
+      不要只给通用护肤步骤。
+    prompt_fix_hint: >
+      新手期建议也要把“用户已提到的产品”纳入取舍，例如哪些继续、哪些避开痘痘区、哪些先暂停。
+    positive_example: "小棕瓶可以继续放在不长痘的区域，B5偏修护，但它们都不是红肿痘的处理产品。"
+    negative_example: "你先做好清洁保湿防晒。"
+    weight: 1.3
+
+  does_not_claim_products_treat_acne_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["小棕瓶可以治疗痘痘", "B5可以治疗红肿痘", "小棕瓶能治痘", "B5能治痘", "治好红肿痘"]
+    guidance: >
+      已有护肤品可以用于修护或维稳，但不要把普通精华/修护产品说成治疗红肿痘。
+    prompt_fix_hint: >
+      区分“修护屏障/不加重”与“治疗痘痘”，避免把护肤品药品化。
+    weight: 1.2
+
+  gives_practical_adjustment_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["局部", "避开", "清爽", "温和", "防晒", "早睡", "少吃甜", "油炸", "点涂"]
+    guidance: >
+      用户问具体怎么调整时，回复应给可执行的小步骤，而不是只说“注意作息、好好护肤”。
+    prompt_fix_hint: >
+      至少给出产品使用区域、清洁保湿、防晒/作息饮食中的一个具体调整。
+    positive_example: "红肿痘位置先避开厚重面霜，清洁后用轻薄保湿，痘痘区不要反复叠加精华。"
+    negative_example: "你要规律生活，保持好心情。"
+    weight: 1.2
+
+  product_use_area_guidance_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["避开", "红肿痘", "两颊", "没有长痘", "不刺激", "局部"]
+    guidance: >
+      用户追问某个已有产品能不能继续用时，应给出区域化使用建议：
+      能不能用、哪里用、哪里避开、什么情况下暂停。
+    prompt_fix_hint: >
+      不要只说“可以用/不可以用”，要说明避开红肿痘或刺激区域。
+    positive_example: "小棕瓶可以继续用在两颊和没有长痘的地方，红肿痘上先别反复叠。"
+    negative_example: "可以继续用。"
+    weight: 1.2
+
+  followup_detection_timing_v1:
+    field: main_reply
+    type: semantic
+    any_of: ["每天", "天天", "连续", "同步", "记录", "追踪", "3天", "三天", "一周", "1周", "两周", "2周", "变化", "复查", "再拍", "对比"]
+    guidance: >
+      用户问什么时候再检测时，应给一个合理的复查/追踪节奏，
+      可以鼓励短期每天或连续几天轻量拍照/同步状态，一起追踪红肿、出油、闭口变化；
+      同时区分短期痘痘观察和较完整方案调整后的对比。
+    prompt_fix_hint: >
+      给出“这几天可以每天轻量同步/拍照追踪，方案执行1-2周后做更完整对比”的节奏。
+    positive_example: "这几天可以每天拍一张或简单同步一下状态，我陪你看红肿有没有退；完整方案建议坚持1-2周后再做一次对比。"
+    negative_example: "不用总看，过段时间再说。"
+    weight: 1.1
+
+  no_repeated_photo_invite_in_short_consult_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["发张", "发一张", "拍张", "拍一张", "上传照片", "上传一张", "给我看一张", "清晰的照片", "正脸照"]
+    guidance: >
+      在同一个短咨询链路里，如果前一两轮已经低压邀请过用户发照片/自拍，
+      后续用户继续补充熬夜、产品、怎么调整、能不能用等文本问题时，不要每轮重复邀图。
+      这时应先基于用户已说的信息继续给可执行建议；照片可以留到用户问“什么时候检测/怎么追踪”时再低压提。
+    prompt_fix_hint: >
+      把重复的“方便的话发张照片”改成文本方案推进，例如先讲作息、产品区域、厚重面霜暂停和观察节奏。
+    positive_example: "那我们先按你说的熬夜和现在用的产品来调：下巴痘区先别叠太厚，B5薄涂泛红干的位置。"
+    negative_example: "要是方便的话再发张清晰照片给我看看。"
+    weight: 1.2
+
+  no_force_daily_detection_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["必须每天", "一定每天", "每天都必须", "不拍不行"]
+    guidance: >
+      可以鼓励每天或连续几天同步状态，但不要把每日拍照说成强制任务。
+    prompt_fix_hint: >
+      用“这几天我们可以每天轻量同步一下”替代“必须每天拍”。
+    weight: 1.0
+
+  no_unprompted_deep_report_promotion_without_current_photo_v1:
+    field: main_reply
+    type: lexical
+    none_of: ["深度报告", "深度报告助手", "深度分析报告"]
+    guidance: >
+      本场景是文本护肤咨询，没有本轮新自拍，用户也没有主动要求深度分析报告。
+      Agent 不应把深度报告当作每轮建议后的默认收尾，更不要连续多轮提。
+      深度报告可以在用户主动要求，或本轮上传清晰自拍且已完成基础分析后再自然提一次。
+    prompt_fix_hint: >
+      把深度报告从通用 CTA 中移除；当前轮优先直接回答用户的护肤问题、诱因排查和产品调整。
+    positive_example: "我们先把这几天的作息、甜食和厚重面霜调整一下，过几天看下巴闭口有没有缓和。"
+    negative_example: "要是想知道具体成因，也可以做个深度报告拆解下。"
+    weight: 1.2
+
+  no_skin_diary_handoff_as_direct_consult_answer_v1:
+    field: main_reply
+    type: lexical
+    none_of:
+      - "交给肌肤日记助手"
+      - "转去肌肤日记"
+      - "去【肌肤日记】页面"
+      - "去肌肤日记页面"
+      - "肌肤日记那边"
+    guidance: >
+      本场景测试的是主 Agent 对普通护肤咨询的直接回答能力。
+      用户只是问下巴痘、闭口、产品怎么调整时，不应把回答外包给肌肤日记助手。
+      肌肤日记可以在用户明确要求今日护理计划或日记解释时使用，但不能替代当前问题的直接建议。
+    prompt_fix_hint: >
+      先直接回答当前护肤问题；只有用户明确要求肌肤日记/今日护理计划，才考虑转交肌肤日记。
+    positive_example: "高保湿面霜先避开下巴闭口区，B5可以薄涂在泛红干燥的位置，小棕瓶别叠在红肿痘上反复刺激。"
+    negative_example: "我帮你转去肌肤日记助手，它会给你具体安排。"
+    weight: 1.3
+
+behavior_contracts:
+  acne_consult_with_history_v1:
+    description: 新手期用户咨询近期下巴爆痘时的入口策略。
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: >
+      先接住用户当前困扰，再轻问近期作息、压力、饮食等诱因。
+      可以低压邀请后续拍照/同步状态，但不要假装已有历史检测，也不要武断诊断。
+    hard_assertions:
+      - ref: text_reply_no_image_or_deep_task_v1
+    checks:
+      - ref: no_ack_only_reply_v1
+      - ref: use_current_user_context_v1
+      - ref: no_fake_history_claim_v1
+      - ref: asks_lifestyle_trigger_v1
+      - ref: no_medical_overclaim_v1
+      - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+  lifestyle_trigger_explanation_v1:
+    description: 用户确认近期加班熬夜后，解释作息和爆痘关系。
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: >
+      结合用户当前说的下巴痘/闭口和熬夜，解释作息和皮脂、炎症、屏障状态的可能关系；
+      语气要谨慎，不做确定诊断。
+    hard_assertions:
+      - ref: text_reply_no_image_or_deep_task_v1
+    checks:
+      - ref: no_ack_only_reply_v1
+      - ref: explain_sleep_acne_link_cautiously_v1
+      - ref: no_medical_overclaim_v1
+      - ref: no_repeated_photo_invite_in_short_consult_v1
+      - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+
+  routine_adjustment_with_products_v1:
+    description: 用户问如何调整方案并提到现有产品。
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: >
+      给出可执行的调整建议，并结合已有产品说明继续、避开或暂停的边界；
+      不把普通护肤品说成治疗红肿痘。
+    hard_assertions:
+      - ref: text_reply_no_image_or_deep_task_v1
+      - ref: direct_consult_no_skin_diary_handoff_v1
+    checks:
+      - ref: no_ack_only_reply_v1
+      - ref: product_adjustment_mentions_known_products_v1
+      - ref: gives_practical_adjustment_v1
+      - ref: does_not_claim_products_treat_acne_v1
+      - ref: no_medical_overclaim_v1
+      - ref: no_repeated_photo_invite_in_short_consult_v1
+      - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+      - ref: no_skin_diary_handoff_as_direct_consult_answer_v1
+
+  product_area_usage_followup_v1:
+    description: 用户追问小棕瓶还能不能继续用。
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: >
+      回答能不能继续用，并说明适合使用的区域、需要避开的红肿痘区域，以及刺激时暂停。
+    hard_assertions:
+      - ref: text_reply_no_image_or_deep_task_v1
+      - ref: direct_consult_no_skin_diary_handoff_v1
+    checks:
+      - ref: no_ack_only_reply_v1
+      - ref: product_adjustment_mentions_known_products_v1
+      - ref: product_use_area_guidance_v1
+      - ref: does_not_claim_products_treat_acne_v1
+      - ref: no_repeated_photo_invite_in_short_consult_v1
+      - ref: no_unprompted_deep_report_promotion_without_current_photo_v1
+      - ref: no_skin_diary_handoff_as_direct_consult_answer_v1
+
+  followup_detection_timing_answer_v1:
+    description: 用户询问什么时候再做皮肤检测。
+    editable_components: [main_agent, tool_rules, novice_journey, soul_style]
+    expected_behavior: >
+      给出低压的复查/追踪节奏：短期可以看红肿变化，方案执行一段时间后再做完整对比；
+      不强迫每天检测。
+    hard_assertions:
+      - ref: text_reply_no_image_or_deep_task_v1
+    checks:
+      - ref: no_ack_only_reply_v1
+      - ref: followup_detection_timing_v1
+      - ref: no_force_daily_detection_v1
+      - ref: no_unprompted_deep_report_promotion_without_current_photo_v1

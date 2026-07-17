@@ -1,0 +1,170 @@
+id: scenario_explore_late_night_clogged_pores_v1
+name: scenario_explore_late_night_clogged_pores_v1_multi_turn
+objective: |
+  用“探索期用户熬夜赶项目后出油、额头闭口变多→今晚救急→护肤柜产品取舍”的小型多轮流，
+  测试主 Agent 在已经认识用户之后，是否能自然使用历史肤况和护肤柜信息。
+
+  这不是测试真实图片分析、肌肤日记生成或深度报告链路。
+  重点是：
+  用户已经有历史记录和护肤柜，Agent 不需要从零问；
+  但当前问题仍然优先，历史只能轻轻辅助；
+  用户今天状态变化明显时，可以低压建议补当前自拍；
+  用户不拍时，继续基于旧记录和文本信息给可执行建议；
+  护肤柜产品要自然参与方案，但不要把工具神圣化或每轮推报告。
+background: |
+  本 case 来源于 MD/关于探索期.md 的“场景1：熬夜赶项目后皮肤出油爆闭口”。
+  它是 trajectory eval：同一个 example 下的 turns 会在同一 tenant/session 顺序执行。
+
+  当前优化主回复相关组件：
+  1. main_agent：当前问题优先、历史使用边界、工具边界。
+  2. tool_rules：避免普通咨询被工具/报告神圣化。
+  3. explore_journey：探索期历史、肌肤日记、护肤柜、深度报告的自然使用方式。
+  4. soul_style：熟悉后的语气、轻提醒、不说教。
+
+  注意：本 case 不要求真实触发图片分析、肌肤日记、深度报告或护肤柜流程。
+agent: main
+initial_stage: explore
+wait_side_effects_s: 1
+target_score: 0.94
+score_weights:
+  hard: 0.55
+  behavior: 0.45
+
+prompt_candidates:
+  - id: main_agent
+    path: Mojing/workspace/Agent.md
+    role: 全局对话策略、当前上下文使用、历史与工具边界。
+  - id: tool_rules
+    path: Mojing/workspace/TOOL.md
+    role: 工具触发边界、专项助手派发分寸、避免工具神圣化。
+  - id: explore_journey
+    path: "Mojing/workspace/ journey/explore.md"
+    role: 探索期历史轻用、肌肤日记/护肤柜/深度报告自然出现的分寸。
+  - id: soul_style
+    path: Mojing/workspace/SOUL.md
+    role: 熟悉后的语气、亲密度、轻提醒和不说教表达。
+
+seed:
+  docs:
+    USER.md: |
+      # 用户画像
+      用户已经过新手期，完成过自拍基础分析和首次肌肤日记。
+      Agent 可以使用历史信息，但必须先回应当前问题；不要把历史当成刚刚这次的新结果。
+
+      ## Recent Skin Profile
+      - 最近一次基础分析：2026-05-26。
+      - 额头：轻度闭口倾向。
+      - 鼻子和眉心：T 区容易出油，鼻子有轻度黑头和毛孔粗大。
+      - 两颊：整体较稳定，但屏障偏容易受熬夜和功效叠加影响。
+
+      ## Skincare Cabinet Snapshot
+      - 水杨酸精华：用户用于T区控油和闭口护理，容易用多后拔干。
+      - 神经酰胺面霜：用户用于修护保湿，两颊适合，T区厚涂容易闷。
+      - 烟酰胺精华：用户用于控油提亮，但闭口爆发时不适合叠太多功效。
+
+      ## Lifestyle Notes
+      - 用户近期工作项目忙，容易熬夜。
+      - 用户喜欢具体、能马上照做的建议，不喜欢被流程和报告压住。
+
+contract_sources:
+  - ../contracts/scenario_explore_late_night_clogged_pores_contracts.yaml
+
+examples:
+  - id: late_night_project_oil_closed_comedones
+    split: dfeedback
+    editable_components: [main_agent, tool_rules, explore_journey, soul_style]
+    expected_behavior: |
+      用户已经进入探索期，有历史肤况和护肤柜信息。
+      用户先说熬夜赶项目后额头闭口、T区出油；随后补充熬到一两点甚至三点；
+      接着拒绝先拍照，只想先知道今晚怎么救急；最后问护肤柜里的烟酰胺今天能不能用。
+
+      Agent 应先接住当前问题，轻轻使用历史记录；
+      可以低压建议补当前自拍，但用户不拍时继续给文本方案；
+      方案要自然结合水杨酸、神经酰胺面霜、烟酰胺；
+      不要每轮重复邀图，不要把普通产品问题转成肌肤日记或深度报告。
+    rubric:
+      - 第一轮接住熬夜后闭口和出油，轻用历史，追问或承接熬夜细节，可低压建议当前自拍。
+      - 第二轮谨慎解释熬夜和出油/闭口/炎症不稳定之间的可能关系。
+      - 第三轮接受用户先不拍，给今晚可执行的分区救急方案，结合已有护肤柜产品。
+      - 第四轮直接回答烟酰胺今天能不能用，说明先暂停/区域/恢复条件。
+      - 全程不把深度报告当默认收尾，不把肌肤日记当普通咨询的替代答案。
+    turns:
+      - id: late_night_skin_flare
+        user_query: "救命啊，我这两天熬夜赶项目，今天起来额头冒了好几个闭口，T区油得发亮"
+        hard_assertions:
+          - ref: explore_text_reply_no_background_task_v1
+          - ref: explore_direct_reply_no_skill_handoff_v1
+        behavior_checks:
+          - ref: explore_current_problem_first_v1
+          - ref: explore_light_history_use_v1
+          - ref: explore_asks_sleep_detail_v1
+          - ref: explore_current_selfie_invite_low_pressure_v1
+          - ref: explore_no_tool_sacralization_v1
+
+      - id: confirms_late_sleep
+        user_query: "基本都是一两点才睡，有时候三点多，早上起来脸都没法看"
+        hard_assertions:
+          - ref: explore_text_reply_no_background_task_v1
+          - ref: explore_direct_reply_no_skill_handoff_v1
+        behavior_checks:
+          - ref: explore_current_problem_first_v1
+          - ref: explore_explain_late_sleep_oil_link_v1
+          - ref: explore_no_repeated_photo_invite_v1
+          - ref: explore_no_tool_sacralization_v1
+
+      - id: asks_tonight_rescue_without_photo
+        user_query: "我现在先不拍，先告诉我今晚怎么救一下吧"
+        hard_assertions:
+          - ref: explore_text_reply_no_background_task_v1
+          - ref: explore_direct_reply_no_skill_handoff_v1
+        behavior_checks:
+          - ref: explore_uses_known_cabinet_products_v1
+          - ref: explore_product_boundary_for_breakout_v1
+          - ref: explore_no_repeated_photo_invite_v1
+          - ref: explore_no_tool_sacralization_v1
+
+      - id: asks_niacinamide_use
+        user_query: "行，我先按这个来。对了，我护肤柜里那瓶烟酰胺精华今天能用吗？"
+        hard_assertions:
+          - ref: explore_text_reply_no_background_task_v1
+          - ref: explore_direct_reply_no_skill_handoff_v1
+        behavior_checks:
+          - ref: explore_uses_known_cabinet_products_v1
+          - ref: explore_product_boundary_for_breakout_v1
+          - ref: explore_diary_mention_only_when_relevant_v1
+          - ref: explore_no_tool_sacralization_v1
+
+  - id: late_night_flare_no_tool_variant
+    split: dpareto
+    editable_components: [main_agent, tool_rules, explore_journey, soul_style]
+    expected_behavior: |
+      同样是探索期熬夜爆闭口，但用户更明确拒绝流程，只想得到简短建议。
+      Agent 应减少工具感，直接给今晚方案和明早注意点。
+    rubric:
+      - 尊重用户不想走流程。
+      - 不重复邀图。
+      - 结合已有水杨酸和神经酰胺面霜。
+      - 不提深度报告，不把肌肤日记当结尾。
+    turns:
+      - id: flare_short_help
+        user_query: "这两天熬夜之后额头闭口又起来了，T区也很油，但我今天不想拍照，你直接告诉我今晚怎么弄"
+        hard_assertions:
+          - ref: explore_text_reply_no_background_task_v1
+          - ref: explore_direct_reply_no_skill_handoff_v1
+        behavior_checks:
+          - ref: explore_current_problem_first_v1
+          - ref: explore_light_history_use_v1
+          - ref: explore_uses_known_cabinet_products_v1
+          - ref: explore_product_boundary_for_breakout_v1
+          - ref: explore_no_repeated_photo_invite_v1
+          - ref: explore_no_tool_sacralization_v1
+
+      - id: asks_next_day_continue
+        user_query: "明天还要继续熬夜怎么办啊"
+        hard_assertions:
+          - ref: explore_text_reply_no_background_task_v1
+          - ref: explore_direct_reply_no_skill_handoff_v1
+        behavior_checks:
+          - ref: explore_explain_late_sleep_oil_link_v1
+          - ref: explore_uses_known_cabinet_products_v1
+          - ref: explore_no_tool_sacralization_v1

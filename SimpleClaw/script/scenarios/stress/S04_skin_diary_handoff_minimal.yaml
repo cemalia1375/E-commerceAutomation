@@ -1,0 +1,406 @@
+id: S04_skin_diary_handoff_minimal
+name: stress_skin_diary_handoff_minimal
+description: 最小肌肤日记 handoff 冒烟测试：不注入 seed/mock。先验证无图片分析时 handoff 被 readiness gate deferred；再上传真实自拍后不等待异步完成，继续痘痘咨询、护肤品调研、入柜承诺、肌肤日记刷新和后台完成观测链路。
+agent: main
+initial_stage: novice
+wait_side_effects_s: 3
+session:
+  reuse: false
+  subscriptions:
+    - "main:{tenant_key}"
+    - "skin_diary:{tenant_key}"
+
+turns:
+  - user: "帮我触发肌肤日记。"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: notify_skin_diary_chat
+      - no_runtime_task_created: subagent_dispatch
+      - no_runtime_task_created: skin_diary_generation
+      - not_tool_called: analyze_image
+      - not_tool_called: deep_report_chat
+
+  - user: ""
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/user290_face_20260406.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 60
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: analyze_image
+      - runtime_task_created: image_analysis
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+
+  - user: "我感觉最近有点冒痘痘"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+
+  - user: "关于痘痘的话有什么好的办法呢？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+
+  - user: "我最近在用一款护肤品"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+
+  - user: ""
+    phase: measured
+    measure: true
+    media:
+      - "https://mojing-photo-cat.tos-cn-guangzhou.volces.com/test-photos/20260512-172434.png"
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: load_skill
+      - not_tool_called: lookup_skincare_cabinet_product_status
+      - not_tool_called: research_skincare_product
+      - not_tool_called: analyze_image
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+
+  - user: "最近在用，但感觉是不是方法不对"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: lookup_skincare_cabinet_product_status
+      - not_tool_called: research_skincare_product
+      - not_tool_called: analyze_image
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "可以帮我调研一下"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: research_skincare_product
+      - runtime_task_created: cabinet_product_research
+      - not_tool_called: analyze_image
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+
+  - user: "我的肌肤日记好了吗"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "那我的痘痘怎么处理呢？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "感觉我还有黑眼圈"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "肌肤日记是干嘛的呢？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "我没有看到肌肤日记呀，你是不是在骗我"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: check_runtime_status
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "帮我将刚刚的护肤品入柜吧"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "是呀是呀"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "我感觉痘痘确实不太好处理，还有什么好的办法吗？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "确实有些恼火"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "有没有什么好的办法可以帮我解决一下痘痘问题呢，确实很难受"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "那你帮我处理一下吧"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+      - no_runtime_task_created: skin_diary_generation
+
+  - user: "对了，帮我在更新一份肌肤日记吧"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: notify_skin_diary_chat
+      - runtime_task_created: subagent_dispatch
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+
+  - user: "说实话，你觉得我的皮肤怎么样？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+
+  - user: "刚刚肌肤日记好了吗？"
+    phase: measured
+    measure: true
+    capture_prompt: true
+    capture_prompt_chars: 50000
+    wait_side_effects_s: 1
+    hard_assertions:
+      - reply_non_empty: true
+      - first_token_non_empty: true
+      - main_reply_non_empty: true
+      - tool_called: check_runtime_status
+      - not_tool_called: analyze_image
+      - not_tool_called: research_skincare_product
+      - not_tool_called: notify_skin_diary_chat
+      - not_tool_called: deep_report_chat
+      - no_runtime_task_created: image_analysis
+      - no_runtime_task_created: cabinet_product_research
+
+  - user: "[scenario_action] wait 5min for refreshed skin diary"
+    phase: setup
+    measure: false
+    scenario_action:
+      name: wait_for_side_effects
+    wait_side_effects_s: 300
+    wait_until_timeout_s: 10
+    wait_until_interval_s: 2
+    wait_until:
+      - runtime_task_created: skin_diary_generation
+      - skin_diary_result_created: true
+    hard_assertions:
+      - reply_non_empty: true
+      - runtime_task_created: skin_diary_generation
+      - skin_diary_result_created: true
